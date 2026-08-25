@@ -239,22 +239,24 @@ const RESULT_SCHEMA = {
   },
 } as const
 
-/** Register the security_scan tool plus its system-prompt section. */
-export function apply(ctx: Context, config: Config): void {
-  const resolved = config as ResolvedConfig & { scanners: Partial<Record<SecurityScannerId, boolean>> }
-  assertPositiveInteger('timeoutMs', resolved.timeoutMs)
-  assertPositiveInteger('maxOutputChars', resolved.maxOutputChars)
+/** Bound scan operation handed to the tool factory (the runtime's entry point). */
+export type ScanOperation = (request: import('@deepseek-ai/dsh-security-scan').SecurityScanRequest, signal?: AbortSignal) => Promise<SecurityScanResult>
 
-  const enabled = SECURITY_SCANNER_IDS.filter(scanner => resolved.scanners[scanner] !== false)
-  if (enabled.length === 0) return
-
-  ctx.systemPrompt.section({
-    name: 'tool:security_scan',
-    order: 112,
-    text: SECURITY_SCAN_PROMPT_TEXT,
-  })
-
-  ctx.tools.register(defineTool({
+/**
+ * Build the tool definition. Split from {@link apply} so tests can drive the
+ * exact registered body against a scripted scan operation.
+ *
+ * @param enabled - scanner ids exposed in the enum (config-filtered).
+ * @param budgets - cooperative timeout and output-cap values.
+ * @param scan - the bound `ctx.securityScan.scan` operation.
+ * @returns the registry-ready definition.
+ */
+export function createSecurityScanTool(
+  enabled: readonly SecurityScannerId[],
+  budgets: { readonly timeoutMs: number; readonly maxOutputChars: number },
+  scan: ScanOperation,
+): ReturnType<typeof defineTool> {
+  return defineTool({
     name: 'security_scan',
     description:
       'Run an authorized security scanner against allowlisted targets you own. '
@@ -281,25 +283,47 @@ export function apply(ctx: Context, config: Config): void {
     },
     output: {
       schema: RESULT_SCHEMA,
-      render: (_args, value) => [{ type: 'text', text: computeScanOutput(value, resolved.maxOutputChars).text }],
-      presentationMeta: (args, value) => metaFromValue(args.targets.length, value, resolved.maxOutputChars),
+      render: (_args, value) => [{ type: 'text', text: computeScanOutput(value, budgets.maxOutputChars).text }],
+      presentationMeta: (args, value) => metaFromValue(args.targets.length, value, budgets.maxOutputChars),
     },
-    timeoutMs: resolved.timeoutMs,
+    timeoutMs: budgets.timeoutMs,
     // Scans load the target; keep them exclusive among sibling calls.
     isConcurrencySafe: () => false,
     async execute(args, exec) {
-      const result = await ctx.securityScan.scan(
+      return await scan(
         {
           scanner: args.scanner,
           targets: args.targets,
           ...(args.options !== undefined ? { options: toOptionValues(args.options) } : {}),
         },
         exec.signal,
-      )
+      ).then(result => ({ ...result, argv: [...result.argv] }))
       // Detach to the canonical shape: the schema's argv is a mutable array.
       return { ...result, argv: [...result.argv] }
     },
     presentCall,
     presentResult,
-  }))
+  })
+}
+
+/** Register the security_scan tool plus its system-prompt section. */
+export function apply(ctx: Context, config: Config): void {
+  const resolved = config as ResolvedConfig & { scanners: Partial<Record<SecurityScannerId, boolean>> }
+  assertPositiveInteger('timeoutMs', resolved.timeoutMs)
+  assertPositiveInteger('maxOutputChars', resolved.maxOutputChars)
+
+  const enabled = SECURITY_SCANNER_IDS.filter(scanner => resolved.scanners[scanner] !== false)
+  if (enabled.length === 0) return
+
+  ctx.systemPrompt.section({
+    name: 'tool:security_scan',
+    order: 112,
+    text: SECURITY_SCAN_PROMPT_TEXT,
+  })
+
+  ctx.tools.register(createSecurityScanTool(
+    enabled,
+    { timeoutMs: resolved.timeoutMs, maxOutputChars: resolved.maxOutputChars },
+    (request, signal) => ctx.securityScan.scan(request, signal),
+  ))
 }
