@@ -1,0 +1,8 @@
+{
+  "steps": [
+    {
+      "op": "prompt",
+      "text": "Run an authorized nuclei scan against our staging host https://stub.test/ and summarize the outcome."
+    }
+  ]
+}

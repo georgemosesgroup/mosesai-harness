@@ -1,3 +1,4 @@
+import { chmodSync, copyFileSync, existsSync, mkdirSync } from 'node:fs'
 import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
@@ -60,6 +61,17 @@ const headlessOverlayPath = fileURLToPath(new URL('./fixtures/headless-profile.c
 const headlessSessionExpected = join(snapshotsDir, 'headless-profile', 'session.expected.jsonl')
 const headlessFailureExpected = join(snapshotsDir, 'headless-profile', 'stderr.expected.txt')
 const cliMockLlmPluginPath = fileURLToPath(new URL('./fixtures/cli-mock-llm.ts', import.meta.url))
+const securityScenarioDir = join(snapshotsDir, 'security-scan')
+const securityStreamExpected = join(securityScenarioDir, 'stream-json.expected.jsonl')
+const securitySessionFixture = join(securityScenarioDir, 'session.jsonl')
+const securityConfigPath = fileURLToPath(new URL('../security-scan.cordis.snapshot.yml', import.meta.url))
+// The provider resolves its pinned binary against the generated cwd, so the
+// smoke's prepare hook copies the executable stub there before boot.
+const scannerStubSource = fileURLToPath(new URL(
+  '../../../packages/security/security-scan-local/tests/fixtures/bin/scanner-stub',
+  import.meta.url,
+))
+
 const refreshing = process.env.DSH_SNAPSHOT === 'refresh'
 
 interface JsonObject {
@@ -1004,5 +1016,68 @@ describe('headless stream-json snapshots', () => {
     const normalized = normalizeHeadlessStream(result.stdout, runCwd)
     if (refreshing) await writeFile(ptyStreamExpected, normalized)
     expect(normalized).toBe(await readFile(ptyStreamExpected, 'utf8'))
+  }, LOADER_SMOKE_TEST_TIMEOUT_MS)
+})
+
+describe('headless security-scan snapshot', () => {
+  it('pins the security_scan schema and prompt section through an assembled turn', async () => {
+    const prompt = await scenarioPrompt(securityScenarioDir, 'security-scan')
+    const recording = process.env.DSH_SNAPSHOT === 'record' || refreshing
+      || !existsSync(securitySessionFixture)
+    let runCwd = ''
+    let persistedContent = ''
+    const result = await runLoaderSmoke({
+      label: 'security-scan headless stream-json snapshot',
+      tempDirPrefix: 'headless-snapshot-security-scan-',
+      binScript,
+      libBinScript: binScript,
+      configPath: securityConfigPath,
+      binArgs: [securityConfigPath, prompt],
+      tsconfigPath,
+      env: {
+        DSH_SNAPSHOT: 'replay',
+        NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
+      },
+      prepare: (cwd) => {
+        runCwd = cwd
+        copyFileSync(scannerStubSource, join(cwd, 'scanner-stub'))
+        chmodSync(join(cwd, 'scanner-stub'), 0o755)
+        mkdirSync(join(cwd, '.sessions'), { recursive: true })
+      },
+      inspect: async (cwd) => {
+        const harvested = await persistedLogs(cwd)
+        expect(harvested).toHaveLength(1)
+        persistedContent = harvested[0]?.content ?? ''
+      },
+    })
+
+    expect(result.stderr).toBe('')
+    const context = contextFromLogs([persistedContent])
+    // The stub's wall-clock scan duration leaks into rendered tool text; it is
+    // presentation noise, so both surfaces get it stabilized before comparing.
+    const stabilizeDuration = (value: string): string => value.replace(/\(\d+(?:\.\d+)?s\)/gu, '(0s)')
+    const normalizedStream = stabilizeDuration(normalizeHeadlessStream(result.stdout, runCwd))
+    const normalizedSession = stabilizeDuration(normalizeSessionSnapshot(persistedContent, context))
+
+    if (recording) {
+      mkdirSync(securityScenarioDir, { recursive: true })
+      await writeFile(securitySessionFixture, normalizedSession)
+      await writeFile(securityStreamExpected, normalizedStream)
+    }
+
+    expect(existsSync(securityStreamExpected), 'stream fixture must exist').toBe(true)
+    expect(existsSync(securitySessionFixture), 'session fixture must exist').toBe(true)
+    expect(normalizedStream).toBe(await readFile(securityStreamExpected, 'utf8'))
+    expect(normalizedSession).toBe(await readFile(securitySessionFixture, 'utf8'))
+
+    // Model-visible seam facts pinned by the committed fixtures: the tool
+    // call with allowlisted targets, its structured result meta (scanner,
+    // exitCode, outputTruncated), and the model's final answer quoting it.
+    // Full request-header pinning (prompt section + schema bytes) belongs to
+    // the ACP lane, whose recording needs a provider key.
+    expect(normalizedStream).toContain('security_scan')
+    expect(normalizedStream).toContain('stub.test')
+    expect(normalizedStream).toContain('"exitCode":0')
+    expect(normalizedStream).toContain('Authorized scan finished')
   }, LOADER_SMOKE_TEST_TIMEOUT_MS)
 })
