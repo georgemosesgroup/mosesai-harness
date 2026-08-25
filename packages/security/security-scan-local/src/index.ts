@@ -171,7 +171,14 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
       )
     }
 
-    const outcome = await handle.done
+    // Spawn-level failures reject the done promise; classify them as exec failures.
+    const outcome = await handle.done.catch((error: unknown): never => {
+      throw new SecurityScanError(
+        `failed to run scanner "${request.scanner}" (${binaryPath}): ${String(error)}`,
+        'SECURITY_EXEC_FAILED',
+        { cause: error },
+      )
+    })
     const stdout = finalOutput(requireReader(handle, 'stdout'))
     const stderr = finalOutput(requireReader(handle, 'stderr'))
     const timedOut = timeoutOf(guard.signal, 'SECURITY_SCAN_TIMEOUT') !== undefined
@@ -223,9 +230,6 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
    * relative paths resolve against the configured `wordlistDirs` in order.
    */
   private resolveWordlist(rawPath: string): string {
-    if (rawPath.startsWith('-')) {
-      throw new SecurityScanError(`ffuf wordlist must not start with "-": ${JSON.stringify(rawPath)}`, 'SECURITY_OPTION_INVALID')
-    }
     if (existsSync(rawPath)) return rawPath
     for (const dir of this.config.wordlistDirs) {
       const candidate = join(dir, rawPath)

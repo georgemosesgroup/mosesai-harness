@@ -227,7 +227,11 @@ export function planScanArgv(
     const rule = spec.options[name]
     if (rule === undefined) throw optionUnknown(scanner, name, allowedNames)
     if (name === 'wordlist') {
-      const resolvedPath = resolveWordlist(String(raw))
+      const requestedPath = String(raw)
+      if (requestedPath.startsWith('-')) {
+        throw optionInvalid(scanner, `wordlist must not start with "-": ${JSON.stringify(requestedPath)}`)
+      }
+      const resolvedPath = resolveWordlist(requestedPath)
       flags.push('-w')
       flags.push(resolvedPath)
       continue

@@ -1,0 +1,16 @@
+#!/usr/bin/env sh
+# Test double for the scanner CLI binaries. Behavior is environment-driven:
+#   STUB_EXIT           process exit code (default 0)
+#   STUB_SLEEP_SECONDS  fractional seconds to sleep before exiting
+#   STUB_STDOUT         text written to stdout
+#   STUB_STDERR         text written to stderr
+#   STUB_ARGV=1         echo one argv element per line before anything else
+if [ "${STUB_ARGV:-0}" = "1" ]; then
+  for arg in "$@"; do
+    printf '%s\n' "$arg"
+  done
+fi
+if [ -n "${STUB_STDOUT:-}" ]; then printf '%s' "$STUB_STDOUT"; fi
+if [ -n "${STUB_STDERR:-}" ]; then printf '%s' "$STUB_STDERR" >&2; fi
+if [ -n "${STUB_SLEEP_SECONDS:-}" ]; then sleep "$STUB_SLEEP_SECONDS"; fi
+exit "${STUB_EXIT:-0}"
