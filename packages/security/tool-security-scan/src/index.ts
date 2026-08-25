@@ -18,6 +18,8 @@ import { SECURITY_SCANNER_IDS } from '@deepseek-ai/dsh-security-scan'
 import type {
   ScanOutput,
   SecurityScanOptionValue,
+  SecurityScanRequest,
+  SecurityScanResult,
   SecurityScannerId,
 } from '@deepseek-ai/dsh-security-scan'
 import { defineTool } from '@deepseek-ai/dsh-tools'
@@ -240,7 +242,7 @@ const RESULT_SCHEMA = {
 } as const
 
 /** Bound scan operation handed to the tool factory (the runtime's entry point). */
-export type ScanOperation = (request: import('@deepseek-ai/dsh-security-scan').SecurityScanRequest, signal?: AbortSignal) => Promise<SecurityScanResult>
+export type ScanOperation = (request: SecurityScanRequest, signal?: AbortSignal) => Promise<SecurityScanResult>
 
 /**
  * Build the tool definition. Split from {@link apply} so tests can drive the
@@ -290,14 +292,14 @@ export function createSecurityScanTool(
     // Scans load the target; keep them exclusive among sibling calls.
     isConcurrencySafe: () => false,
     async execute(args, exec) {
-      return await scan(
+      const result = await scan(
         {
           scanner: args.scanner,
           targets: args.targets,
           ...(args.options !== undefined ? { options: toOptionValues(args.options) } : {}),
         },
         exec.signal,
-      ).then(result => ({ ...result, argv: [...result.argv] }))
+      )
       // Detach to the canonical shape: the schema's argv is a mutable array.
       return { ...result, argv: [...result.argv] }
     },
