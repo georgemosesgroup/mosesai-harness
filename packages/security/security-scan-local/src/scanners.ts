@@ -41,6 +41,9 @@ function assertSafeValue(scanner: string, name: string, value: string): void {
 const NUCLEI_SEVERITIES = ['info', 'low', 'medium', 'high', 'critical'] as const
 
 /** The per-scanner whitelists. Keys are the model-facing option names. */
+/** Runtime lookup keyed loosely so a miss is representable (Map.get → undefined). */
+const SPEC_LOOKUP = new Map<string, ScannerSpec>()
+
 export const SCANNER_SPECS: Readonly<Record<SecurityScannerId, ScannerSpec>> = {
   nuclei: {
     targets: { mode: 'positional' },
@@ -87,7 +90,7 @@ export const SCANNER_SPECS: Readonly<Record<SecurityScannerId, ScannerSpec>> = {
   ffuf: {
     targets: { mode: 'none' },
     options: {
-      url: { kind: 'string', flag: '-u' },
+      url: { kind: 'string', flag: '-u', requiresFuzz: true },
       wordlist: { kind: 'string', flag: '-w' },
       matchStatusCodes: { kind: 'string', flag: '-mc' },
       filterStatusCodes: { kind: 'string', flag: '-fc' },
@@ -128,6 +131,10 @@ export const SCANNER_SPECS: Readonly<Record<SecurityScannerId, ScannerSpec>> = {
   },
 }
 
+for (const [id, scannerSpec] of Object.entries(SCANNER_SPECS)) {
+  SPEC_LOOKUP.set(id, scannerSpec)
+}
+
 /** Render one option into flag tokens; appends nothing for a false boolean. */
 function renderOption(scanner: SecurityScannerId, name: string, rule: OptionRule, raw: unknown, push: (token: string) => void): void {
   switch (rule.kind) {
@@ -153,7 +160,7 @@ function renderOption(scanner: SecurityScannerId, name: string, rule: OptionRule
     case 'string': {
       if (typeof raw !== 'string') throw optionInvalid(scanner, `option "${name}" requires a string`)
       assertSafeValue(scanner, name, raw)
-      if (rule.flag === '-u' && !raw.includes('FUZZ')) {
+      if (rule.requiresFuzz === true && !raw.includes('FUZZ')) {
         throw optionInvalid(scanner, 'ffuf url must contain the FUZZ keyword')
       }
       push(rule.flag)
@@ -199,8 +206,9 @@ export function planScanArgv(
   options: Readonly<Record<string, unknown>> | undefined,
   resolveWordlist: WordlistResolver,
 ): ScanArgvPlan {
-  const spec = SCANNER_SPECS[scanner]
-  if (spec === undefined) throw optionUnknown(scanner, '', Object.keys(SCANNER_SPECS))
+  // Map lookup keeps the miss case real for types and lint alike.
+  const spec = SPEC_LOOKUP.get(scanner)
+  if (spec === undefined) throw optionUnknown(scanner, '', [...SPEC_LOOKUP.keys()])
   const supplied = options ?? {}
   const merged: Record<string, unknown> = { ...spec.defaults, ...supplied }
 

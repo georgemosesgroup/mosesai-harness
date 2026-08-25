@@ -203,7 +203,8 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
   private binaryPath(scanner: SecurityScannerId): string | undefined {
     const pinned = this.config.binPaths?.[scanner]
     if (pinned !== undefined) return isExecutable(pinned) ? pinned : undefined
-    return findOnPath(scanner, (process.env.PATH ?? '').split(':').filter(entry => entry.length > 0))
+    const segments = (process.env.PATH ?? '').split(':').filter(entry => entry.length > 0)
+    return findOnPath(scanner, segments)
   }
 
   private requireBinary(scanner: SecurityScannerId): string {
@@ -226,7 +227,7 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
       throw new SecurityScanError(`ffuf wordlist must not start with "-": ${JSON.stringify(rawPath)}`, 'SECURITY_OPTION_INVALID')
     }
     if (existsSync(rawPath)) return rawPath
-    for (const dir of this.config.wordlistDirs ?? []) {
+    for (const dir of this.config.wordlistDirs) {
       const candidate = join(dir, rawPath)
       if (existsSync(candidate)) return candidate
     }

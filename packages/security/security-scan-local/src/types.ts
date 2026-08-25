@@ -18,7 +18,7 @@ export interface TargetPlacement {
 
 /** One whitelisted option: its CLI flag and the value rule it accepts. */
 export type OptionRule =
-  | { readonly kind: 'string'; readonly flag: string }
+  | { readonly kind: 'string'; readonly flag: string; readonly requiresFuzz?: true }
   | { readonly kind: 'int'; readonly flag: string; readonly min?: number; readonly max?: number }
   | { readonly kind: 'boolean'; readonly flag: string }
   | { readonly kind: 'csv'; readonly flag: string; readonly values?: readonly string[] }

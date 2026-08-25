@@ -27,7 +27,8 @@ export type AllowlistEntry =
 /** Valid ASCII hostname (at least one label; labels 1..63, no leading/trailing hyphen). */
 const HOSTNAME_RE = /^(?!-)[a-z0-9-]{1,63}(?<!-)(\.(?!-)[a-z0-9-]{1,63}(?<!-))*$/
 
-const IPV4_RE = /^(\d{1,3})(\.\d{1,3}){3}$/
+/** One explicit capture per octet — a quantified group would keep only its last repetition. */
+const IPV4_RE = /^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/
 
 /** Byte-wise comparison for equal-length address arrays. */
 function bytesEqual(left: Uint8Array, right: Uint8Array): boolean {
@@ -169,7 +170,6 @@ function applyMask(bytes: Uint8Array, prefix: number): Uint8Array {
 export function parseAllowlistEntry(entry: string): AllowlistEntry {
   const text = entry.trim().toLowerCase()
   if (text.length === 0) throw invalidEntry(-1, 'empty')
-  if (/[\s/?#@%*]/u.test(text)) throw invalidEntry(-1, `unsupported character in "${entry.trim()}"`)
   if (!/^[\x21-\x7e]+$/u.test(text)) throw invalidEntry(-1, `non-ASCII in "${entry.trim()}"`)
 
   const cidrV4 = parseIpv4Cidr(text)
@@ -256,7 +256,8 @@ export function normalizeTarget(raw: string): string {
       throw targetInvalid(raw, 'unparseable URL', error)
     }
     if (url.username !== '' || url.password !== '') throw targetInvalid(raw, 'userinfo in URL')
-    return finishHost(url.hostname)
+    // WHATWG hostname keeps brackets around IPv6 literals; the bare form is canonical here.
+    return finishHost(url.hostname.replace(/^\[/u, '').replace(/\]$/u, ''))
   }
 
   if (text.startsWith('[')) {
