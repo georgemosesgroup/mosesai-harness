@@ -627,5 +627,3 @@ export function createPeekTools(
 
   return tools
 }
-
-export default apply
