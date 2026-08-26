@@ -31,8 +31,8 @@ describe('resolveConfig', () => {
 describe('peek tools with mocked seam', () => {
   it('list returns empty when no sessions', async () => {
     const seam = makeSeam()
-    const tools = createPeekTools(seam, cfg)
-    const value = await (tools[0]!.execute)({}, exec)
+    const tools = createPeekTools(seam as never, cfg)
+    const value = await (tools[0]!.execute)({}, exec as never)
     expect(value).toMatchObject({ totalKnown: 0, returned: 0 })
   })
 
@@ -40,7 +40,7 @@ describe('peek tools with mocked seam', () => {
     const seam = makeSeam({
       readSession: async () => { throw new Error('session "x" not found') },
     })
-    const tools = createPeekTools(seam, cfg)
+    const tools = createPeekTools(seam as never, cfg)
     await expect((tools[1]!.execute)(
       { sessionId: 'x' }, exec,
     )).rejects.toThrow(/not found/)
