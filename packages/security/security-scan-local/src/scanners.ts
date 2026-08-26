@@ -40,10 +40,10 @@ function assertSafeValue(scanner: string, name: string, value: string): void {
 
 const NUCLEI_SEVERITIES = ['info', 'low', 'medium', 'high', 'critical'] as const
 
-/** The per-scanner whitelists. Keys are the model-facing option names. */
 /** Runtime lookup keyed loosely so a miss is representable (Map.get → undefined). */
 const SPEC_LOOKUP = new Map<string, ScannerSpec>()
 
+/** The per-scanner whitelists. Keys are the model-facing option names. */
 export const SCANNER_SPECS: Readonly<Record<SecurityScannerId, ScannerSpec>> = {
   nuclei: {
     targets: { mode: 'positional' },
@@ -206,9 +206,13 @@ export function planScanArgv(
   options: Readonly<Record<string, unknown>> | undefined,
   resolveWordlist: WordlistResolver,
 ): ScanArgvPlan {
-  // Map lookup keeps the miss case real for types and lint alike.
+  // Map lookup keeps the miss case real for types and lint alike. The union
+  // covers every id, so the miss arm is type-honest yet runtime-unreachable.
+  /* v8 ignore start -- SCANNER_SPECS covers the closed SecurityScannerId union,
+     so the miss arm exists for type-honesty and cannot execute. */
   const spec = SPEC_LOOKUP.get(scanner)
   if (spec === undefined) throw optionUnknown(scanner, '', [...SPEC_LOOKUP.keys()])
+  /* v8 ignore stop */
   const supplied = options ?? {}
   const merged: Record<string, unknown> = { ...spec.defaults, ...supplied }
 
@@ -246,6 +250,7 @@ export function planScanArgv(
     case 'positional':
       return { flags, positionalTargets: [...targets] }
     case 'u-flag':
+      /* v8 ignore next 1 -- the seam guarantees exactly one normalized target here. */
       return { flags: [...flags, '-u', targets[0] ?? ''], positionalTargets: [] }
     case 'none':
       return { flags, positionalTargets: [] }

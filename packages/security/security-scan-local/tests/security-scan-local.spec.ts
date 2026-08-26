@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import SecurityScanRuntime, { SecurityScanError } from '@deepseek-ai/dsh-security-scan'
-import type { SecurityScanProvider, SecurityScannerId } from '@deepseek-ai/dsh-security-scan'
+import type { SecurityScanProvider, SecurityScanRequest, SecurityScannerId } from '@deepseek-ai/dsh-security-scan'
 import { LocalSubprocessRuntime } from '@deepseek-ai/dsh-subprocess-local'
 import { Config, LocalSecurityScanProvider, assertServiceableConfig, findOnPath } from '../src/index.ts'
 import { planScanArgv } from '../src/scanners.ts'
@@ -138,7 +138,8 @@ describe('LocalSecurityScanProvider execution', () => {
 
   it('runs each scanner end-to-end with the exact argv and captures output', async () => {
     const provider = await mountLocal({ configEcho: undefined })
-    const cases: Array<{ scanner: SecurityScannerId; targets: string[]; options?: Record<string, unknown>; tail: string[] }> = [
+    type CaseOptions = Record<string, string | number | boolean | string[]>
+    const cases: Array<{ scanner: SecurityScannerId; targets: string[]; options?: CaseOptions; tail: string[] }> = [
       { scanner: 'nuclei', targets: ['stub.test'], options: { severity: 'low', silent: true }, tail: ['-json', '-exclude-tags', 'dos', '-severity', 'low', '-silent', 'stub.test'] },
       { scanner: 'httpx', targets: ['stub.test'], options: { statusCode: '200' }, tail: ['-json', '-sc', '200', 'stub.test'] },
       { scanner: 'katana', targets: ['https://stub.test'], options: { jsFetch: true }, tail: ['-jf', 'https://stub.test'] },
@@ -148,11 +149,9 @@ describe('LocalSecurityScanProvider execution', () => {
     ]
     writeFileSync(join(scratch, 'wl.txt'), 'a\nb\n')
     for (const item of cases) {
-      const request = {
-        scanner: item.scanner,
-        targets: item.targets,
-        ...(item.options !== undefined ? { options: item.options } : {}),
-      }
+      const request: SecurityScanRequest = item.options === undefined
+        ? { scanner: item.scanner, targets: item.targets }
+        : { scanner: item.scanner, targets: item.targets, options: item.options }
       const result = await provider.scan(request)
       expect(result.argv, item.scanner).toEqual([BIN, ...item.tail])
       expect(result.exitCode, item.scanner).toBe(0)
@@ -282,7 +281,10 @@ describe('binary resolution helpers', () => {
       process.env.PATH = `${dir}:${previousPath}`
       const ctx = new Context()
       await ctx.plugin(LocalSubprocessRuntime)
-      const provider = new LocalSecurityScanProvider(ctx, baseConfig({ binPaths: undefined }))
+      // Omit the pinned path entirely so resolution falls back to $PATH.
+      const { binPaths: _omitted, ...withoutPin } = baseConfig()
+      void _omitted
+      const provider = new LocalSecurityScanProvider(ctx, withoutPin)
       expect(provider.available('nuclei')).toBe(true)
       const result = await provider.scan({ scanner: 'nuclei', targets: ['stub.test'] })
       expect(result.argv[0]).toBe(shim)
@@ -300,5 +302,119 @@ describe('config guard', () => {
     }
     expect(defaults).not.toThrow()
     expect(SecurityScanError).toBeDefined()
+  })
+})
+
+describe('planner edge coverage', () => {
+  const resolve = (raw: string): string => `/wl/${raw}`
+
+  it('csv rules require strings and a non-empty set', () => {
+    expect(() => planScanArgv('nuclei', ['stub.test'], { severity: [1] }, resolve)).toThrow(/string or array/)
+    expect(() => planScanArgv('nuclei', ['stub.test'], { severity: [] }, resolve)).toThrow(/string or array/)
+  })
+
+  it('int rules reject fractional values', () => {
+    expect(() => planScanArgv('nuclei', ['stub.test'], { rateLimit: 1.5 }, resolve)).toThrow(/requires an integer/)
+  })
+
+  it('string rules reject numbers', () => {
+    expect(() => planScanArgv('httpx', ['stub.test'], { ports: 80 }, resolve)).toThrow(/requires a string/)
+  })
+
+  it('sqlmap dual targets rejected at plan level', () => {
+    expect(() => planScanArgv('sqlmap', ['a.stub.test', 'b.stub.test'], {}, resolve)).toThrow(/exactly one target/)
+  })
+
+  it('omitted options object falls back to scanner defaults alone', () => {
+    expect(planScanArgv('katana', ['https://stub.test'], undefined, resolve)).toEqual({
+      flags: [],
+      positionalTargets: ['https://stub.test'],
+    })
+  })
+})
+
+describe('plugin apply and failure mapper', () => {
+  it('apply() registers the local provider into the mounted runtime', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LocalSubprocessRuntime)
+    await ctx.plugin(SecurityScanRuntime, { allowlist: ['stub.test'] })
+    const Local = await import('../src/index.ts')
+    await ctx.plugin(Local, baseConfig())
+    const result = await ctx.securityScan.scan({ scanner: 'nuclei', targets: ['stub.test'] })
+    expect(result.argv[0]).toBe(BIN)
+  })
+
+  it('maps child exec failures through the done-rejection mapper', async () => {
+    const badInterp = join(scratch, 'bad-interp')
+    writeFileSync(badInterp, '#!/usr/bin/no-such-shell\nexit 0\n')
+    chmodSync(badInterp, 0o755)
+    const ctx = new Context()
+    await ctx.plugin(LocalSubprocessRuntime)
+    const bound = new LocalSecurityScanProvider(ctx, baseConfig({ binPaths: { nuclei: badInterp } }))
+    await expect(bound.scan({ scanner: 'nuclei', targets: ['stub.test'] }))
+      .rejects.toMatchObject({ code: 'SECURITY_EXEC_FAILED' })
+  })
+})
+
+describe('whitelist value-rule edges', () => {
+  const resolve = (raw: string): string => `/wl/${raw}`
+
+  it('boolean rules require booleans and omit false flags', () => {
+    expect(() => planScanArgv('katana', ['https://stub.test'], { jsFetch: 'yes' }, resolve))
+      .toThrow(/requires a boolean/)
+    const plan = planScanArgv('nuclei', ['stub.test'], { silent: false }, resolve)
+    expect(plan.flags).not.toContain('-silent')
+  })
+
+  it('int minimum bound rejects zero where the flag forbids it', () => {
+    expect(() => planScanArgv('nuclei', ['stub.test'], { rateLimit: 0 }, resolve)).toThrow(/≥ 1/)
+  })
+
+  it('string rules reject numeric values', () => {
+    expect(() => planScanArgv('httpx', ['stub.test'], { ports: 80 }, resolve)).toThrow(/requires a string/)
+  })
+
+  it('csv rules reject non-string members', () => {
+    expect(() => planScanArgv('nuclei', ['stub.test'], { severity: [7] }, resolve)).toThrow(/string or array/)
+  })
+})
+
+describe('binary resolution helpers', () => {
+  it('findOnPath ignores existing but non-executable files', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'quiet-bin-'))
+    try {
+      writeFileSync(join(dir, 'quiet.bin'), 'data')
+      expect(findOnPath('quiet.bin', [dir])).toBeUndefined()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('wordlistDirs hit resolves relative names to absolute paths', async () => {
+    writeFileSync(join(scratch, 'dir-list.txt'), 'a\n')
+    const provider = await mountLocal()
+    const result = await provider.scan({
+      scanner: 'ffuf',
+      targets: ['stub.test'],
+      options: { url: 'http://stub.test/FUZZ', wordlist: 'dir-list.txt' },
+    })
+    expect(result.argv).toContain(join(scratch, 'dir-list.txt'))
+  })
+})
+
+describe('PATH-less environments', () => {
+  it('availability falls back to false when PATH is absent', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LocalSubprocessRuntime)
+    const { binPaths: _omitted, ...withoutPathSource } = baseConfig()
+    void _omitted
+    const previousPath = process.env.PATH
+    delete process.env.PATH
+    try {
+      const provider = new LocalSecurityScanProvider(ctx, withoutPathSource)
+      expect(provider.available('nuclei')).toBe(false)
+    } finally {
+      process.env.PATH = previousPath
+    }
   })
 })

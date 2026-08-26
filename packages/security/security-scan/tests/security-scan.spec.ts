@@ -4,6 +4,7 @@ import SecurityScanRuntime, {
   SECURITY_SCANNER_IDS,
   normalizeTarget,
   parseAllowlist,
+  parseIpv6,
   parseAllowlistEntry,
   targetAllowed,
 } from '@deepseek-ai/dsh-security-scan'
@@ -133,6 +134,12 @@ describe('normalizeTarget', () => {
     for (const bad of ['user@stub.test', 'https://u:p@stub.test/', '', '   ', 'a:b', '[::1', 'https://u:p@stub.test']) {
       expect(() => normalizeTarget(bad), bad).toThrowSecurityCode('SECURITY_TARGET_INVALID')
     }
+  })
+
+  it('rejects unparseable URLs, password-only userinfo, and bracket garbage', () => {
+    expect(() => normalizeTarget('http://')).toThrowSecurityCode('SECURITY_TARGET_INVALID')
+    expect(() => normalizeTarget('http://:pass@stub.test')).toThrowSecurityCode('SECURITY_TARGET_INVALID')
+    expect(() => normalizeTarget('[::1]junk')).toThrowSecurityCode('SECURITY_TARGET_INVALID')
   })
 })
 
@@ -293,5 +300,76 @@ describe('SecurityScanRuntime', () => {
     })
     await runtime.scan({ scanner: 'nmap', targets: ['stub.test'] }, controller.signal)
     expect(seen[0]).toBe(controller.signal)
+  })
+})
+
+describe('parseIpv6', () => {
+  const hex = (bytes: Uint8Array): string =>
+    Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+
+  it('parses full, compressed, bracketed, and embedded-v4 forms to identical bytes', () => {
+    const full = parseIpv6('2001:0db8:0000:0000:0000:0000:0000:0001')
+    expect(full).not.toBeNull()
+    expect(hex(full as Uint8Array)).toBe('20010db8000000000000000000000001')
+    expect(parseIpv6('2001:db8::1')).toEqual(full)
+    expect(parseIpv6('[2001:db8::1]')).toEqual(full)
+    const embedded = parseIpv6('::ffff:127.0.0.1')
+    expect(embedded).not.toBeNull()
+    expect(hex(embedded as Uint8Array)).toBe('00000000000000000000ffff7f000001')
+  })
+
+  it('rejects malformed v6 input', () => {
+    for (const bad of ['1:2:3:4:5:6:7:8:9', '::fffg::1', '12345::', 'a:b:c', '::1::2', ':1', '1:', '%eth0']) {
+      expect(parseIpv6(bad), bad).toBeNull()
+    }
+  })
+})
+
+describe('IPv4 parse guards via allowlist entries', () => {
+  it('rejects out-of-range octets inside CIDR; bare numeric hosts stay exact-host entries', () => {
+    expect(() => parseAllowlistEntry('10.0.0.256/8')).toThrowSecurityCode('SECURITY_ALLOWLIST_ENTRY_INVALID')
+    expect(parseAllowlistEntry('256.0.0.0').kind).toBe('exact')
+    expect(parseAllowlistEntry('1.2.3').kind).toBe('exact')
+    expect(parseAllowlistEntry('1.2.3.4').kind).toBe('exact')
+  })
+})
+
+describe('IPv6 branch completeness', () => {
+  it('parses the uncompressed full form and rejects overflow with ::', () => {
+    const full = parseIpv6('2001:0db8:0000:0000:0000:ffff:127.0.0.1')
+    expect(full).not.toBeNull()
+    expect(Array.from(full as Uint8Array).slice(-4)).toEqual([127, 0, 0, 1])
+    expect(parseIpv6('1:2:3:4:5:6:7:8::9')).toBeNull()
+  })
+
+  it('rejects a v6 CIDR whose address side is not valid v6', () => {
+    expect(() => parseAllowlistEntry('zz::/32')).toThrowSecurityCode('SECURITY_ALLOWLIST_ENTRY_INVALID')
+  })
+})
+
+describe('runtime defaults and matcher edges', () => {
+  it('applies the default maxTargetsPerScan of 8 when omitted', async () => {
+    // Direct construction bypasses schemastery so the constructor's own
+    // `?? 8` fallback is what supplies the default here.
+    const runtime = new SecurityScanRuntime(new Context(), { allowlist: ['.many.test'] })
+    runtime.registerProvider(makeProvider('p', ['nuclei']))
+    const nine = Array.from({ length: 9 }, (_, index) => `h${index}.many.test`)
+    await expect(runtime.scan({ scanner: 'nuclei', targets: nine.slice(0, 8) })).resolves.toBeDefined()
+    await expect(runtime.scan({ scanner: 'nuclei', targets: nine }))
+      .rejects.toMatchObject({ code: 'SECURITY_TOO_MANY_TARGETS' })
+  })
+
+  it('wildcard entries validate their base domain', () => {
+    expect(() => parseAllowlistEntry('.bad_domain')).toThrowSecurityCode('SECURITY_ALLOWLIST_ENTRY_INVALID')
+  })
+})
+
+describe('finishHost guards through normalization', () => {
+  it('rejects hosts that empty out or carry non-ASCII', () => {
+    expect(() => normalizeTarget('.')).toThrowSecurityCode('SECURITY_TARGET_INVALID')
+    expect(() => normalizeTarget('bücher.test')).toThrowSecurityCode('SECURITY_TARGET_INVALID')
+    // WHATWG URLs punycode non-ASCII hosts automatically; the ASCII (punycode)
+    // result is what the allowlist compares against.
+    expect(normalizeTarget('https://bücher.example/')).toBe('xn--bcher-kva.example')
   })
 })

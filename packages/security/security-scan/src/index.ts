@@ -30,7 +30,7 @@ export type {
   SecurityScannerId,
 } from './types.ts'
 export { SECURITY_SCANNER_IDS } from './types.ts'
-export { normalizeTarget, parseAllowlist, parseAllowlistEntry, targetAllowed } from './allowlist.ts'
+export { normalizeTarget, parseAllowlist, parseAllowlistEntry, parseIpv6, targetAllowed } from './allowlist.ts'
 export type { AllowlistEntry } from './allowlist.ts'
 
 declare module '@deepseek-ai/cordis' {

@@ -45,6 +45,7 @@
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
+| `@deepseek-ai/dsh-tool-security-scan` | `security_scan` | `ctx.tools`, `ctx.securityScan`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
 
@@ -2176,6 +2177,52 @@ todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为
 ```
 
 来源：[`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+## `@deepseek-ai/dsh-tool-security-scan`
+
+### `security_scan`
+
+对 allowlist 内你拥有的目标运行授权的安全扫描器。已启用扫描器：nuclei、httpx、katana、ffuf、nmap、sqlmap。选项仅来自各扫描器的白名单；不接受原始旗标。
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "scanner": {
+      "type": "string",
+      "description": "Which scanner to run.",
+      "enum": [
+        "nuclei",
+        "httpx",
+        "katana",
+        "ffuf",
+        "nmap",
+        "sqlmap"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "description": "URLs or host[:port] strings; every host must be on this deployment allowlist.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "options": {
+      "type": "object",
+      "description": "Scanner-specific whitelisted options (e.g. nuclei severity/tags; nmap ports). Values are validated; raw argv is impossible.",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "scanner",
+    "targets"
+  ]
+}
+```
+
+Source: [`packages/security/tool-security-scan/src/index.ts`](../packages/security/tool-security-scan/src/index.ts)
+
+security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments.
 
 <a id="deepseek-aidsh-tool-web"></a>
 

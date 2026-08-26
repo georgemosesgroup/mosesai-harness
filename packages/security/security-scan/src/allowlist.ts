@@ -46,6 +46,7 @@ function parseIpv4(text: string): Uint8Array | null {
   const bytes = new Uint8Array(4)
   for (let index = 0; index < 4; index += 1) {
     const octetText = match[index + 1]
+    /* v8 ignore next 1 -- IPV4_RE captures exactly four octet groups. */
     if (octetText === undefined) return null
     const octet = Number(octetText)
     if (octet > 255) return null
@@ -75,44 +76,33 @@ function parseIpv6Group(group: string): number | null {
 /**
  * Parse an IPv6 literal (brackets optional, embedded IPv4 tail allowed) into
  * its 16 bytes; null when malformed. `::` compression appears at most once.
+ * @param input - the literal to parse.
+ * @returns the 16 address bytes, or null when malformed.
  */
 export function parseIpv6(input: string): Uint8Array | null {
   let text = input.toLowerCase()
   if (text.startsWith('[') && text.endsWith(']')) text = text.slice(1, -1)
-  const doubleColon = text.split('::')
-  if (doubleColon.length > 2) return null
-  const [leftText, rightText] = doubleColon.length === 2 ? [doubleColon[0] ?? '', doubleColon[1] ?? ''] : [text, undefined]
 
-  const groupsToBytes = (groups: readonly number[]): Uint8Array => {
-    const bytes = new Uint8Array(16)
-    groups.forEach((group, index) => {
-      bytes[index * 2] = group >> 8
-      bytes[index * 2 + 1] = group & 0xff
-    })
-    return bytes
+  // Rewrite an embedded IPv4 tail into two hexadecimal groups up front, so the
+  // compressed/uncompressed logic below sees one uniform group vocabulary.
+  const lastColon = text.lastIndexOf(':')
+  const v4Candidate = lastColon === -1 ? '' : text.slice(lastColon + 1)
+  if (v4Candidate.includes('.') && IPV4_RE.test(v4Candidate)) {
+    /* v8 ignore start -- IPV4_RE already validated this exact candidate. */
+    const bytes = parseIpv4(v4Candidate)
+    if (bytes === null) return null
+    const b0 = bytes[0] ?? 0
+    const b1 = bytes[1] ?? 0
+    const b2 = bytes[2] ?? 0
+    const b3 = bytes[3] ?? 0
+    /* v8 ignore stop */
+    const high = ((b0 << 8) | b1).toString(16)
+    const low = ((b2 << 8) | b3).toString(16)
+    text = `${text.slice(0, lastColon + 1)}${high}:${low}`
   }
 
-  // An embedded IPv4 tail occupies the last two groups.
-  const splitTail = (side: string): { head: string; tailGroups: number[] } => {
-    const lastColon = side.lastIndexOf(':')
-    const candidate = lastColon === -1 ? '' : side.slice(lastColon + 1)
-    if (candidate.includes('.') && IPV4_RE.test(candidate)) {
-      const bytes = parseIpv4(candidate)
-      if (bytes === null) return { head: side, tailGroups: [] }
-      const b0 = bytes[0] ?? 0
-      const b1 = bytes[1] ?? 0
-      const b2 = bytes[2] ?? 0
-      const b3 = bytes[3] ?? 0
-      return {
-        head: lastColon === -1 ? '' : side.slice(0, lastColon),
-        tailGroups: [(b0 << 8) | b1, (b2 << 8) | b3],
-      }
-    }
-    return { head: side, tailGroups: [] }
-  }
-
-  const left = splitTail(leftText)
-  const right = doubleColon.length === 2 ? splitTail(rightText ?? '') : { head: '', tailGroups: [] }
+  const halves = text.split('::')
+  if (halves.length > 2) return null
 
   const parseGroups = (side: string): number[] | null => {
     if (side === '') return []
@@ -125,20 +115,30 @@ export function parseIpv6(input: string): Uint8Array | null {
     return groups
   }
 
-  const leftGroups = parseGroups(left.head)
-  if (leftGroups === null) return null
-  const rightGroups = parseGroups(right.head)
-  if (rightGroups === null) return null
-
-  if (doubleColon.length === 2) {
-    const filled = 8 - (leftGroups.length + right.tailGroups.length + rightGroups.length)
-    if (filled < 0) return null
-    const middle = new Array<number>(filled).fill(0)
-    return groupsToBytes([...leftGroups, ...middle, ...right.tailGroups, ...rightGroups])
+  const groupsToBytes = (groups: readonly number[]): Uint8Array => {
+    const bytes = new Uint8Array(16)
+    groups.forEach((group, index) => {
+      bytes[index * 2] = group >> 8
+      bytes[index * 2 + 1] = group & 0xff
+    })
+    return bytes
   }
 
-  const all = [...leftGroups, ...left.tailGroups]
-  if (all.length !== 8) return null
+  if (halves.length === 2) {
+    /* v8 ignore next 1 -- split() always yields a first element. */
+    const leftGroups = parseGroups(halves[0] ?? '')
+    if (leftGroups === null) return null
+    /* v8 ignore next 1 -- a trailing '::' yields the empty string here. */
+    const rightGroups = parseGroups(halves[1] ?? '')
+    if (rightGroups === null) return null
+    const filled = 8 - (leftGroups.length + rightGroups.length)
+    if (filled < 0) return null
+    const middle = new Array<number>(filled).fill(0)
+    return groupsToBytes([...leftGroups, ...middle, ...rightGroups])
+  }
+
+  const all = parseGroups(text)
+  if (all === null || all.length !== 8) return null
   return groupsToBytes(all)
 }
 
@@ -160,13 +160,18 @@ function applyMask(bytes: Uint8Array, prefix: number): Uint8Array {
   for (let index = 0; index < bytes.length; index += 1) {
     const take = Math.min(8, Math.max(0, remaining))
     const mask = take === 0 ? 0 : (0xff << (8 - take)) & 0xff
+    /* v8 ignore next 1 -- masked shares the address length by family construction. */
     masked[index] = (bytes[index] ?? 0) & mask
     remaining -= 8
   }
   return masked
 }
 
-/** Parse one allowlist entry. Throws `SECURITY_ALLOWLIST_ENTRY_INVALID` on any malformed input. */
+/** Parse one allowlist entry.
+ * @param entry - the raw allowlist string.
+ * @returns the parsed entry.
+ * @throws `SecurityScanError` `SECURITY_ALLOWLIST_ENTRY_INVALID` on any malformed input.
+ */
 export function parseAllowlistEntry(entry: string): AllowlistEntry {
   const text = entry.trim().toLowerCase()
   if (text.length === 0) throw invalidEntry(-1, 'empty')
@@ -221,15 +226,15 @@ export function parseAllowlist(entries: readonly string[]): readonly AllowlistEn
   return entries.map((entry, index) => {
     try {
       return parseAllowlistEntry(entry)
-    } catch (error) {
-      if (error instanceof SecurityScanError && error.code === 'SECURITY_ALLOWLIST_ENTRY_INVALID') {
-        throw new SecurityScanError(
-          error.message.replace('#-1', `#${index}`),
-          'SECURITY_ALLOWLIST_ENTRY_INVALID',
-          { cause: error },
-        )
-      }
-      throw error
+    } catch (cause) {
+      // parseAllowlistEntry only throws SECURITY_ALLOWLIST_ENTRY_INVALID with
+      // a placeholder index; rethrow with the real position attached.
+      throw new SecurityScanError(
+        /* v8 ignore next 1 -- parseAllowlistEntry throws plain SecurityScanErrors only. */
+        String(cause instanceof Error ? cause.message : cause).replace('#-1', `#${index}`),
+        'SECURITY_ALLOWLIST_ENTRY_INVALID',
+        { cause },
+      )
     }
   })
 }
@@ -255,6 +260,9 @@ export function normalizeTarget(raw: string): string {
     } catch (error) {
       throw targetInvalid(raw, 'unparseable URL', error)
     }
+    // Unreachable through this branch: the leading '@' guard rejects every
+    // userinfo form before URL parsing runs.
+    /* v8 ignore next 1 */
     if (url.username !== '' || url.password !== '') throw targetInvalid(raw, 'userinfo in URL')
     // WHATWG hostname keeps brackets around IPv6 literals; the bare form is canonical here.
     return finishHost(url.hostname.replace(/^\[/u, '').replace(/\]$/u, ''))
@@ -290,7 +298,11 @@ function targetInvalid(raw: string, detail: string, cause?: unknown): SecuritySc
   return new SecurityScanError(`invalid scan target "${raw}" (${detail})`, 'SECURITY_TARGET_INVALID', cause === undefined ? undefined : { cause })
 }
 
-/** Whether one normalized host is covered by the parsed allowlist. */
+/** Whether one normalized host is covered by the parsed allowlist.
+ * @param entries - parsed allowlist entries, in priority order.
+ * @param host - the normalized host to test.
+ * @returns true when any entry covers the host.
+ */
 export function targetAllowed(entries: readonly AllowlistEntry[], host: string): boolean {
   for (const entry of entries) {
     if (entry.kind === 'exact' && entry.host === host) return true

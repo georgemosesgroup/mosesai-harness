@@ -40,6 +40,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-security-scan` | `security_scan` | `ctx.tools`, `ctx.securityScan`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -2168,6 +2169,54 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 ```
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-security-scan"></a>
+
+## `@deepseek-ai/dsh-tool-security-scan`
+
+### `security_scan`
+
+Run an authorized security scanner against allowlisted targets you own. Enabled scanners: nuclei, httpx, katana, ffuf, nmap, sqlmap. Options come from each scanner's whitelist; raw flags are never accepted.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "scanner": {
+      "type": "string",
+      "description": "Which scanner to run.",
+      "enum": [
+        "nuclei",
+        "httpx",
+        "katana",
+        "ffuf",
+        "nmap",
+        "sqlmap"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "description": "URLs or host[:port] strings; every host must be on this deployment allowlist.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "options": {
+      "type": "object",
+      "description": "Scanner-specific whitelisted options (e.g. nuclei severity/tags; nmap ports). Values are validated; raw argv is impossible.",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "scanner",
+    "targets"
+  ]
+}
+```
+
+Source: [`packages/security/tool-security-scan/src/index.ts`](../packages/security/tool-security-scan/src/index.ts)
+
+security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments.
 
 <a id="deepseek-aidsh-tool-web"></a>
 

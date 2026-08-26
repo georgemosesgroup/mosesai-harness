@@ -145,7 +145,10 @@ export function computeScanOutput(result: RenderableScanResult, maxOutputChars: 
   }
 }
 
-/** Pending-call presentation: a search-kind card titled by scanner and first targets. */
+/** Pending-call presentation: a search-kind card titled by scanner and first targets.
+ * @param args - the raw tool arguments.
+ * @returns the generic card view shown while the call runs.
+ */
 export function presentCall(args: { scanner: SecurityScannerId; targets: readonly string[] }): GenericCallView {
   return {
     card: 'generic',
@@ -155,7 +158,12 @@ export function presentCall(args: { scanner: SecurityScannerId; targets: readonl
   }
 }
 
-/** Project the canonical result into replayable meta for the completed card. */
+/** Project the canonical result into replayable meta for the completed card.
+ * @param targetCount - how many targets the call covered (from the args).
+ * @param value - the canonical scan result value.
+ * @param maxOutputChars - the deployment output cap used by the render text.
+ * @returns the opaque JSON meta payload persisted with the tool result.
+ */
 export function metaFromValue(targetCount: number, value: RenderableScanResult, maxOutputChars: number): JsonValue {
   const { truncated } = computeScanOutput(value, maxOutputChars)
   return {
@@ -166,7 +174,10 @@ export function metaFromValue(targetCount: number, value: RenderableScanResult, 
   }
 }
 
-/** Narrow opaque replayed meta to {@link SecurityScanMeta}; undefined on any mismatch. */
+/** Narrow opaque replayed meta to {@link SecurityScanMeta}.
+ * @param meta - the persisted result metadata.
+ * @returns the validated meta, or undefined for absent or malformed data.
+ */
 export function metaFromResult(meta: unknown): SecurityScanMeta | undefined {
   if (typeof meta !== 'object' || meta === null || Array.isArray(meta)) return undefined
   const candidate = meta as Record<string, unknown>
@@ -183,7 +194,11 @@ export function metaFromResult(meta: unknown): SecurityScanMeta | undefined {
   }
 }
 
-/** Completed-call presentation: a generic card summarizing the run from meta. */
+/** Completed-call presentation: a generic card summarizing the run from meta.
+ * @param _args - the raw tool arguments (the title comes from meta).
+ * @param result - the final model-facing tool result carrying `meta`.
+ * @returns the generic result view, or undefined on failure or malformed meta.
+ */
 export function presentResult(_args: { scanner: SecurityScannerId }, result: ToolResult): ToolResultView | undefined {
   if (result.isError) return undefined
   const meta = metaFromResult(result.meta)

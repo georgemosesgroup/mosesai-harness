@@ -79,7 +79,10 @@ function assertPositiveFinite(name: string, value: number): void {
   }
 }
 
-/** Validate schema-defaulted config loudly at load time. */
+/** Validate schema-defaulted config loudly at load time.
+ * @param config - the resolved provider configuration to check.
+ * @throws Error naming the first field that cannot be used.
+ */
 export function assertServiceableConfig(config: ResolvedConfig): void {
   assertPositiveFinite('timeoutMs', config.timeoutMs)
   assertPositiveFinite('maxTimeoutMs', config.maxTimeoutMs)
@@ -105,7 +108,11 @@ function isExecutable(path: string): boolean {
   }
 }
 
-/** Resolve a scanner binary name on `$PATH`; undefined when absent anywhere. */
+/** Resolve a scanner binary name on a supplied PATH vector.
+ * @param name - the scanner binary filename to look for.
+ * @param pathEnv - pre-split PATH directories, in order.
+ * @returns the first executable match, or undefined when absent anywhere.
+ */
 export function findOnPath(name: string, pathEnv: readonly string[]): string | undefined {
   for (const dir of pathEnv) {
     const candidate = join(dir, name)

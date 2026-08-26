@@ -1706,6 +1706,57 @@ Depends on: `Readable` (`node:stream`) · `Writable` (`node:stream`)
 
 Source: [`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
 
+<a id="deepseek-aidsh-security-scan"></a>
+
+## `@deepseek-ai/dsh-security-scan`
+
+```ts config-catalog
+/** Runtime config. The allowlist is REQUIRED — an empty list is a load failure. */
+export interface SecurityScanRuntimeConfig {
+  /** Authorized targets (hosts, `.domain`, IP literals, CIDR). See the README for semantics. */
+  allowlist: string[]
+  /** Upper bound on targets accepted by one scan call. Defaults to 8. */
+  maxTargetsPerScan?: number
+  /**
+   * Pin one provider id. Omitted = auto-select when exactly one registered
+   * provider is usable for the requested scanner.
+   */
+  provider?: string
+}
+```
+
+Source: [`packages/security/security-scan/src/index.ts:43`](../packages/security/security-scan/src/index.ts)
+
+<a id="deepseek-aidsh-security-scan-local"></a>
+
+## `@deepseek-ai/dsh-security-scan-local`
+
+Requires: `securityScan` · `subprocess`
+
+```ts config-catalog
+/** Plugin config; every field is defaulted and validated at load. */
+export interface Config {
+  /** Explicit binary path per scanner; omit to resolve the name on PATH. */
+  binPaths?: Record<string, string>
+  /** Directories an ffuf `wordlist` option may be relative to. */
+  wordlistDirs?: string[]
+  /** Working directory for scan processes (default: process.cwd()). */
+  cwd?: string
+  /** Default scan deadline in milliseconds. */
+  timeoutMs?: number
+  /** Upper bound applied to {@link Config.timeoutMs}; scans are long, so this defaults high. */
+  maxTimeoutMs?: number
+  /** Per-stream in-memory output cap; overflow keeps the tail. */
+  maxOutputBytes?: number
+  /** Per-stream spill cap for the complete stream when truncated. */
+  maxSpillBytes?: number
+  /** SIGTERM→SIGKILL escalation grace; at most MAX_TIMER_DELAY_MS. */
+  graceMs?: number
+}
+```
+
+Source: [`packages/security/security-scan-local/src/index.ts:43`](../packages/security/security-scan-local/src/index.ts)
+
 <a id="deepseek-aidsh-session-persistence-jsonl"></a>
 
 ## `@deepseek-ai/dsh-session-persistence-jsonl`
@@ -2729,6 +2780,26 @@ export interface Config {
 ```
 
 Source: [`packages/workflow/tool-ralph/src/index.ts:23`](../packages/workflow/tool-ralph/src/index.ts)
+
+<a id="deepseek-aidsh-tool-security-scan"></a>
+
+## `@deepseek-ai/dsh-tool-security-scan`
+
+Requires: `tools` · `securityScan` · `systemPrompt`
+
+```ts config-catalog
+/** Plugin config: scanner enablement, timeout budget, and the output cap. */
+export interface Config {
+  /** Enable/disable individual scanners in the tool's enum. All default to true. */
+  scanners?: Record<string, boolean>
+  /** Cooperative timeout budget (ms) attached to the tool definition. */
+  timeoutMs?: number
+  /** Cap on the complete rendered output text. */
+  maxOutputChars?: number
+}
+```
+
+Source: [`packages/security/tool-security-scan/src/index.ts:54`](../packages/security/tool-security-scan/src/index.ts)
 
 <a id="deepseek-aidsh-tool-session-query"></a>
 
