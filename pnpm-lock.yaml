@@ -568,6 +568,12 @@ importers:
       '@deepseek-ai/dsh-sdk-jsonrpc-server':
         specifier: workspace:*
         version: link:../packages/sdk/server
+      '@deepseek-ai/dsh-security-scan':
+        specifier: workspace:*
+        version: link:../packages/security/security-scan
+      '@deepseek-ai/dsh-security-scan-local':
+        specifier: workspace:*
+        version: link:../packages/security/security-scan-local
       '@deepseek-ai/dsh-session':
         specifier: workspace:*
         version: link:../packages/core/session
@@ -700,6 +706,9 @@ importers:
       '@deepseek-ai/dsh-tool-ralph':
         specifier: workspace:*
         version: link:../packages/workflow/tool-ralph
+      '@deepseek-ai/dsh-tool-security-scan':
+        specifier: workspace:*
+        version: link:../packages/security/tool-security-scan
       '@deepseek-ai/dsh-tool-session-query':
         specifier: workspace:*
         version: link:../packages/session-query/tool-session-query
@@ -6139,6 +6148,69 @@ importers:
       '@deepseek-ai/dsh-subagent':
         specifier: workspace:^
         version: link:../../subagent/subagent
+
+  packages/security/security-scan:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-llm':
+        specifier: workspace:^
+        version: link:../../llm/llm
+
+  packages/security/security-scan-local:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-security-scan':
+        specifier: workspace:^
+        version: link:../security-scan
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-subprocess-local':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess-local
+      '@deepseek-ai/dsh-timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
+
+  packages/security/tool-security-scan:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-security-scan':
+        specifier: workspace:^
+        version: link:../security-scan
+      '@deepseek-ai/dsh-system-prompt':
+        specifier: workspace:^
+        version: link:../../core/system-prompt
+      '@deepseek-ai/dsh-tools':
+        specifier: workspace:^
+        version: link:../../core/tools
 
   packages/session-query/session-log-export:
     devDependencies:

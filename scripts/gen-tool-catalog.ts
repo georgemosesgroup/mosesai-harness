@@ -63,6 +63,8 @@ import * as ToolTeam from '@deepseek-ai/dsh-experimental-tool-agent-team'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
+import SecurityScanRuntime from '@deepseek-ai/dsh-security-scan'
+import * as ToolSecurityScan from '@deepseek-ai/dsh-tool-security-scan'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
@@ -588,6 +590,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
       await ctx.plugin(ToolWorkflow)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-security-scan',
+    dir: 'tool-security-scan',
+    source: 'packages/security/tool-security-scan/src/index.ts',
+    requires: ['ctx.tools', 'ctx.securityScan', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The schema does not depend on provider identity; a throwaway runtime
+      // with a placeholder allowlist satisfies the injected seam.
+      await ctx.plugin(SecurityScanRuntime, { allowlist: ['catalog.example'] })
+      await ctx.plugin(ToolSecurityScan)
+    },
+    note:
+      'security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

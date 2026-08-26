@@ -1177,6 +1177,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'securityScan',
+    summary: 'The security-scanning service, registered as `ctx.securityScan`.',
+    description: 'The security-scanning service, registered as `ctx.securityScan`.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: SecurityScanProvider): () => void',
+        description: 'Register one provider. Throws SecurityScanError `SECURITY_DUPLICATE_PROVIDER` when its id is already registered.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters the provider with the calling fiber.',
+      },
+      {
+        signature: 'async scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult>',
+        description: 'Run one scan against allowlisted targets through the selected provider.',
+        parameters: [{ name: 'request', description: 'scanner, targets, and whitelisted options.' }, { name: 'signal', description: 'optional cancellation forwarded to the provider.' }],
+        returns: 'the provider\'s settled scan result.',
+      },
+    ],
+  },
+  {
     key: 'sessionPersistence',
     summary: 'Durable append-only session storage.',
     description: 'Durable append-only session storage. Implementations preserve contiguous, losslessly JSON-serializable events; append resolves only after durability, and load balances a complete interrupted tail without rewriting committed events.',
@@ -4026,6 +4045,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
   },
   {
+    name: 'ScanOutput',
+    declaration: 'export interface ScanOutput {\n    readonly text: string;\n    readonly truncated: boolean;\n    readonly spillPath?: string;\n}',
+  },
+  {
     name: 'ScheduledToolDispatch',
     declaration: 'export type ScheduledToolDispatch = {\n    kind: \'post-result\';\n    result: ToolExecutionResult;\n} | {\n    kind: \'final-result\';\n    result: ToolExecutionResult;\n};',
   },
@@ -4060,6 +4083,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SecurityScannerId',
+    declaration: 'export type SecurityScannerId = \'nuclei\' | \'httpx\' | \'katana\' | \'ffuf\' | \'nmap\' | \'sqlmap\';',
+  },
+  {
+    name: 'SecurityScanOptionValue',
+    declaration: 'export type SecurityScanOptionValue = string | number | boolean | readonly string[];',
+  },
+  {
+    name: 'SecurityScanProvider',
+    declaration: 'export interface SecurityScanProvider {\n    readonly id: string;\n    available(scanner: SecurityScannerId): boolean;\n    scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult>;\n}',
+  },
+  {
+    name: 'SecurityScanRequest',
+    declaration: 'export interface SecurityScanRequest {\n    readonly scanner: SecurityScannerId;\n    readonly targets: readonly string[];\n    readonly options?: Readonly<Record<string, SecurityScanOptionValue>>;\n}',
+  },
+  {
+    name: 'SecurityScanResult',
+    declaration: 'export interface SecurityScanResult {\n    readonly scanner: SecurityScannerId;\n    readonly argv: readonly string[];\n    readonly exitCode: number | null;\n    readonly signal: NodeJS.Signals | null;\n    readonly timedOut: boolean;\n    readonly aborted: boolean;\n    readonly durationMs: number;\n    readonly stdout: ScanOutput;\n    readonly stderr: ScanOutput;\n}',
   },
   {
     name: 'SendTeamMessageRequest',

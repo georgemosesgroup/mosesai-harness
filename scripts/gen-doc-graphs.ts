@@ -514,6 +514,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'Search and fetch providers register into one ctx.web seam; tool-web owns the stable model-facing names.',
   },
   {
+    key: 'securityScan',
+    pkg: 'security-scan',
+    title: 'Security scanning provider registry',
+    mode: 'seam',
+    implementations: ['security-scan-local'],
+    consumers: ['tool-security-scan'],
+    note: 'Target allowlist enforcement lives in the ctx.securityScan seam; security_scan is the model-facing consumer over whitelisted CLI scanners.',
+  },
+  {
     key: 'spillStore',
     pkg: 'spill',
     title: 'Spill storage seam',
