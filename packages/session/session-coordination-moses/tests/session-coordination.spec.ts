@@ -26,3 +26,14 @@ describe('claims-core', () => {
     expect(s.check('pkg/x.md', now)).toBeNull()
   })
 })
+
+describe('claims-core: absolute spellings (regression)', () => {
+  it('identical absolute patterns overlap; child-of-absolute overlaps', () => {
+    // Live regression: witnessesOf used to explode literal segments into
+    // characters and dropped the leading slash, so `/x/**` vs `/x/**` was
+    // judged disjoint and a foreign duplicate acquire slipped through.
+    expect(patternsOverlap('/Volumes/w/.claim-test/**', '/Volumes/w/.claim-test/**')).toBe(true)
+    expect(patternsOverlap('/Volumes/w/.claim-test/**', '/Volumes/w/.claim-test/a.md')).toBe(true)
+    expect(patternsOverlap('/a/b', '/a/c')).toBe(false)
+  })
+})
