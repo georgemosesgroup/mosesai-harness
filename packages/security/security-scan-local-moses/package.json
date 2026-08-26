@@ -1,0 +1,1 @@
+{ "name": "@deepseek-ai/dsh-security-scan-local-moses", "version": "0.1.0-local", "type": "module", "main": "lib/index.js" }

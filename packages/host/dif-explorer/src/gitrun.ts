@@ -171,7 +171,11 @@ export function parseLogBlock(blockRaw: string): {
   const lines = block.split('\n')
   const header = lines[0]
   if (header === undefined || header.trim().length === 0) return undefined
-  const [oid = '', at = ''] = header.split('\u001f')
+  const [oidRaw = '', atRaw = ''] = header.split('\u001f')
+  // In `-z` mode git terminates the whole commit record with NUL too, so the
+  // last field arrives suffixed with one.
+  const oid = oidRaw.replaceAll('\0', '').trim()
+  const at = atRaw.replaceAll('\0', '').trim()
   const changes: NameStatusChange[] = []
   const body = block.slice(header.length + 1)
   const fields = body.split('\0').filter(field => field.trim().length > 0)
@@ -193,7 +197,7 @@ export function parseLogBlock(blockRaw: string): {
       i += 2
     }
   }
-  return { oid: oid.trim(), at: at.trim(), changes }
+  return { oid, at, changes }
 }
 
 /** Numerical diff summary as `git diff --numstat` reports it per path. */

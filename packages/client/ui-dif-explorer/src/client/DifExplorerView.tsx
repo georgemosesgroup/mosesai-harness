@@ -191,7 +191,7 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
         api={props.api}
         t={(key, params) => props.t(key, params)}
         rootId={viewer.rootId}
-        gitAvailable={viewer.tree !== null && !viewer.tree.gitAvailable}
+        gitAvailable={viewer.tree !== null && viewer.tree.gitAvailable}
         scope={viewer.scope}
         statusFilter={viewer.statusFilter}
         toolFilter={viewer.toolFilter}
@@ -393,15 +393,17 @@ function ChangesPane({
   onOpen: (path: string, entry: ChangeEntryView) => void
 }): React.ReactNode {
   const [entries, setEntries] = useState<readonly ChangeEntryView[]>([])
+  const [failed, setFailed] = useState(false)
   // Git-less scopes cannot serve; the session ledger still can.
   const blockedScope = scope !== 'session' && !gitAvailable
 
   useEffect(() => {
     if (rootId === null || blockedScope) return
     let alive = true
+    setFailed(false)
     api.listChanges(rootId, scope)
       .then(({ entries: found }) => { if (alive) { setEntries(found) } })
-      .catch(() => {})
+      .catch(() => { if (alive) { setFailed(true) } })
     return () => { alive = false }
   }, [api, blockedScope, rootId, scope])
 
@@ -453,7 +455,7 @@ function ChangesPane({
       </div>
       <div className={css.paneScroll}>
         {visible.length === 0
-          ? <div className={css.emptyNote}>{blockedScope ? t('state.error') : t('changes.empty')}</div>
+          ? <div className={css.emptyNote}>{blockedScope || failed ? t('state.error') : t('changes.empty')}</div>
           : visible.map((entry, index) => (
             <ChangeEntryRow
               key={`${entry.scope}:${entry.path}:${entry.seq ?? index}`}
