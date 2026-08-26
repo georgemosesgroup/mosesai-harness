@@ -67,18 +67,6 @@ describe('FishLogo', () => {
   })
 })
 
-describe('MosesLogo', () => {
-  it('renders the wave path in currentColor at the native ratio', () => {
-    const { container } = render(<primitives.MosesLogo />)
-    const svg = container.querySelector('svg')!
-    expect(svg.getAttribute('width')).toBe('24')
-    expect(Number(svg.getAttribute('height'))).toBeCloseTo(18, 1)
-    expect(svg.getAttribute('viewBox')).toBe('0 0 24 18')
-    expect(container.querySelectorAll('path')).toHaveLength(1)
-    expect(container.innerHTML).toContain('currentColor')
-  })
-})
-
 describe('BrandWordmark', () => {
   it('can render the name artwork with or without its leading mark', () => {
     const view = render(<primitives.BrandWordmark />)

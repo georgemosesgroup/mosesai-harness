@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Moses AI",
-  "short_name": "Moses",
+  "name": "DeepSeek Harness",
+  "short_name": "DSH",
   "start_url": "/",
   "scope": "/",
   "display": "fullscreen",
