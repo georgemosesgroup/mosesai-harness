@@ -8,12 +8,12 @@
   name: '@deepseek-ai/dsh-subprocess-local'
 
 - id: security-scan
-  name: '@deepseek-ai/dsh-security-scan'
+  name: '@deepseek-ai/dsh-security-scan-moses'
   config:
     allowlist: ['stub.test', '.auth.test']
 
 - id: security-scan-local
-  name: '@deepseek-ai/dsh-security-scan-local'
+  name: '@deepseek-ai/dsh-security-scan-local-moses'
   config:
     binPaths:
       nuclei: !!js process.env.SECURITY_STUB_BIN
@@ -27,7 +27,7 @@
     timeoutMs: 20000
 
 - id: tool-security-scan
-  name: '@deepseek-ai/dsh-tool-security-scan'
+  name: '@deepseek-ai/dsh-tool-security-scan-moses'
 
 # The consumer registers into these host registries; both are effect-scoped.
 - id: system-prompt
@@ -39,10 +39,10 @@
 # Invariant companions mount with the packages they own, so the composition
 # exercises the same registrations production carries.
 - id: security-scan-invariant
-  name: '@deepseek-ai/dsh-security-scan/invariant'
+  name: '@deepseek-ai/dsh-security-scan-moses/invariant'
 
 - id: security-scan-local-invariant
-  name: '@deepseek-ai/dsh-security-scan-local/invariant'
+  name: '@deepseek-ai/dsh-security-scan-local-moses/invariant'
 
 - id: tool-security-scan-invariant
-  name: '@deepseek-ai/dsh-tool-security-scan/invariant'
+  name: '@deepseek-ai/dsh-tool-security-scan-moses/invariant'
