@@ -1,16 +1,16 @@
 import type { HeroBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type { SidebarBrandMarkOwnerProps } from '@deepseek-ai/dsh-client-ui-sidebar/client'
-import { SpiralMark } from './marks.tsx'
+import { EternityMark } from './marks.tsx'
 
 type MosesBrandMarkProps = HeroBrandMarkOwnerProps & SidebarBrandMarkOwnerProps
 
 /**
  * Render the Moses AI mark with the presentation its host surface requests.
  * @param props - host-supplied mark presentation.
- * @returns the spiral mark.
+ * @returns the eternity mark.
  */
 export function MosesBrandMark({ size, className }: MosesBrandMarkProps) {
-  return <SpiralMark size={size} className={className} />
+  return <EternityMark size={size} className={className} />
 }
 
 /**
