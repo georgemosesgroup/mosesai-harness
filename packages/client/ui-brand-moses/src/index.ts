@@ -10,13 +10,13 @@
 
 import type { Context } from '@deepseek-ai/cordis'
 import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
-import { bootWordmarkInjection } from './boot-wordmark.ts'
+import { bootWordmarkInjection, windowRuleInjection } from './boot-wordmark.ts'
 import {
   BRAND_ICON_PATH, BRAND_ICON_SVG, BRAND_MANIFEST, BRAND_MANIFEST_PATH,
 } from './icons.ts'
 
 export { BRAND_ICON_PATH, BRAND_ICON_SVG, BRAND_MANIFEST, BRAND_MANIFEST_PATH } from './icons.ts'
-export { BOOT_WORDMARK, bootWordmarkInjection } from './boot-wordmark.ts'
+export { BOOT_WORDMARK, bootWordmarkInjection, windowRuleInjection } from './boot-wordmark.ts'
 
 /** Cordis plugin name. */
 export const name = 'client-ui-brand-moses'
@@ -67,6 +67,7 @@ export function apply(ctx: Context): void {
   })
   ctx.on('webserver/index-inject', (table) => {
     table.push(bootWordmarkInjection())
+    table.push(windowRuleInjection())
   })
   ctx.webServer.tapIndex(html =>
     repointLink(repointLink(html, 'icon', BRAND_ICON_PATH), 'manifest', BRAND_MANIFEST_PATH))
