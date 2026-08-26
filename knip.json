@@ -666,7 +666,7 @@
         "@deepseek-ai/.+"
       ]
     },
-    "packages/security/tool-security-scan": {
+    "packages/security/tool-security-scan-moses": {
       "entry": [
         "tests/**/*.spec.ts",
         "tests/**/*.e2e.ts",
@@ -677,7 +677,7 @@
         "tests/**/*.ts"
       ]
     },
-    "packages/security/security-scan-local": {
+    "packages/security/security-scan-local-moses": {
       "entry": [
         "tests/**/*.spec.ts"
       ],
@@ -686,7 +686,7 @@
         "tests/**/*.ts"
       ]
     },
-    "packages/security/security-scan": {
+    "packages/security/security-scan-moses": {
       "entry": [
         "tests/**/*.spec.ts"
       ],

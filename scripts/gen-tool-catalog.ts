@@ -64,7 +64,7 @@ import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import SecurityScanRuntime from '@deepseek-ai/dsh-security-scan'
-import * as ToolSecurityScan from '@deepseek-ai/dsh-tool-security-scan'
+import * as ToolSecurityScan from '@deepseek-ai/dsh-tool-security-scan-moses'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
@@ -592,9 +592,9 @@ const TOOL_PACKAGES: ToolPackage[] = [
     },
   },
   {
-    pkg: '@deepseek-ai/dsh-tool-security-scan',
+    pkg: '@deepseek-ai/dsh-tool-security-scan-moses',
     dir: 'tool-security-scan',
-    source: 'packages/security/tool-security-scan/src/index.ts',
+    source: 'packages/security/tool-security-scan-moses/src/index.ts',
     requires: ['ctx.tools', 'ctx.securityScan', 'ctx.systemPrompt'],
     writes: ['tool/call', 'tool/result'],
     async mount(ctx) {
