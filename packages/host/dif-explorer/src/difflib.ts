@@ -54,7 +54,7 @@ export function looksBinary(buffer: Uint8Array): boolean {
 }
 
 /** SHA-256 over bytes, hex-encoded. */
-export async function sha256Hex(buffer: Uint8Array): Promise<string> {
+export function sha256Hex(buffer: Uint8Array): string {
   return createHash('sha256').update(buffer).digest('hex')
 }
 

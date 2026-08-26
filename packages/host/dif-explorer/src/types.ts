@@ -73,6 +73,8 @@ export interface ChangeEntryView {
   readonly commitOid?: string
   /** Logged tool name for session entries (`write`, `edit`, ...). */
   readonly tool?: string
+  /** Log seq of the source `tool/call` event (session entries only). */
+  readonly seq?: number
   /** ISO-8601 instant: log time for sessions, commit time for commits; absent for worktree. */
   readonly at?: string
   /** Byte size before the change; null when unknowable from the source alone. */

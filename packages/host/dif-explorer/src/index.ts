@@ -181,7 +181,7 @@ export class DifExplorerGateway extends TypertRemoteService {
       ? await readFile(target)
       : await this.showBytes(root, target, rev)
     const size = bytes.byteLength
-    const digest = await sha256Hex(bytes)
+    const digest = sha256Hex(bytes)
     if (looksBinary(bytes)) {
       return {
         kind: 'binary',
@@ -334,7 +334,7 @@ export class DifExplorerGateway extends TypertRemoteService {
     const baseSide = await this.readSide(root, target, baseRev)
     const headSide = headIsWorkingTree
       ? await diskReadOrEmpty(target)
-      : await this.readSide(root, target, request.head as string)
+      : await this.readSide(root, target, request.head)
     const oldBinary = baseSide.exists && looksBinary(baseSide.bytes)
     const newBinary = headSide.exists && looksBinary(headSide.bytes)
     if (oldBinary || newBinary) {

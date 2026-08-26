@@ -83,7 +83,7 @@ export function decodeMutatingCalls(events: readonly FoldableEvent[]): readonly 
       seq: typeof event.seq === 'number' ? event.seq : -1,
       timeMs: typeof event.time === 'number' ? event.time : 0,
       toolRaw: MUTATING_TOOLS.get(name) ?? name,
-      args: parsed as MutatingToolArgs,
+      args: parsed,
     })
   }
   return calls
@@ -172,6 +172,7 @@ export function foldSessionChanges(
       scope: 'session',
       sessionId: session.id,
       tool: call.toolRaw,
+      ...(call.seq >= 0 ? { seq: call.seq } : {}),
       at: new Date(call.timeMs).toISOString(),
       beforeBytes: fragment.before === null ? null : utf8ByteLength(fragment.before),
       afterBytes: utf8ByteLength(afterText),

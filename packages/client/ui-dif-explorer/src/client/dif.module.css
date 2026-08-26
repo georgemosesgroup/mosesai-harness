@@ -1,0 +1,258 @@
+/**
+ * DIF Explorer styles. Token aliases only (--dsw-alias-*, --dsw-font-*); the
+ * geometry follows the code-block family (12px radius, no soft wrap in diff
+ * bodies, horizontal scroll) so a diff reads beside terminal cards.
+ */
+
+.surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--dsw-alias-label-primary);
+}
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.rootSelect {
+  max-width: 260px;
+  font: var(--dsw-font-xs-13);
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 4px 8px;
+}
+
+.tabsRow {
+  display: flex;
+  gap: 4px;
+  padding: 0 12px 8px;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.tabButton {
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+  padding: 4px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.tabActive {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.statusBadge {
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+  font: var(--dsw-font-xs-13);
+  border-radius: 6px;
+  padding: 0 5px;
+}
+
+.stA { color: var(--dsw-alias-state-success-primary); }
+.stM { color: var(--dsw-alias-state-warn-label); }
+.stD { color: var(--dsw-alias-state-error-primary); }
+.stR { color: var(--dsw-alias-state-business-primary); }
+
+.filesPane,
+.changesPane,
+.viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.searchInput,
+.pathInput,
+.filterSelect {
+  margin: 8px 12px 0;
+  font: var(--dsw-font-xs-13);
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 8px;
+  padding: 5px 9px;
+}
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 4px;
+}
+
+.filterRow .searchInput { margin: 0; }
+
+.scopeButton {
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  font: var(--dsw-font-xs-13);
+  padding: 4px 8px;
+  border-radius: 999px;
+}
+
+.scopeActive {
+  color: var(--dsw-alias-brand-text);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.paneScroll {
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  font-family: var(--dsw-font-markdown-code-block);
+  font-size: 12.5px;
+  line-height: 20px;
+}
+
+.treeRow,
+.changeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 1px 12px;
+  cursor: pointer;
+}
+
+.treeRow:hover,
+.changeRow:hover,
+.fileRow:hover {
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.dirName { color: var(--dsw-alias-label-primary); }
+.dirCount {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+}
+.fileName { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.changePath { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.changeHunks {
+  color: var(--dsw-alias-state-warn-label);
+  font-variant-numeric: tabular-nums;
+}
+.changeMeta {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+}
+
+.emptyNote,
+.stateNote,
+.moreNote {
+  padding: 16px 12px;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-sm-14);
+  white-space: pre-wrap;
+}
+
+.viewerHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--dsw-alias-bg-base);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.viewerPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--dsw-font-markdown-code-block);
+}
+
+.modeSwitch button {
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  font: var(--dsw-font-xs-13);
+  padding: 3px 8px;
+  border-radius: 7px;
+}
+
+.modeActive {
+
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.metaLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+}
+.metaSizes { font-variant-numeric: tabular-nums; }
+
+/* Unified rows */
+.uRow { display: grid; grid-template-columns: 44px 44px 1fr; }
+.lineNo {
+  text-align: right;
+  padding-right: 8px;
+  color: var(--dsw-alias-label-secondary);
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.uText { white-space: pre; padding-right: 16px; }
+
+.u_context {}
+.u_del {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent);
+}
+.u_add {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);
+}
+
+.splitRow { display: grid; grid-template-columns: 1fr 1fr; }
+.splitSide {
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  border-right: 1px solid var(--dsw-alias-border-l2);
+  min-width: 0;
+}
+.sideDel {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 12%, transparent);
+}
+.sideAdd {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);
+}
+.splitText { white-space: pre; overflow: hidden; }
+
+mark.intraDel {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 45%, transparent);
+  color: inherit;
+  border-radius: 3px;
+}
+mark.intraAdd {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 45%, transparent);
+  color: inherit;
+  border-radius: 3px;
+}

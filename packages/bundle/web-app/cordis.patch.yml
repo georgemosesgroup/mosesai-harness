@@ -298,6 +298,10 @@
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
 
+    # Read-only workspace explorer: Files tree, change ledger, diff viewer.
+    - id: ui-dif-explorer
+      name: '@deepseek-ai/dsh-client-ui-dif-explorer'
+
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
 # Every row below composes what ONE agent contributes to the host registries:
