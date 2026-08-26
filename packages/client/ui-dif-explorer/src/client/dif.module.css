@@ -51,6 +51,15 @@
   background: var(--dsw-alias-bg-layer-2);
 }
 
+/* The panes scroll over an elevated surface (layer-2 active states and the
+ * viewer header above them); scrollbar.css binds the l1 thumb pair by
+ * default, so scrollers rebind to the l2 rung here or the thumb mismatches
+ * the surface in the dark palette. */
+.paneScroll {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+}
+
 .statusBadge {
   display: inline-block;
   min-width: 18px;
