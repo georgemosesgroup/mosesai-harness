@@ -3,6 +3,7 @@ import { mkdtempSync, rmSync, writeFileSync, chmodSync, mkdirSync } from 'node:f
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import SecurityScanRuntime, { SecurityScanError } from '@deepseek-ai/dsh-security-scan-moses'
 import type { SecurityScanProvider, SecurityScanRequest, SecurityScannerId } from '@deepseek-ai/dsh-security-scan-moses'
 import { LocalSubprocessRuntime } from '@deepseek-ai/dsh-subprocess-local'
@@ -153,7 +154,12 @@ describe('LocalSecurityScanProvider execution', () => {
         ? { scanner: item.scanner, targets: item.targets }
         : { scanner: item.scanner, targets: item.targets, options: item.options }
       const result = await provider.scan(request)
-      expect(result.argv, item.scanner).toEqual([BIN, ...item.tail])
+      // nuclei is pointed at the deployment's own state directory, so it
+      // cannot write its config into whatever directory it ran in.
+      const stateFlags = item.scanner === 'nuclei'
+        ? ['-config-directory', join(resolveDshHome(), 'tools', 'nuclei')]
+        : []
+      expect(result.argv, item.scanner).toEqual([BIN, ...stateFlags, ...item.tail])
       expect(result.exitCode, item.scanner).toBe(0)
       expect(result.timedOut, item.scanner).toBe(false)
       expect(result.aborted, item.scanner).toBe(false)

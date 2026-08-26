@@ -8,9 +8,10 @@
  * @module @deepseek-ai/dsh-security-scan-local-moses
  */
 
-import { accessSync, constants, existsSync } from 'node:fs'
+import { accessSync, constants, existsSync, mkdirSync } from 'node:fs'
 import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
+import { resolveDshHome } from '@deepseek-ai/dsh-home-paths'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import type {} from '@deepseek-ai/dsh-security-scan-moses'
@@ -39,6 +40,29 @@ const ENV_OVERRIDES = {
   PAGER: 'cat',
   GIT_PAGER: 'cat',
 } as const
+
+/**
+ * Where a scanner keeps what it remembers between runs.
+ *
+ * Scanners write configuration and template caches next to wherever they were
+ * started. That state belongs to NEITHER side of a scan: not to the project —
+ * an agent works in someone's repository, and tool droppings there show up in
+ * their `git status` and their commits — and not to the harness checkout,
+ * which is code. It belongs with the deployment's own state, one directory per
+ * scanner so two of them cannot fight over a file name.
+ *
+ * `HOME` and `XDG_CONFIG_HOME` cover any scanner that follows the usual
+ * conventions; a tool with its own flag gets it in {@link planScanArgv}.
+ * @param scanner - which scanner is about to run.
+ * @returns environment entries pointing its state at the deployment's store.
+ */
+function stateEnvironment(scanner: SecurityScannerId): Record<string, string> {
+  const home = join(resolveDshHome(), 'tools', scanner)
+  // Created up front: a scanner that cannot write its config falls back to the
+  // working directory, which is the behavior this exists to prevent.
+  mkdirSync(home, { recursive: true })
+  return { HOME: home, XDG_CONFIG_HOME: join(home, 'config'), XDG_DATA_HOME: join(home, 'data') }
+}
 
 /**
  * Identity-probe argv per scanner. Every projectdiscovery tool answers
@@ -188,7 +212,14 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
     const startedAt = Date.now()
     const binaryPath = this.resolveVerifiedBinary(request.scanner)
     const argvTail = planScanArgv(request.scanner, request.targets, request.options ?? {}, raw => this.resolveWordlist(raw))
-    const argv = [binaryPath, ...argvTail.flags, ...argvTail.positionalTargets]
+    const state = stateEnvironment(request.scanner)
+    // nuclei reads its own flag before the environment, so the flag has to say
+    // the same thing — otherwise it writes `.nuclei-config` into the working
+    // directory, which is the caller's project.
+    const stateFlags = request.scanner === 'nuclei' && state.HOME !== undefined
+      ? ['-config-directory', state.HOME]
+      : []
+    const argv = [binaryPath, ...stateFlags, ...argvTail.flags, ...argvTail.positionalTargets]
 
     // One deadline combines the provider budget with upstream cancellation;
     // only THIS deadline counts as timedOut, outer aborts count as aborted.
@@ -197,7 +228,9 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
     try {
       handle = this.ctx.subprocess.spawn({
         argv,
-        cwd: this.config.cwd,
+        // The caller's workspace when it named one; the configured directory
+        // is the fallback for a direct service call with no agent behind it.
+        cwd: request.cwd ?? this.config.cwd,
         stdio: {
           stdin: 'ignore',
           stdout: this.collect(),
@@ -205,7 +238,7 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
         },
         graceMs: this.config.graceMs,
         signal: guard.signal,
-        env: { ...ENV_OVERRIDES },
+        env: { ...ENV_OVERRIDES, ...state },
       })
     } catch (error) {
       throw new SecurityScanError(

@@ -29,6 +29,16 @@ export interface SecurityScanRequest {
   readonly targets: readonly string[]
   /** Scanner-specific options from the provider's whitelist (never raw argv). */
   readonly options?: Readonly<Record<string, SecurityScanOptionValue>>
+  /**
+   * Directory the scan runs in — the calling agent's workspace.
+   *
+   * A relative path in an option (`-t ./templates/mine.yaml`, a wordlist) is
+   * resolved by the scanner against its working directory, so that directory
+   * has to be the project the caller is working in. Without it a scan resolves
+   * paths against wherever the host process happens to have been started,
+   * which is the harness checkout and never what the caller meant.
+   */
+  readonly cwd?: string
 }
 
 /** One captured output stream, structurally compatible with subprocess CollectedOutput. */

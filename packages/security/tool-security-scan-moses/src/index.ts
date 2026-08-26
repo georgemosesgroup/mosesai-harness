@@ -307,11 +307,16 @@ export function createSecurityScanTool(
     // Scans load the target; keep them exclusive among sibling calls.
     isConcurrencySafe: () => false,
     async execute(args, exec) {
+      // The scan runs in the CALLER's workspace: an option naming a relative
+      // template or wordlist means one relative to the project being worked
+      // on, not to wherever the host process was started.
+      const cwd = exec.agent?.session.header.cwd
       const result = await scan(
         {
           scanner: args.scanner,
           targets: args.targets,
           ...(args.options !== undefined ? { options: toOptionValues(args.options) } : {}),
+          ...(cwd === undefined ? {} : { cwd }),
         },
         exec.signal,
       )
