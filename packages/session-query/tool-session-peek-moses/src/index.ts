@@ -24,8 +24,10 @@ import {
   SessionSearchCursor,
   extractSessionEventText,
 } from '@deepseek-ai/dsh-session-query'
+import type { SessionQueryEngine } from '@deepseek-ai/dsh-session-query'
 import type { SessionTitleObservationResult } from '@deepseek-ai/dsh-session-query'
 import { defineTool } from '@deepseek-ai/dsh-tools'
+import type { ToolDefinition } from '@deepseek-ai/dsh-tools'
 
 /** Cordis plugin name used by Loader diagnostics. */
 export const name = 'tool-session-peek-moses'
@@ -71,7 +73,7 @@ interface ResolvedConfig {
   readonly searchStabilizationRetries: number
 }
 
-function resolveConfig(config: Config): ResolvedConfig {
+export function resolveConfig(config: Config): ResolvedConfig {
   const resolved = {
     defaultLimit: config.defaultLimit ?? 20,
     maxLimit: config.maxLimit ?? 100,
@@ -381,8 +383,15 @@ const USAGE_SECTION_TEXT =
   + 'it up here first. Keep read windows bounded (limit/offset); session ids are opaque and must '
   + 'be used exactly as returned.'
 
+/** The slice of `ctx.sessionQuery` the peek tools read through. */
+export type SessionQueryPick = Pick<
+  SessionQueryEngine,
+  'listSessions' | 'readTitleSnapshots' | 'readSession' | 'searchSessions' | 'searchEvents'
+>
+
 /**
- * Register the three read-only session-peek tools.
+ * Register the three read-only session-peek tools plus their usage-guidance
+ * prompt section.
  * @param ctx - the mounting Cordis context.
  * @param config - validated deployment bounds (Loader interpolates defaults).
  */
@@ -395,7 +404,26 @@ export function apply(ctx: Context, config: Config): void {
     text: USAGE_SECTION_TEXT,
   })
 
-  ctx.tools.register(defineTool({
+  for (const tool of createPeekTools(ctx.sessionQuery, resolved)) {
+    ctx.tools.register(tool)
+  }
+}
+
+/**
+ * Build the three tool definitions against an explicit session-query handle.
+ * Split from {@link apply} so tests drive the exact registered bodies with a
+ * scripted seam instead of a live corpus.
+ *
+ * @param sessionQuery - the session-query reads the tools project through.
+ * @param resolved - validated deployment bounds.
+ * @returns the three registry-ready definitions, in registration order.
+ */
+export function createPeekTools(
+  sessionQuery: SessionQueryPick,
+  resolved: ResolvedConfig,
+): ToolDefinition[] {
+  const tools: ToolDefinition[] = []
+  tools.push(defineTool({
     name: 'peek_session_list',
     description:
       'List other sessions recorded by this DSH install, newest first, with their titles and '
@@ -421,10 +449,10 @@ export function apply(ctx: Context, config: Config): void {
     presentCall: args => ({ card: 'generic', kind: 'read', title: 'peek_session_list', rawInput: args }),
     async execute(args, exec): Promise<SessionListResult> {
       const limit = clampCount(args.limit ?? resolved.defaultLimit, resolved.maxLimit)
-      const records = await ctx.sessionQuery.listSessions(exec.signal)
+      const records = await sessionQuery.listSessions(exec.signal)
       exec.signal.throwIfAborted()
       const page = records.slice(0, limit)
-      const titles = foldTitles(await ctx.sessionQuery.readTitleSnapshots(
+      const titles = foldTitles(await sessionQuery.readTitleSnapshots(
         page.map(record => record.header.id),
         exec.signal,
       ))
@@ -445,7 +473,7 @@ export function apply(ctx: Context, config: Config): void {
     },
   }))
 
-  ctx.tools.register(defineTool({
+  tools.push(defineTool({
     name: 'peek_session_read',
     description:
       'Read a bounded window of another session\'s event log in this DSH install. Returns the '
@@ -470,7 +498,7 @@ export function apply(ctx: Context, config: Config): void {
     presentCall: args => ({ card: 'generic', kind: 'read', title: 'peek_session_read', rawInput: args }),
     async execute(args, exec): Promise<SessionReadResult> {
       assertNonEmptySessionId(args.sessionId)
-      const snapshot = await ctx.sessionQuery.readSession(SessionId(args.sessionId))
+      const snapshot = await sessionQuery.readSession(SessionId(args.sessionId))
       exec.signal.throwIfAborted()
       const offset = clampOffset(args.offset ?? 0)
       const limit = clampCount(args.limit ?? resolved.defaultLimit, resolved.maxLimit)
@@ -501,7 +529,7 @@ export function apply(ctx: Context, config: Config): void {
     },
   }))
 
-  ctx.tools.register(defineTool({
+  tools.push(defineTool({
     name: 'peek_session_search',
     description:
       'Full-text search over other sessions of this DSH install. Without sessionId, returns the '
@@ -536,7 +564,7 @@ export function apply(ctx: Context, config: Config): void {
         assertNonEmptySessionId(args.sessionId)
         const target = SessionId(args.sessionId)
         const page = await stableSearch(exec.signal, resolved.searchStabilizationRetries, () =>
-          ctx.sessionQuery.searchEvents({
+          sessionQuery.searchEvents({
             sessionId: target,
             query,
             limit,
@@ -558,13 +586,13 @@ export function apply(ctx: Context, config: Config): void {
         }
       }
       const page = await stableSearch(exec.signal, resolved.searchStabilizationRetries, () =>
-        ctx.sessionQuery.searchSessions({
+        sessionQuery.searchSessions({
           query,
           limit,
           ...(args.cursor === undefined ? {} : { cursor: SessionSearchCursor(args.cursor) }),
         }, { signal: exec.signal }))
       exec.signal.throwIfAborted()
-      const titles = foldTitles(await ctx.sessionQuery.readTitleSnapshots(
+      const titles = foldTitles(await sessionQuery.readTitleSnapshots(
         page.items.map(hit => hit.header.id),
         exec.signal,
       ))
@@ -587,5 +615,10 @@ export function apply(ctx: Context, config: Config): void {
         }),
       }
     },
+
   }))
+
+  return tools
 }
+
+export default apply

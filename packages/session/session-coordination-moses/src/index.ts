@@ -1,7 +1,7 @@
 /**
- * session-coordination — path leases ("claims") for coexisting DSH sessions of
- * ONE host process, plus structural enforcement that blocks write-shaped tool
- * calls into another session's LIVE claim.
+ * session-coordination-moses — path leases ("claims") for coexisting DSH
+ * sessions of ONE host process, plus structural enforcement that blocks
+ * write-shaped tool calls into another session's LIVE claim.
  *
  * Provides:
  * - `ctx.sessionCoordination` service (`acquire/release/list/check`) over an
@@ -24,7 +24,7 @@
 import { Service, type Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import type { PreToolDecision, ToolExecution } from '@deepseek-ai/dsh-tools'
+import type { PreToolDecision, ToolDefinition, ToolExecution } from '@deepseek-ai/dsh-tools'
 // Pulls the `session/*` declaration merges so `ctx.on('session/disposed')` is typed.
 import type {} from '@deepseek-ai/dsh-session'
 import {
@@ -72,8 +72,11 @@ interface ResolvedConfig {
   readonly bypassPatterns: readonly string[]
 }
 
-/** Validate schema-defaulted config loudly; bad values fail the load. */
-function resolveConfig(config: Config): ResolvedConfig {
+/** Validate schema-defaulted config loudly; bad values fail the load.
+ * @param config - the raw Loader-interpolated config.
+ * @returns the fully-resolved deployment bounds.
+ */
+export function resolveConfig(config: Config): ResolvedConfig {
   const defaultTtlMs = (config.defaultTtlMinutes ?? 15) * 60_000
   const maxTtlMs = (config.maxTtlMinutes ?? 120) * 60_000
   if (!Number.isSafeInteger(defaultTtlMs) || defaultTtlMs <= 0) {
@@ -198,38 +201,18 @@ const USAGE_SECTION_TEXT =
   + 'another session\'s live lease — shell is not enforced, so respecting it is on you.'
 
 /**
- * Publish the service and register the four workspace tools plus the
- * `tools/pre-execute` enforcement listener.
- * @param ctx - the mounting Cordis context.
- * @param config - validated deployment bounds (Loader interpolates defaults).
+ * Build the four lease tools against an explicit coordination service.
+ * Split from {@link apply} so tests drive the exact registered bodies with a
+ * plain service instance and stub execs.
+ *
+ * @param coordination - the lease service the tools operate through.
+ * @param resolved - validated deployment bounds.
+ * @returns the four registry-ready definitions, in registration order.
  */
-export function apply(ctx: Context, config: Config): void {
-  const resolved = resolveConfig(config)
-
-  ctx.systemPrompt.section({
-    name: 'session-coordination:usage',
-    order: 115,
-    text: USAGE_SECTION_TEXT,
-  })
-
-  // Constructing the Service publishes `ctx.sessionCoordination` synchronously.
-  const coordination = new SessionCoordinationService(ctx, { maxTtlMs: resolved.maxTtlMs })
-
-  // Dead sessions release instantly; the TTL below is only a backstop.
-  ctx.on('session/disposed', (session) => {
-    coordination.release(session.id)
-  })
-
-  // Periodic sweep so expiry does not depend on someone calling in.
-  ctx.effect(() => {
-    const timer = setInterval(() => {
-      coordination.list() // list() sweeps first
-    }, 60_000)
-    return () => {
-      clearInterval(timer)
-    }
-  }, 'sessionCoordination.sweep')
-
+export function createCoordinationTools(
+  coordination: SessionCoordinationService,
+  resolved: ResolvedConfig,
+): ToolDefinition[] {
   const assertPatterns = (patterns: readonly unknown[]): string[] => {
     if (patterns.length === 0) throw new Error('patterns must contain at least one entry')
     return patterns.map((pattern) => {
@@ -239,8 +222,8 @@ export function apply(ctx: Context, config: Config): void {
       return pattern
     })
   }
-
-  ctx.tools.register(defineTool({
+  const tools: ToolDefinition[] = []
+  tools.push(defineTool({
     name: 'workspace_acquire',
     description:
       'Acquire a TTL-bounded lease on path patterns for THIS session. Other sessions\' structured '
@@ -282,8 +265,7 @@ export function apply(ctx: Context, config: Config): void {
       }
     },
   }))
-
-  ctx.tools.register(defineTool({
+  tools.push(defineTool({
     name: 'workspace_release',
     description:
       'Release ALL path leases held by THIS session. Others may write immediately afterwards. '
@@ -296,12 +278,11 @@ export function apply(ctx: Context, config: Config): void {
       }],
     },
     presentCall: args => ({ card: 'generic', kind: 'read', title: 'workspace_release', rawInput: args }),
-    async execute(_args, exec): Promise<{ released: number }> {
-      return await Promise.resolve({ released: coordination.release(callerOf(exec)) })
+    execute(_args, exec) {
+      return Promise.resolve({ released: coordination.release(callerOf(exec)) })
     },
   }))
-
-  ctx.tools.register(defineTool({
+  tools.push(defineTool({
     name: 'workspace_claims',
     description:
       'List every live path lease in this install: owners, patterns, expiries, notes. '
@@ -321,13 +302,12 @@ export function apply(ctx: Context, config: Config): void {
       }],
     },
     presentCall: args => ({ card: 'generic', kind: 'read', title: 'workspace_claims', rawInput: args }),
-    async execute(): Promise<{ claims: WorkspaceClaim[] }> {
+    execute() {
       const claims = coordination.list()
-      return await Promise.resolve({ claims: claims.map(claimValueOf) })
+      return Promise.resolve({ claims: claims.map(claimValueOf) })
     },
   }))
-
-  ctx.tools.register(defineTool({
+  tools.push(defineTool({
     name: 'workspace_check',
     description:
       'Check whether one path is under a live lease and who owns it. '
@@ -353,20 +333,31 @@ export function apply(ctx: Context, config: Config): void {
       }],
     },
     presentCall: args => ({ card: 'generic', kind: 'read', title: 'workspace_check', rawInput: args }),
-    async execute(args): Promise<{ path: string; claimed: boolean; claim?: WorkspaceClaim }> {
+    execute(args) {
       const claim = coordination.check(args.path)
-      return await Promise.resolve(claim === null
+      return Promise.resolve(claim === null
         ? { path: args.path, claimed: false }
         : { path: args.path, claimed: true, claim: claimValueOf(claim) })
     },
   }))
+  return tools
+}
 
-  // ── enforcement ────────────────────────────────────────────────────────────
+/**
+ * Build the `tools/pre-execute` enforcement handler.
+ * @param coordination - the lease service consulted for each write target.
+ * @param resolved - validated deployment bounds.
+ * @returns the waterfall handler; delegates via `next()` on allow.
+ */
+export function createEnforcementListener(
+  coordination: SessionCoordinationService,
+  resolved: ResolvedConfig,
+): (exec: ToolExecution, next: () => Promise<PreToolDecision>) => Promise<PreToolDecision> {
   const denyReasonFor = (path: string, claim: Readonly<WorkspaceClaim>): string =>
     `${conflictMessage(path, claim)}. Your writes are blocked by session-coordination; `
     + 'call workspace_claims to see all leases, or coordinate with the owner / wait for expiry.'
 
-  ctx.on('tools/pre-execute', async (exec, next): Promise<PreToolDecision> => {
+  return async (exec, next): Promise<PreToolDecision> => {
     if (resolved.enforcement === 'off') return next()
     if (!resolved.enforcedTools.includes(exec.name)) return next()
     const path = targetPathOf(exec.arguments)
@@ -385,5 +376,45 @@ export function apply(ctx: Context, config: Config): void {
     const reason = denyReasonFor(path, claim)
     if (resolved.enforcement === 'ask') return { kind: 'ask', reason }
     return { kind: 'deny', reason }
+  }
+}
+
+/**
+ * Publish the service and register the four workspace tools plus the
+ * `tools/pre-execute` enforcement listener.
+ * @param ctx - the mounting Cordis context.
+ * @param config - validated deployment bounds (Loader interpolates defaults).
+ */
+export function apply(ctx: Context, config: Config): void {
+  const resolved = resolveConfig(config)
+
+  ctx.systemPrompt.section({
+    name: 'session-coordination:usage',
+    order: 115,
+    text: USAGE_SECTION_TEXT,
   })
+
+  // Constructing the Service publishes `ctx.sessionCoordination` synchronously.
+  const coordination = new SessionCoordinationService(ctx, { maxTtlMs: resolved.maxTtlMs })
+
+  // Dead sessions release instantly; the TTL below is only a backstop.
+  ctx.on('session/disposed', (session) => {
+    coordination.release(session.id)
+  })
+
+  // Periodic sweep so expiry does not depend on someone calling in.
+  ctx.effect(() => {
+    const timer = setInterval(() => {
+      coordination.list() // list() sweeps first
+    }, 60_000)
+    return () => {
+      clearInterval(timer)
+    }
+  }, 'sessionCoordination.sweep')
+
+  for (const tool of createCoordinationTools(coordination, resolved)) {
+    ctx.tools.register(tool)
+  }
+
+  ctx.on('tools/pre-execute', createEnforcementListener(coordination, resolved))
 }
