@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-session-coordination-moses
 
+English | [中文](README.zh.md)
+
 Personal cross-session coordination plugin: TTL path leases ("claims") plus structural enforcement that blocks write-shaped tool calls into another session's live lease.
 
 ## Service

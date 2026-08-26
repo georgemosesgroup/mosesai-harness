@@ -12,17 +12,17 @@ describe('claims-core', () => {
     expect(globMatch('src/*.ts', 'src/deep/a.ts')).toBe(false)
     expect(globMatch('a/**/b', 'a/b')).toBe(true)
     expect(patternsOverlap('src/*.ts', 'src/b.md')).toBe(false)
-    expect(patternsOverlap('docs/**', 'docs/r.md')).toBe(true)
+    expect(patternsOverlap('pkg/**', 'pkg/r.md')).toBe(true)
   })
 
   it('store lifecycle', () => {
     const now = 1_000_000
     const s = new ClaimStore(() => now, { maxTtlMs: 120 * 60_000 })
-    s.acquire({ sessionId: 'A', patterns: ['docs/**'], ttlMs: 60_000, now })
-    expect(() => s.acquire({ sessionId: 'B', patterns: ['docs/x'], ttlMs: 60_000, now }))
+    s.acquire({ sessionId: 'A', patterns: ['pkg/**'], ttlMs: 60_000, now })
+    expect(() => s.acquire({ sessionId: 'B', patterns: ['pkg/x'], ttlMs: 60_000, now }))
       .toThrow(ClaimConflictError)
-    expect(s.check('docs/x.md', now)?.sessionId).toBe('A')
+    expect(s.check('pkg/x.md', now)?.sessionId).toBe('A')
     s.release('A')
-    expect(s.check('docs/x.md', now)).toBeNull()
+    expect(s.check('pkg/x.md', now)).toBeNull()
   })
 })

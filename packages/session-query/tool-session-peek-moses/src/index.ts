@@ -73,6 +73,13 @@ interface ResolvedConfig {
   readonly searchStabilizationRetries: number
 }
 
+/**
+ * Apply documented defaults and validate every bound loudly so bad values fail
+ * at load instead of degrading tool behavior.
+ * @param config - raw Loader-interpolated config.
+ * @returns fully-resolved paging, truncation, and deadline bounds.
+ * @throws `TypeError` when a value is out of range or not a safe integer.
+ */
 export function resolveConfig(config: Config): ResolvedConfig {
   const resolved = {
     defaultLimit: config.defaultLimit ?? 20,

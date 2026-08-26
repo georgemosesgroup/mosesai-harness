@@ -28,10 +28,10 @@ CLI-флаги никогда не приходят от модели. Лока�
 
 ## Testing
 
-- Таблица allowlist, ветки селекции, «холодный» spy при отказе, disposal: `packages/security/security-scan/tests/security-scan.spec.ts`.
-- Исполнение на стаб-бинарниках, инъекция флагов, классификация deadline/abort, лимиты spill, резолв по PATH: `packages/security/security-scan-local/tests/security-scan-local.spec.ts`.
-- Границы капа рендера и сужение опций: `packages/security/tool-security-scan/tests/tool-security-scan.spec.ts`.
-- Собранная загрузка через Loader поверх реального subprocess: `packages/security/tool-security-scan/tests/composition.e2e.ts`.
+- Таблица allowlist, ветки селекции, «холодный» spy при отказе, disposal: `packages/security/security-scan-moses/tests/security-scan.spec.ts`.
+- Исполнение на стаб-бинарниках, инъекция флагов, классификация deadline/abort, лимиты spill, резолв по PATH: `packages/security/security-scan-local-moses/tests/security-scan-local.spec.ts`.
+- Границы капа рендера и сужение опций: `packages/security/tool-security-scan-moses/tests/tool-security-scan.spec.ts`.
+- Собранная загрузка через Loader поверх реального subprocess: `packages/security/tool-security-scan-moses/tests/composition.e2e.ts`.
 - Keyless транскрипт-снапшот настоящего хода через scripted-адаптер: `examples/headless-agent/tests/snapshots/security-scan/`.
 
 ## Consequences

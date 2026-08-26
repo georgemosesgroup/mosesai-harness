@@ -32,7 +32,7 @@ describe('peek tools with mocked seam', () => {
   it('list returns empty when no sessions', async () => {
     const seam = makeSeam()
     const tools = createPeekTools(seam as never, cfg)
-    const value = await (tools[0]!.execute)({}, exec as never)
+    const value = await (tools[0]!.execute)({}, exec)
     expect(value).toMatchObject({ totalKnown: 0, returned: 0 })
   })
 

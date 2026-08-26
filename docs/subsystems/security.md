@@ -2,15 +2,15 @@
 
 English | [中文](security.zh.md)
 
-The security-scanning seam wraps authorized external CLI scanners (nuclei, httpx, katana, ffuf, nmap, sqlmap) behind one `ctx.security`-style middle layer: `ctx.securityScan`. The split mirrors every capability seam — Service Definition ([dsh-security-scan](../../packages/security/security-scan), this page's vocabulary plus the provider registry and the ENFORCED target allowlist), Service Provider ([dsh-security-scan-local](../../packages/security/security-scan-local), whitelisted argv construction and subprocess execution), Consumer ([dsh-tool-security-scan](../../packages/security/tool-security-scan), the `security_scan` schema and prompt guidance).
+The security-scanning seam wraps authorized external CLI scanners (nuclei, httpx, katana, ffuf, nmap, sqlmap) behind one `ctx.security`-style middle layer: `ctx.securityScan`. The split mirrors every capability seam — Service Definition ([dsh-security-scan-moses](../../packages/security/security-scan-moses), this page's vocabulary plus the provider registry and the ENFORCED target allowlist), Service Provider ([dsh-security-scan-local-moses](../../packages/security/security-scan-local-moses), whitelisted argv construction and subprocess execution), Consumer ([dsh-tool-security-scan-moses](../../packages/security/tool-security-scan-moses), the `security_scan` schema and prompt guidance).
 
-Source: [`packages/security/security-scan/src/types.ts`](../../packages/security/security-scan/src/types.ts)
+Source: [`packages/security/security-scan-moses/src/types.ts`](../../packages/security/security-scan-moses/src/types.ts)
 
 ## Authorization is a seam property
 
 The deployment's `allowlist` is the authorization boundary: targets are normalized to hosts and matched against it inside `SecurityScanRuntime.scan`, before any provider runs, so direct service callers cannot bypass it. Hosts are the unit of authorization — ports never participate, and an allowed host is reachable on any port over any scheme. Entry forms: exact hosts, `.domain` (apex plus subdomains of any depth), IPv4/IPv6 literals, bitwise CIDR v4+v6 (non-canonical network addresses are rejected, not normalized). IDN names must be given in punycode form.
 
-Providers register capabilities (`SecurityScanProvider`), not tools; the model-facing name, schema, prompt guidance, and presentation live in the single `dsh-tool-security-scan` consumer. Provider selection mirrors [`dsh-web`](web.md): configured id first (missing/unavailable are distinct errors), otherwise exactly one usable provider for the requested scanner, else ambiguous or unavailable.
+Providers register capabilities (`SecurityScanProvider`), not tools; the model-facing name, schema, prompt guidance, and presentation live in the single `dsh-tool-security-scan-moses` consumer. Provider selection mirrors [`dsh-web`](web.md): configured id first (missing/unavailable are distinct errors), otherwise exactly one usable provider for the requested scanner, else ambiguous or unavailable.
 
 ## Scan request and result
 
@@ -128,5 +128,5 @@ registerProvider(provider: SecurityScanProvider): () => void
 async scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult>
 ```
 
-Source: [`packages/security/security-scan/src/index.ts`](../../packages/security/security-scan/src/index.ts)
+Source: [`packages/security/security-scan-moses/src/index.ts`](../../packages/security/security-scan-moses/src/index.ts)
 <!-- END GENERATED cordis-surface -->

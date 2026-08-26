@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-security-scan-local
+# @deepseek-ai/dsh-security-scan-local-moses
 
 English | [中文](README.zh.md)
 

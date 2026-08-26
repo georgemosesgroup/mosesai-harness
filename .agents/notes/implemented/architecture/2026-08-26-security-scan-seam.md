@@ -28,10 +28,10 @@ The frozen config listed only `allowlist` and `maxTargetsPerScan`, while the err
 
 ## Testing
 
-- Allowlist table, selection branches, spy-cold enforcement, disposal: `packages/security/security-scan/tests/security-scan.spec.ts`.
-- Stub-binary execution, injection, deadline/abort classification, spill caps, PATH resolution: `packages/security/security-scan-local/tests/security-scan-local.spec.ts`.
-- Render cap boundaries and option narrowing: `packages/security/tool-security-scan/tests/tool-security-scan.spec.ts`.
-- Assembled Loader boot over the real subprocess service: `packages/security/tool-security-scan/tests/composition.e2e.ts`.
+- Allowlist table, selection branches, spy-cold enforcement, disposal: `packages/security/security-scan-moses/tests/security-scan.spec.ts`.
+- Stub-binary execution, injection, deadline/abort classification, spill caps, PATH resolution: `packages/security/security-scan-local-moses/tests/security-scan-local.spec.ts`.
+- Render cap boundaries and option narrowing: `packages/security/tool-security-scan-moses/tests/tool-security-scan.spec.ts`.
+- Assembled Loader boot over the real subprocess service: `packages/security/tool-security-scan-moses/tests/composition.e2e.ts`.
 - Keyless transcript snapshot driving a real turn through the scripted adapter: `examples/headless-agent/tests/snapshots/security-scan/`.
 
 ## Consequences

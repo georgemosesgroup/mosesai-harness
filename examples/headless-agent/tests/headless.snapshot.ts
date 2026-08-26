@@ -68,7 +68,7 @@ const securityConfigPath = fileURLToPath(new URL('../security-scan.cordis.snapsh
 // The provider resolves its pinned binary against the generated cwd, so the
 // smoke's prepare hook copies the executable stub there before boot.
 const scannerStubSource = fileURLToPath(new URL(
-  '../../../packages/security/security-scan-local/tests/fixtures/bin/scanner-stub',
+  '../../../packages/security/security-scan-local-moses/tests/fixtures/bin/scanner-stub',
   import.meta.url,
 ))
 

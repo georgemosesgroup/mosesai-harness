@@ -1,8 +1,8 @@
-# @deepseek-ai/dsh-tool-security-scan
+# @deepseek-ai/dsh-tool-security-scan-moses
 
 [English](README.md) | 中文
 
-基于 [`dsh-security-scan`](../security-scan/README.zh.md) 的模型可见 `security_scan` 工具。本包持有 schema、提示词指引、预算与呈现；seam 负责授权、提供方选择与执行。扫描器二进制缺失时工具依旧可见，并在执行期以结构化 seam 错误失败（`tool-web` 先例）。
+基于 [`dsh-security-scan-moses`](../security-scan-moses/README.zh.md) 的模型可见 `security_scan` 工具。本包持有 schema、提示词指引、预算与呈现；seam 负责授权、提供方选择与执行。扫描器二进制缺失时工具依旧可见，并在执行期以结构化 seam 错误失败（`tool-web` 先例）。
 
 ## 工具
 
@@ -23,15 +23,15 @@
 ```yaml
 - insert:
     - id: security-scan
-      name: '@deepseek-ai/dsh-security-scan'
+      name: '@deepseek-ai/dsh-security-scan-moses'
       config:
         allowlist: ['staging.example.com']
 
     - id: security-scan-local
-      name: '@deepseek-ai/dsh-security-scan-local'
+      name: '@deepseek-ai/dsh-security-scan-local-moses'
 
     - id: tool-security-scan
-      name: '@deepseek-ai/dsh-tool-security-scan'
+      name: '@deepseek-ai/dsh-tool-security-scan-moses'
 ```
 
 用 `dsh --profile web --dump-config | grep security-scan` 验证；新创建的会话中即出现该工具。

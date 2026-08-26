@@ -1196,6 +1196,38 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'sessionCoordination',
+    summary: 'The published `ctx.sessionCoordination` service: one process-wide lease table shared by every session of this host.',
+    description: 'The published `ctx.sessionCoordination` service: one process-wide lease table shared by every session of this host. All methods are synchronous; expired leases are swept on access and by a periodic timer.',
+    methods: [
+      {
+        signature: 'acquire(sessionId: string, patterns: readonly string[], ttlMs: number, note?: string): WorkspaceClaim',
+        description: 'Take one lease for `sessionId`.',
+        parameters: [{ name: 'sessionId', description: 'owning caller session id (`exec.agent.session.id`).' }, { name: 'patterns', description: 'non-empty glob patterns the lease covers.' }, { name: 'ttlMs', description: 'requested lifetime in milliseconds, capped by `maxTtlMs`.' }, { name: 'note', description: 'optional free-text reason other sessions see in denials.' }],
+        returns: 'the stored claim, detached from the store.',
+        throws: ['`ClaimConflictError` when another session\'s live claim overlaps.'],
+      },
+      {
+        signature: 'release(sessionId: string): number',
+        description: 'Release every claim of one session.',
+        parameters: [{ name: 'sessionId', description: 'session whose claims are dropped.' }],
+        returns: 'how many live claims were removed.',
+      },
+      {
+        signature: 'list(): WorkspaceClaim[]',
+        description: 'All live claims, earliest-expiring first; sweeps expired leases first.',
+        parameters: [],
+        returns: 'detached copies of every live claim.',
+      },
+      {
+        signature: 'check(path: string): WorkspaceClaim | null',
+        description: 'The live claim covering one concrete path, or `null`.',
+        parameters: [{ name: 'path', description: 'concrete `/`-separated path to test against live claims.' }],
+        returns: 'detached copy of the oldest covering claim, or `null`.',
+      },
+    ],
+  },
+  {
     key: 'sessionPersistence',
     summary: 'Durable append-only session storage.',
     description: 'Durable append-only session storage. Implementations preserve contiguous, losslessly JSON-serializable events; append resolves only after durability, and load balances a complete interrupted tail without rewriting committed events.',
@@ -5095,6 +5127,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkflowStopReason',
     declaration: 'export type WorkflowStopReason = \'completed\' | \'cancelled\' | \'error\';',
+  },
+  {
+    name: 'WorkspaceClaim',
+    declaration: 'export interface WorkspaceClaim {\n    sessionId: string;\n    patterns: string[];\n    expiresAt: number;\n    acquiredAt: number;\n    note?: string;\n}',
   },
 ]
 

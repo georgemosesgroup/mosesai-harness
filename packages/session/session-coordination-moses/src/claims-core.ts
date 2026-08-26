@@ -47,7 +47,12 @@ export class ClaimConflictError extends Error {
   }
 }
 
-/** The user-facing conflict sentence, shared by acquire errors and deny decisions. */
+/**
+ * The user-facing conflict sentence, shared by acquire errors and deny decisions.
+ * @param pattern - requested path pattern that collided with a live claim.
+ * @param claim - blocking claim whose owner and expiry are reported.
+ * @returns one sentence naming the pattern, owner session, expiry, and note.
+ */
 export function conflictMessage(pattern: string, claim: Readonly<WorkspaceClaim>): string {
   const noteSuffix = claim.note === undefined ? '' : `: ${claim.note}`
   return `path pattern "${pattern}" is claimed by session ${claim.sessionId} until `
@@ -67,6 +72,8 @@ function segmentToRegExp(segment: string): string {
  * paths. A `**` segment matches zero or more whole segments and carries its
  * own separators, so `a` + `/`+`**`+`/`+ `b` matches both `a/b` and
  * `a/x/y/b`, while `x/**` covers everything below `x/` but not `x` itself.
+ * @param pattern - supported-subset glob over `/`-separated paths.
+ * @returns anchored matcher to test against exact path strings.
  */
 export function globToRegExp(pattern: string): RegExp {
   return new RegExp(`^${segmentsToRegExpSource(pattern.split('/'))}$`, 'u')
@@ -89,7 +96,12 @@ function segmentsToRegExpSource(segments: readonly string[]): string {
   return tail.length === 0 ? source : source + '/' + segmentsToRegExpSource(tail)
 }
 
-/** Whether one concrete path matches one supported-subset pattern. */
+/**
+ * Whether one concrete path matches one supported-subset pattern.
+ * @param pattern - supported-subset glob to test.
+ * @param path - concrete `/`-separated path.
+ * @returns true when the anchored matcher accepts the path.
+ */
 export function globMatch(pattern: string, path: string): boolean {
   return globToRegExp(pattern).test(path)
 }
@@ -100,6 +112,10 @@ export function globMatch(pattern: string, path: string): boolean {
  * Overlap detection is then symmetric witness testing with the real matcher:
  * precise enough for early feedback, never authoritative — the per-path
  * `check()` at write time is the only arbitration that matters.
+ *
+ * @param pattern - pattern to expand into representative concrete paths.
+ * @param limit - upper bound on returned witnesses.
+ * @returns at most `limit` distinct concrete paths plausibly covered by `pattern`.
  */
 export function witnessesOf(pattern: string, limit = 32): string[] {
   const segments = pattern.split('/')
@@ -135,6 +151,10 @@ export function witnessesOf(pattern: string, limit = 32): string[] {
  * absolute and relative spellings of the same scope recognize each other —
  * witnesses are generated slash-structure-preserving per side, and anchored
  * matchers would otherwise never cross the `/foo` vs `foo` spelling gap.
+ *
+ * @param left - first pattern, any absolute/relative spelling.
+ * @param right - second pattern, any absolute/relative spelling.
+ * @returns true when some witness path matches both sides.
  */
 export function patternsOverlap(left: string, right: string): boolean {
   const normalize = (pattern: string): string => pattern.replace(/^\/+|\/+$/gu, '')
@@ -163,7 +183,11 @@ export class ClaimStore {
     private readonly bounds: { readonly maxTtlMs: number },
   ) {}
 
-  /** Drop expired leases; returns how many were removed. */
+  /**
+   * Drop expired leases.
+   * @param now - current Unix epoch milliseconds; defaults to the clock.
+   * @returns how many expired claims were removed.
+   */
   sweep(now = this.clock()): number {
     let swept = 0
     for (const [id, claim] of this.claims) {
@@ -178,6 +202,7 @@ export class ClaimStore {
   /**
    * Take one lease. Rejects when a LIVE claim of ANOTHER session overlaps any
    * requested pattern; the caller's own overlapping claims never block.
+   * @param request - validated acquisition input; TTL is capped by the bounds.
    * @returns the stored claim, detached.
    */
   acquire(request: AcquireRequest): WorkspaceClaim {
@@ -207,7 +232,11 @@ export class ClaimStore {
     return { ...claim, patterns: [...claim.patterns] }
   }
 
-  /** Release every claim of one session; returns how many were removed. */
+  /**
+   * Release every claim of one session.
+   * @param sessionId - session whose claims are dropped.
+   * @returns how many live claims were removed.
+   */
   release(sessionId: string): number {
     let released = 0
     for (const [id, claim] of this.claims) {
@@ -219,7 +248,11 @@ export class ClaimStore {
     return released
   }
 
-  /** All live claims, earliest-expiring first; sweeps first. */
+  /**
+   * All live claims, earliest-expiring first; sweeps first.
+   * @param now - current Unix epoch milliseconds; defaults to the clock.
+   * @returns detached copies of every live claim.
+   */
   list(now = this.clock()): WorkspaceClaim[] {
     this.sweep(now)
     return [...this.claims.values()]
@@ -230,6 +263,9 @@ export class ClaimStore {
   /**
    * The live claim covering one concrete path, if any; insertion order breaks
    * ties so the oldest surviving claim wins. Sweeps first.
+   * @param path - concrete `/`-separated path to test.
+   * @param now - current Unix epoch milliseconds; defaults to the clock.
+   * @returns detached copy of the covering claim, or `null`.
    */
   check(path: string, now = this.clock()): WorkspaceClaim | null {
     this.sweep(now)
@@ -241,7 +277,11 @@ export class ClaimStore {
     return null
   }
 
-  /** Live claim count (tests and diagnostics). */
+  /**
+   * Live claim count (tests and diagnostics); sweeps first.
+   * @param now - current Unix epoch milliseconds; defaults to the clock.
+   * @returns how many claims are still live at `now`.
+   */
   size(now = this.clock()): number {
     this.sweep(now)
     return this.claims.size

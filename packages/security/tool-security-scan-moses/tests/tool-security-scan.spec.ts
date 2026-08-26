@@ -124,7 +124,7 @@ describe('presentation', () => {
     expect(view?.card).toBe('generic')
     expect(JSON.stringify(view)).toContain('exit 0 · 1 target(s)')
     expect(JSON.stringify(view)).not.toContain('output truncated')
-    const truncatedMeta = metaFromValue(1, makeResult({ stdout: { text: 'x'.repeat(99_999), truncated: false } }), DEFAULT_MAX_OUTPUT_CHARS) as JsonValue
+    const truncatedMeta = metaFromValue(1, makeResult({ stdout: { text: 'x'.repeat(99_999), truncated: false } }), DEFAULT_MAX_OUTPUT_CHARS)
     expect((truncatedMeta as { outputTruncated: boolean }).outputTruncated).toBe(true)
     const truncatedView = presentResult({ scanner: 'nuclei' }, { ...toolResult, meta: truncatedMeta } as never)
     expect(JSON.stringify(truncatedView)).toContain('· output truncated')

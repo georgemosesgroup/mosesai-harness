@@ -2,15 +2,15 @@
 
 [English](security.md) | 中文
 
-安全扫描 seam 将授权范围内的外部 CLI 扫描器（nuclei、httpx、katana、ffuf、nmap、sqlmap）封装在统一的 `ctx.securityScan` 中间层之后：Service Definition（[dsh-security-scan](../../packages/security/security-scan)，即本页的词汇表、提供方注册表与强制执行的 allowlist）、Service Provider（[dsh-security-scan-local](../../packages/security/security-scan-local)，白名单化 argv 构建与 subprocess 执行）以及 Consumer（[dsh-tool-security-scan](../../packages/security/tool-security-scan)，`security_scan` 的 schema 与提示词指引）。
+安全扫描 seam 将授权范围内的外部 CLI 扫描器（nuclei、httpx、katana、ffuf、nmap、sqlmap）封装在统一的 `ctx.securityScan` 中间层之后：Service Definition（[dsh-security-scan-moses](../../packages/security/security-scan-moses)，即本页的词汇表、提供方注册表与强制执行的 allowlist）、Service Provider（[dsh-security-scan-local-moses](../../packages/security/security-scan-local-moses)，白名单化 argv 构建与 subprocess 执行）以及 Consumer（[dsh-tool-security-scan-moses](../../packages/security/tool-security-scan-moses)，`security_scan` 的 schema 与提示词指引）。
 
-Source: [`packages/security/security-scan/src/types.ts`](../../packages/security/security-scan/src/types.ts)
+Source: [`packages/security/security-scan-moses/src/types.ts`](../../packages/security/security-scan-moses/src/types.ts)
 
 ## 授权是 seam 自身的属性
 
 部署配置中的 `allowlist` 即授权边界：targets 会在 `SecurityScanRuntime.scan` 内部被规范化为主机并与该列表匹配，且发生在任何提供方运行之前，因此直接调用服务无法绕过。授权以主机为单位——端口从不参与，允许的主机在任意端口、任意 scheme 下均可达。条目形态：精确主机、`.domain`（apex 与任意深度子域）、IPv4/IPv6 字面量、按位实现的 CIDR v4+v6（非规范网络地址会被拒绝而非归一化）。IDN 域名必须以 punycode 形式给出。
 
-提供方注册的是能力（`SecurityScanProvider`）而非工具；面向模型的名称、schema、提示词指引与呈现全部位于唯一的 `dsh-tool-security-scan` consumer。提供方选择逻辑与 [`dsh-web`](web.zh.md) 一致：优先已配置 id（missing/unavailable 分别报错），否则恰好一个可用于所请求扫描器的提供方，否则 ambiguous 或 unavailable。
+提供方注册的是能力（`SecurityScanProvider`）而非工具；面向模型的名称、schema、提示词指引与呈现全部位于唯一的 `dsh-tool-security-scan-moses` consumer。提供方选择逻辑与 [`dsh-web`](web.zh.md) 一致：优先已配置 id（missing/unavailable 分别报错），否则恰好一个可用于所请求扫描器的提供方，否则 ambiguous 或 unavailable。
 
 ## 扫描请求与结果
 
@@ -128,5 +128,5 @@ registerProvider(provider: SecurityScanProvider): () => void
 async scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult>
 ```
 
-Source: [`packages/security/security-scan/src/index.ts`](../../packages/security/security-scan/src/index.ts)
+Source: [`packages/security/security-scan-moses/src/index.ts`](../../packages/security/security-scan-moses/src/index.ts)
 <!-- END GENERATED cordis-surface -->

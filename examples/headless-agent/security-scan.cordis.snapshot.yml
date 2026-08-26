@@ -27,14 +27,14 @@
             name: './tests/fixtures/security/security-mock-llm.ts'
 
           - id: security-scan
-            name: '@deepseek-ai/dsh-security-scan'
+            name: '@deepseek-ai/dsh-security-scan-moses'
             config:
               allowlist: ['stub.test']
 
           # The smoke harness copies the executable stub into the generated
           # cwd before boot, so the relative pinned path resolves there.
           - id: security-scan-local
-            name: '@deepseek-ai/dsh-security-scan-local'
+            name: '@deepseek-ai/dsh-security-scan-local-moses'
             config:
               binPaths:
                 nuclei: ./scanner-stub
@@ -42,4 +42,4 @@
               timeoutMs: 20000
 
           - id: tool-security-scan
-            name: '@deepseek-ai/dsh-tool-security-scan'
+            name: '@deepseek-ai/dsh-tool-security-scan-moses'

@@ -1,8 +1,8 @@
-# @deepseek-ai/dsh-tool-security-scan
+# @deepseek-ai/dsh-tool-security-scan-moses
 
 English | [中文](README.zh.md)
 
-Model-facing `security_scan` tool over [`dsh-security-scan`](../security-scan/README.md). This package owns the schema, prompt guidance, budgets, and presentation; the seam owns authorization, provider selection, and execution. The tool stays visible when a scanner binary is missing and fails with a structured seam error at execution time (the `tool-web` precedent).
+Model-facing `security_scan` tool over [`dsh-security-scan-moses`](../security-scan-moses/README.md). This package owns the schema, prompt guidance, budgets, and presentation; the seam owns authorization, provider selection, and execution. The tool stays visible when a scanner binary is missing and fails with a structured seam error at execution time (the `tool-web` precedent).
 
 ## The tool
 
@@ -23,15 +23,15 @@ Mount all three packages in any composition patch layer. For a user web profile,
 ```yaml
 - insert:
     - id: security-scan
-      name: '@deepseek-ai/dsh-security-scan'
+      name: '@deepseek-ai/dsh-security-scan-moses'
       config:
         allowlist: ['staging.example.com']
 
     - id: security-scan-local
-      name: '@deepseek-ai/dsh-security-scan-local'
+      name: '@deepseek-ai/dsh-security-scan-local-moses'
 
     - id: tool-security-scan
-      name: '@deepseek-ai/dsh-tool-security-scan'
+      name: '@deepseek-ai/dsh-tool-security-scan-moses'
 ```
 
 Verify with `dsh --profile web --dump-config | grep security-scan`; the tool appears in newly created sessions.

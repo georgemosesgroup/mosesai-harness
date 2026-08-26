@@ -1,5 +1,7 @@
 # @deepseek-ai/dsh-tool-session-peek-moses
 
+English | [中文](README.zh.md)
+
 Personal read-only session-peek tools (`peek_session_list`, `peek_session_read`, `peek_session_search`) over `ctx.sessionQuery`. Lets one model session inspect OTHER sessions of the same DSH install without mutating anything.
 
 ## Tools

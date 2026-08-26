@@ -111,23 +111,39 @@ export class SessionCoordinationService extends Service {
 
   /**
    * Take one lease for `sessionId`.
+   * @param sessionId - owning caller session id (`exec.agent.session.id`).
+   * @param patterns - non-empty glob patterns the lease covers.
+   * @param ttlMs - requested lifetime in milliseconds, capped by `maxTtlMs`.
+   * @param note - optional free-text reason other sessions see in denials.
+   * @returns the stored claim, detached from the store.
    * @throws `ClaimConflictError` when another session's live claim overlaps.
    */
   acquire(sessionId: string, patterns: readonly string[], ttlMs: number, note?: string): WorkspaceClaim {
     return this.store.acquire({ sessionId, patterns, ttlMs, now: Date.now(), ...(note === undefined ? {} : { note }) })
   }
 
-  /** Release every claim of `sessionId`; returns how many were removed. */
+  /**
+   * Release every claim of one session.
+   * @param sessionId - session whose claims are dropped.
+   * @returns how many live claims were removed.
+   */
   release(sessionId: string): number {
     return this.store.release(sessionId)
   }
 
-  /** All live claims, earliest-expiring first. */
+  /**
+   * All live claims, earliest-expiring first; sweeps expired leases first.
+   * @returns detached copies of every live claim.
+   */
   list(): WorkspaceClaim[] {
     return this.store.list()
   }
 
-  /** The live claim covering `path`, or `null`. */
+  /**
+   * The live claim covering one concrete path, or `null`.
+   * @param path - concrete `/`-separated path to test against live claims.
+   * @returns detached copy of the oldest covering claim, or `null`.
+   */
   check(path: string): WorkspaceClaim | null {
     return this.store.check(path)
   }
