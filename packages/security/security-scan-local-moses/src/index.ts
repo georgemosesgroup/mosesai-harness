@@ -9,6 +9,7 @@
  */
 
 import { accessSync, constants, existsSync } from 'node:fs'
+import { spawnSync } from 'node:child_process'
 import { join } from 'node:path'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
@@ -38,6 +39,39 @@ const ENV_OVERRIDES = {
   PAGER: 'cat',
   GIT_PAGER: 'cat',
 } as const
+
+/**
+ * Identity-probe argv per scanner. Every projectdiscovery tool answers
+ * `-version` with a version line; nmap spells it `--version`; sqlmap also
+ * speaks `--version`. A binary that exits non-zero or dumps a usage screen on
+ * this probe is a same-named CLI from some other package, not our scanner.
+ */
+const IDENTITY_PROBE_FLAGS: Record<SecurityScannerId, readonly string[]> = {
+  nuclei: ['-version'],
+  httpx: ['-version'],
+  katana: ['-version'],
+  ffuf: ['-version'],
+  nmap: ['--version'],
+  sqlmap: ['--version'],
+}
+
+/**
+ * Binary paths that already passed the identity probe live on the provider
+ * INSTANCE: a second provider may point the same scanner name at a different
+ * binary, and its verdict must be computed fresh.
+ */
+
+/**
+ * Whether one probe response looks like the expected scanner: clean exit,
+ * non-empty output (every supported tool prints a version line), and no
+ * usage/error screen — the telltale signature of a same-named CLI from
+ * another package answering its own option grammar instead.
+ */
+export function looksLikeScannerBinary(output: string, exitCode: number): boolean {
+  if (exitCode !== 0) return false
+  const text = output.trim()
+  return text.length > 0 && !/^Usage:/m.test(text) && !/^Error:/m.test(text)
+}
 
 /** Plugin config; every field is defaulted and validated at load. */
 export interface Config {
@@ -138,6 +172,9 @@ function finalOutput(reader: SubprocessOutputReader): ScanOutput {
 export class LocalSecurityScanProvider implements SecurityScanProvider {
   readonly id = 'local'
 
+  /** Per-instance cache of binary paths that passed the identity probe. */
+  private readonly identityVerified = new Set<string>()
+
   constructor(
     private readonly ctx: Context,
     private readonly config: ResolvedConfig,
@@ -149,7 +186,7 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
 
   async scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult> {
     const startedAt = Date.now()
-    const binaryPath = this.requireBinary(request.scanner)
+    const binaryPath = this.resolveVerifiedBinary(request.scanner)
     const argvTail = planScanArgv(request.scanner, request.targets, request.options ?? {}, raw => this.resolveWordlist(raw))
     const argv = [binaryPath, ...argvTail.flags, ...argvTail.positionalTargets]
 
@@ -221,15 +258,83 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
     return findOnPath(scanner, segments)
   }
 
-  private requireBinary(scanner: SecurityScannerId): string {
-    const path = this.binaryPath(scanner)
-    if (path === undefined) {
+  /**
+   * One blocking `-version`/`--version` probe (≤5 s) of the resolved binary,
+   * cached per path. Throw when the binary does not behave like the expected
+   * scanner — PATH frequently carries same-named CLIs (e.g. the Python
+   * `httpx` library ships a `httpx` command whose `-j` means "JSON body"),
+   * and a wrong binary otherwise fails deep inside flag parsing with an
+   * error far from the root cause.
+   */
+  private assertBinaryIdentity(scanner: SecurityScannerId, binaryPath: string): void {
+    if (this.identityVerified.has(binaryPath)) return
+    // spawnSync (not execFileSync): exits non-zero must NOT throw — the stderr
+    // content IS the evidence, and projectdiscovery banners land on stderr.
+    const probe = spawnSync(binaryPath, IDENTITY_PROBE_FLAGS[scanner], {
+      timeout: 5_000,
+      encoding: 'utf8',
+      env: { ...ENV_OVERRIDES },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    const exitCode = probe.status ?? -1
+    // Spawn-level failures (broken interpreter, vanished binary — probe.error
+    // set with a filesystem errno) are NOT identity verdicts: defer them so
+    // the execution path reports its precise SECURITY_EXEC_FAILED.
+    const spawnBroken = probe.error !== undefined
+      && ['ENOEXEC', 'EACCES', 'ENOENT', 'ELOOP', 'ETXTBSY'].includes((probe.error as NodeJS.ErrnoException).code ?? '')
+    if (spawnBroken) return
+    const output = `${probe.stdout ?? ''}\n${probe.stderr ?? ''}`
+    if (!looksLikeScannerBinary(output, exitCode)) {
+      const detail = output.trim().split('\n').slice(0, 2).join(' ⏎ ')
       throw new SecurityScanError(
-        `scanner "${scanner}" binary is not installed or not executable on this host`,
-        'SECURITY_PROVIDER_UNAVAILABLE',
+        `resolved ${binaryPath} for scanner "${scanner}" failed the identity probe `
+          + `(${IDENTITY_PROBE_FLAGS[scanner].join(' ')} exited ${exitCode}${detail === '' ? '' : `: ${detail}`}) — `
+          + 'this host has a same-named CLI from another package. Install the projectdiscovery/nmap/sqlmap '
+          + `binary or pin binPaths["${scanner}"] to its explicit path.`,
+        'SECURITY_BINARY_MISMATCH',
       )
     }
-    return path
+    this.identityVerified.add(binaryPath)
+  }
+
+  /**
+   * First binary for `scanner` that EXISTS on PATH and passes the identity
+   * probe. A wrong same-named CLI earlier in PATH is skipped in favor of a
+   * valid match later; only an exhausted search fails, naming every tried
+   * path so the fix is obvious.
+   */
+  private resolveVerifiedBinary(scanner: SecurityScannerId): string {
+    const pinned = this.config.binPaths?.[scanner]
+    if (pinned !== undefined) {
+      if (!isExecutable(pinned)) {
+        throw new SecurityScanError(
+          `scanner "${scanner}" pinned binPaths entry is missing or not executable: ${pinned}`,
+          'SECURITY_PROVIDER_UNAVAILABLE',
+        )
+      }
+      this.assertBinaryIdentity(scanner, pinned)
+      return pinned
+    }
+    const segments = (process.env.PATH ?? '').split(':').filter(entry => entry.length > 0)
+    const tried: string[] = []
+    let unavailable: SecurityScanError | undefined
+    for (const dir of segments) {
+      const candidate = join(dir, scanner)
+      if (!isExecutable(candidate)) continue
+      tried.push(candidate)
+      try {
+        this.assertBinaryIdentity(scanner, candidate)
+        return candidate
+      } catch (error) {
+        if (error instanceof SecurityScanError && error.code !== 'SECURITY_BINARY_MISMATCH') throw error
+        unavailable = error instanceof SecurityScanError ? error : unavailable
+      }
+    }
+    if (unavailable !== undefined) throw unavailable
+    throw new SecurityScanError(
+      `scanner "${scanner}" binary is not installed or not executable on this host`,
+      'SECURITY_PROVIDER_UNAVAILABLE',
+    )
   }
 
   /**

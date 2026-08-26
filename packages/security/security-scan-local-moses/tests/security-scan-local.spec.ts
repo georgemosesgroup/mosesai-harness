@@ -218,7 +218,7 @@ describe('LocalSecurityScanProvider execution', () => {
     }
   })
 
-  it('maps spawn-level failures to SECURITY_EXEC_FAILED', async () => {
+  it('a pinned shebang-less binary keeps the precise spawn-level EXEC_FAILED', async () => {
     const broken = new LocalSecurityScanProvider(new Context(), baseConfig({ binPaths: { katana: NO_SHEBANG } }))
     await expect(broken.scan({ scanner: 'katana', targets: ['stub.test'] }))
       .rejects.toMatchObject({ code: 'SECURITY_EXEC_FAILED' })
@@ -276,7 +276,8 @@ describe('binary resolution helpers', () => {
     const previousPath = process.env.PATH ?? ''
     try {
       const shim = join(dir, 'nuclei')
-      writeFileSync(shim, '#!/usr/bin/env sh\nexit 0\n')
+      // The provider probes `-version`; a healthy-looking binary answers it.
+      writeFileSync(shim, '#!/usr/bin/env sh\nif [ "$1" = "-version" ]; then printf \'nuclei version 9.9.9\\n\'; fi\nexit 0\n')
       chmodSync(shim, 0o755)
       process.env.PATH = `${dir}:${previousPath}`
       const ctx = new Context()
@@ -291,6 +292,37 @@ describe('binary resolution helpers', () => {
     } finally {
       process.env.PATH = previousPath
       rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('an impostor earlier in PATH is skipped in favor of a valid binary later', async () => {
+    const impostorDir = mkdtempSync(join(tmpdir(), 'path-impostor-'))
+    const realDir = mkdtempSync(join(tmpdir(), 'path-real-'))
+    const previousPath = process.env.PATH ?? ''
+    try {
+      // Python-httpx-like CLI: same name, wrong option grammar, exits 0 with a usage screen.
+      const impostor = join(impostorDir, 'httpx')
+      writeFileSync(impostor, '#!/usr/bin/env sh\nprintf \'Usage: httpx [OPTIONS] URL\\n\' >&2\nexit 0\n')
+      chmodSync(impostor, 0o755)
+      // Valid projectdiscovery-style binary later on PATH.
+      const real = join(realDir, 'httpx')
+      writeFileSync(real, '#!/usr/bin/env sh\nif [ "$1" = "-version" ]; then printf \'httpx version 1.3.3\\n\'; fi\nif [ "${STUB_ARGV:-0}" = "1" ]; then shift; for arg in "$@"; do printf \'%s\\n\' "$arg"; done; fi\nexit 0\n')
+      chmodSync(real, 0o755)
+      process.env.PATH = `${impostorDir}:${realDir}:${previousPath}`
+
+      const ctx = new Context()
+      await ctx.plugin(LocalSubprocessRuntime)
+      const { binPaths: _omitted, ...withoutPin } = baseConfig()
+      void _omitted
+      const provider = new LocalSecurityScanProvider(ctx, withoutPin)
+
+      const result = await provider.scan({ scanner: 'httpx', targets: ['127.0.0.1'] })
+      expect(result.argv[0]).toBe(real)
+      expect(result.exitCode).toBe(0)
+    } finally {
+      process.env.PATH = previousPath
+      rmSync(impostorDir, { recursive: true, force: true })
+      rmSync(realDir, { recursive: true, force: true })
     }
   })
 })
@@ -415,6 +447,32 @@ describe('PATH-less environments', () => {
       expect(provider.available('nuclei')).toBe(false)
     } finally {
       process.env.PATH = previousPath
+    }
+  })
+})
+
+describe('binary identity probe', () => {
+  it('looksLikeScannerBinary accepts version output, rejects usage screens and non-zero exits', async () => {
+    const { looksLikeScannerBinary } = await import('../src/index.ts')
+    expect(looksLikeScannerBinary('Nuclei Engine Version: v3.0.0', 0)).toBe(true)
+    expect(looksLikeScannerBinary('', 0)).toBe(false)
+    expect(looksLikeScannerBinary('Usage: httpx [OPTIONS] URL\nError: bad flag', 2)).toBe(false)
+    expect(looksLikeScannerBinary('Some output', 1)).toBe(false)
+  })
+
+  it('scan rejects a same-named impostor binary with SECURITY_BINARY_MISMATCH', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'impostor-pin-'))
+    try {
+      // A pinned binary that answers -version with a usage screen and exit 2:
+      // the Python `httpx`-style same-named CLI.
+      const impostor = join(dir, 'nuclei')
+      writeFileSync(impostor, '#!/usr/bin/env sh\nprintf \'Usage: nuclei [OPTIONS] URL\\nError: Invalid value\\n\' >&2\nexit 2\n')
+      chmodSync(impostor, 0o755)
+      const provider = new LocalSecurityScanProvider(new Context(), baseConfig({ binPaths: { nuclei: impostor } }))
+      await expect(provider.scan({ scanner: 'nuclei', targets: ['stub.test'] }))
+        .rejects.toMatchObject({ code: 'SECURITY_BINARY_MISMATCH' })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
     }
   })
 })
