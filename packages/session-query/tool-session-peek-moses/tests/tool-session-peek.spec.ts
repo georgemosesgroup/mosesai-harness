@@ -17,7 +17,7 @@ function makeSeam(overrides: Partial<Parameters<typeof createPeekTools>[0]> = {}
 }
 
 const cfg = resolveConfig({})
-const exec = { signal: new AbortController().signal }
+const exec = { signal: new AbortController().signal } as never
 
 describe('resolveConfig', () => {
   it('applies defaults and rejects inverted bounds', () => {
