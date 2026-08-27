@@ -186,7 +186,7 @@ export function assertIosDeveloperDir(developerDir: string): string {
  */
 export function resolveSimulatorTarget(
   devices: readonly SimulatorDevice[],
-  requested?: SimulatorId | undefined,
+  requested?: SimulatorId  ,
 ): SimulatorId {
   if (requested !== undefined) {
     const hit = devices.find(device => String(device.id) === String(requested))

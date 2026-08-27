@@ -43,6 +43,7 @@
 | `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`、`ctx.systemPrompt`、`a live continuable in-process child Agent` | `tool/call`、`tool/result`、`a user-role message in the direct parent session` | - | 按可继续的进程内子级注册，而非全局注册，因此该 schema 仅在这种子级内部可见，并且不受其全局 `toolFilter` 影响。同一份贡献还会安装子级作用域的 `tool:report` 系统提示词 section，本目录不渲染该 section。面向父级的 `send_message` 工具单独安装。 |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`、`job_list`、`job_output` | `ctx.tools`、`ctx.jobs`、`ctx.systemPrompt` | `tool/call`、`tool/result`、`user/message via agent.inject() for background completion notices` | - | 与任务种类无关的后台任务控制器：后台 bash 命令、PTY 发送和 subagent 都通过相同的 3 个工具读取、列出和终止。加载该插件会挂接控制器，从而启用生产方的 `ctx.jobs.start()`。 |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`、`interrupt_agent`、`list_agents`、`send_message`、`spawn_teammate`、`team_task_create`、`team_task_get`、`team_task_list`、`team_task_update`、`wait_agent` | `ctx.tools`、`ctx.systemPrompt`、`ctx.agentTeams`、`an exact live Team member Agent` | `tool/call`、`team/member`、`team/message/queued`、`team/message/delivered`、`team/task`、`tool/result` | - | 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。 |
+| `@deepseek-ai/dsh-tool-ios-sim` | `sim_launch`、`sim_list`、`sim_open_url`、`sim_screenshot` | `ctx.tools`、`ctx.iosSimulator` | `tool/call`、`tool/result`、`iosSim/action` | - | `sim_screenshot` 经 ctx.attachments 提交并渲染专属图片结果卡；launch 结果仅当挂载的 provider 能背书时携带以点为单位的几何信息（level-0 simctl provider 以文档说明其缺席）。`describe`/`input`/`stream` 保留为 phase 接缝——调用将以 SIMULATOR_CAPABILITY_UNAVAILABLE 拒绝。 |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`、`owning Agent session` | `tool/call`、`todo/write`、`tool/result` | - | todo_write 是会话所有的状态；UI 将最新的 todo/write 事件渲染为检查清单。`allowParallelInProgress` 是没有默认值的必填项，因此本目录明确选择 `true`，对应描述允许同时存在多个 `in_progress` 项。选择 `false` 的部署会获得同一工具，但描述会要求只能有 1 个活动任务。 |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`、`ctx.workflowEngine`、`ctx.systemPrompt`、`a calling Agent (exec.agent parents the script children)` | `tool/call`、`tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`、`web_search` | `ctx.tools`、`ctx.web`、`ctx.systemPrompt` | `tool/call`、`tool/result` | - | web_search 和 web_fetch 将提供方选择置于 ctx.web 之后，使模型可见 schema 在更换后端时保持稳定。 |
@@ -2117,6 +2118,94 @@ lsp 工具将提供方选择和语言服务器子进程置于 ctx.lsp 之后，�
 来源：[`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 这 10 个工具限定于隐式 Team Lead 与持久 teammate 作用域。随产品发布的 dsh-base bundle 默认禁用该包；文档中的 Agent Teams profile patch 会启用它，并禁用旧 continuable child 的同名控制工具。
+
+
+<a id="deepseek-aidsh-tool-ios-sim"></a>
+
+## `@deepseek-ai/dsh-tool-ios-sim`
+
+### `sim_launch`
+
+Launch one INSTALLED application on an iOS simulator by bundle identifier (for example com.apple.Preferences for Settings). Auto-targets the single booted simulator unless `device` names one. Installs nothing: deploy apps through other means first. The result echoes the resolved device and reports geometry in points when the provider can attest it.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "description": "Bundle identifier of an app already installed on the target simulator."
+    },
+    "device": {
+      "type": "string",
+      "description": "Simulator id from sim_list; omitted means the single booted simulator."
+    }
+  },
+  "required": [
+    "bundle_id"
+  ]
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+### `sim_list`
+
+List the iOS simulators this host can control (id, display name, boot state, runtime). Use an id verbatim as the optional `device` argument of the other sim_* tools; omitting `device` auto-targets the single booted simulator when exactly one exists.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+### `sim_open_url`
+
+Open one URL on an iOS simulator — https pages in Safari or any custom scheme the installed apps registered. Auto-targets the single booted simulator unless `device` names one.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Absolute URL for the device's URL handler."
+    },
+    "device": {
+      "type": "string",
+      "description": "Simulator id from sim_list; omitted means the single booted simulator."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+### `sim_screenshot`
+
+Take a PNG screenshot of an iOS simulator screen and return the image itself. Auto-targets the single booted simulator unless `device` names one. Requires the current model to accept image input. Coordinate taps are unavailable by design until element references arrive; use screenshots to inspect state, not to aim inputs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device": {
+      "type": "string",
+      "description": "Simulator id from sim_list; omitted means the single booted simulator."
+    }
+  }
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+`sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `describe`/`input`/`stream` stay reserved phase seams — calling them rejects with SIMULATOR_CAPABILITY_UNAVAILABLE.
 
 
 <a id="deepseek-aidsh-tool-todo"></a>

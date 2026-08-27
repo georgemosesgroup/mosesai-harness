@@ -109,49 +109,81 @@ export abstract class IosSimulator extends Service {
   /** Stable display name of this provider, embedded in unavailability and consistency messages. */
   abstract get providerName(): string
 
-  /** List devices visible to this provider's substrate, in substrate order. */
+  /**
+   * List devices visible to this provider's substrate, in substrate order.
+   * @param request - the caller's request; phase 1 carries no knobs.
+   * @returns every device currently listed by the provider's substrate.
+   */
   async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice[]> {
     this.require('list')
     return this.doList(request)
   }
 
-  /** Bring the target device to a powered-on state; already-booted targets succeed. */
+  /**
+   * Bring the target device to a powered-on state; already-booted targets succeed.
+   * @param request - the target reference (omitted = the provider's explicit resolution) with optional deadline knob.
+   * @returns the target the provider actually resolved and powered on.
+   */
   async boot(request: SimulatorBootRequest): Promise<SimulatorResolvedTarget> {
     this.require('boot')
     return this.doBoot(request)
   }
 
-  /** Power the target device off; already-shutdown targets succeed. */
+  /**
+   * Power the target device off; already-shutdown targets succeed.
+   * @param request - the target reference (omitted = the provider's explicit resolution) with optional deadline knob.
+   * @returns the target the provider actually resolved and powered off.
+   */
   async shutdown(request: SimulatorShutdownRequest): Promise<SimulatorResolvedTarget> {
     this.require('boot')
     return this.doShutdown(request)
   }
 
-  /** Deploy one application bundle onto the target device. */
+  /**
+   * Deploy one application bundle onto the target device.
+   * @param request - the target reference plus the host path of the application bundle to deploy.
+   * @returns the target the provider actually deployed onto.
+   */
   async install(request: SimulatorInstallRequest): Promise<SimulatorResolvedTarget> {
     this.require('install')
     return this.doInstall(request)
   }
 
-  /** Start one installed application and report what the substrate observed. */
+  /**
+   * Start one installed application and report what the substrate observed.
+   * @param request - the target reference and the bundle identifier of an installed app.
+   * @returns substrate-observed launch facts: resolved target, bundle, pid when printed, geometry or its note.
+   */
   async launch(request: SimulatorLaunchRequest): Promise<SimulatorLaunchResult> {
     this.require('launch')
     return this.doLaunch(request)
   }
 
-  /** Stop one running application. */
+  /**
+   * Stop one running application.
+   * @param request - the target reference and the bundle identifier to stop.
+   * @returns the target the provider actually resolved.
+   */
   async terminate(request: SimulatorTerminateRequest): Promise<SimulatorResolvedTarget> {
     this.require('terminate')
     return this.doTerminate(request)
   }
 
-  /** Capture the target device's current screen as a complete PNG raster. */
+  /**
+   * Capture the target device's current screen as a complete PNG raster.
+   * @param request - the target reference with optional deadline knob.
+   * @returns the resolved target plus the complete PNG raster and its pixel facts.
+   */
   async screenshot(request: SimulatorScreenshotRequest): Promise<SimulatorScreenshot> {
     this.require('screenshot')
     return this.doScreenshot(request)
   }
 
-  /** Open one URL through the target device's URL handler. */
+  /**
+   * Open one URL through the target device's URL handler.
+   * @param request - the target reference and the absolute URL to open.
+   * @returns the target the provider actually resolved.
+   */
   async openUrl(request: SimulatorOpenUrlRequest): Promise<SimulatorResolvedTarget> {
     this.require('openUrl')
     return this.doOpenUrl(request)
@@ -161,6 +193,8 @@ export abstract class IosSimulator extends Service {
    * Availability-tree read — declared for the phase-2 seam, implemented by no
    * provider yet. The `never` result documents that a successful return is
    * impossible today: callers can rely on rejection without feature-testing.
+   * @param request - the target reference; payload surface reserved for the availability-tree seam.
+   * @returns never resolves today — rejects until a provider implements it.
    */
   async describe(request: SimulatorDescribeRequest): Promise<never> {
     this.require('describe')
@@ -171,6 +205,8 @@ export abstract class IosSimulator extends Service {
    * Structured input — declared for the phase-2 seam (element references from
    * the availability tree, not screenshot-coordinate taps). Rejects on every
    * provider today; see {@link describe}.
+   * @param request - the target reference; no coordinate vocabulary by design.
+   * @returns never resolves today — rejects until a provider implements it.
    */
   async input(request: SimulatorInputRequest): Promise<never> {
     this.require('input')

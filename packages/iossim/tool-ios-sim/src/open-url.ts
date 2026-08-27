@@ -57,7 +57,7 @@ export function registerSimOpenUrlTool(ctx: Context, simulators: IosSimulator): 
       return value
     },
     presentCall(args) {
-      return { card: 'generic', title: `Open ${String(args.url)}`, kind: 'other', rawInput: args }
+      return { card: 'generic', title: `Open ${args.url}`, kind: 'other', rawInput: args }
     },
   }))
 }

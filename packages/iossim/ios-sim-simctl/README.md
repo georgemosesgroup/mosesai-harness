@@ -1,0 +1,50 @@
+# dsh-ios-sim-simctl
+
+English | [中文](README.zh.md)
+
+Level-0 Service Provider for the iOS-simulator seam over the PUBLIC `xcrun simctl` surface — no idb, no accessibility trees, no video. Everything spawns through [`ctx.subprocess`](../../subprocess/subprocess/README.md) as strict argv arrays; the subcommand word passes the fixed `SIMCTL_ALLOWLIST` (`list, boot, shutdown, install, launch, terminate, openurl, io`), and arguments beyond it come only from typed request fields, never interpolated caller text ([dif-explorer git-run precedent](../../host/dif-explorer/src/gitrun.ts)).
+
+Distinct failures, distinct repairs:
+
+| Situation | Code | Hint shape |
+|---|---|---|
+| No Xcode selection / wrong layout | `SIMULATOR_XCODE_NOT_RESOLVED` | install Xcode; re-select with `sudo xcode-select -s …` |
+| `xcrun` unreachable in this execution world | `SIMULATOR_XCODE_NOT_RESOLVED` | command-line tools / composition subprocess world |
+| Xcode present without iPhoneOS.platform | `SIMULATOR_IOS_SDK_MISSING` | install the iOS platform component |
+| Unknown device id | `SIMULATOR_DEVICE_NOT_FOUND` | call the listing verb, use ids verbatim |
+| Auto-target with nothing booted | `SIMULATOR_DEVICE_NOT_BOOTED` | boot a simulator first |
+| Auto-target with several booted | `SIMULATOR_TARGET_AMBIGUOUS` | name one explicitly |
+| Nonzero simctl exit | `SIMCTL_SUBCOMMAND_FAILED` | stderr tail |
+| Allowlist miss | `SIMCTL_ALLOWLIST_REJECTED` | fixed vocabulary only |
+| Deadline exceeded | `SIMCTL_TIMEOUT` | configured budget |
+
+Explicit defaults: every substrate call goes through public `resolve(request): SimctlInvocationSpec`, which fills launcher path, validated developer dir (`xcode-select -p`, probed once and memoized), deadline clamping (`timeoutMs` default/cap config, timer-bounded), capture budgets, and working directory — verb bodies never apply hidden fallbacks ([dsh-shell template](../../shell/shell/src/index.ts)). Target resolution follows the same rule: an omitted reference requires exactly ONE booted device via exported `resolveSimulatorTarget`; each mismatch is its own code above.
+
+Load-time loudness: constructing on non-macOS throws `SIMULATOR_PLATFORM_UNSUPPORTED`, so a misconfigured composition fails at load instead of sitting idle.
+
+Declared capabilities: `list, boot (incl. shutdown), install, launch, terminate, screenshot, openUrl`. NOT declared: `describe`, `input`, `stream` — the future seams.
+
+Geometry honesty: screenshots are native rasters; the public surface exposes no point-size query (verified against current installs — profile plists carry no display dimensions). Launch results therefore carry `GEOMETRY_UNAVAILABLE_NOTE`, never guessed points.
+
+## Config
+
+| field | default | meaning |
+|---|---|---|
+| `timeoutMs` | 60000 | per-invocation deadline |
+| `maxTimeoutMs` | 600000 | upper clamp |
+| `maxOutputBytes` | 64000 | per-stream stdout/stderr cap |
+| `graceMs` | 3000 | SIGTERM→SIGKILL escalation |
+
+## Model Experience
+
+Indirectly, through Consumer projections such as [`dsh-tool-ios-sim`](../tool-ios-sim/README.md): device names/states/runtimes from listings, pid and bundle echoes from launches, PNG screenshots and their pixel facts.
+
+#### KV Cache effect
+
+Append-only through the Consumers' session events: successful actions add small `iosSim/action` records (tens of tokens), keeping earlier request prefixes reusable while new suffixes extend the cache rather than invalidating it.
+
+## Known Limitations and Deferred Work
+
+- **No point geometry from any verb** — the level-0 surface cannot attest logical sizes; coordinates for phase-2 input will arrive with an availability-tree provider, not this one.
+- **State staleness between calls** — another actor can boot/shutdown/erase a device right after a listing; verbs resolve targets against a FRESH listing each time precisely so stale answers fail loudly with their own codes.
+- **No app deployment convenience** — `install` requires an existing .app/.ipa path; no download/build helpers here.

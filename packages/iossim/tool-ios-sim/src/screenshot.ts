@@ -20,7 +20,12 @@ import { requestedDevice } from './request.ts'
 import { assertImageCapableRoute } from './route.ts'
 import type { SimulatorImageFacts, SimulatorScreenshotValue } from './types.ts'
 
-/** Re-brand serialized facts into the durable reference an `ImageBlock` carries. */
+/**
+ * Re-brand serialized facts into the durable reference an `ImageBlock`
+ * carries.
+ * @param facts - the log-safe projection persisted with the action event.
+ * @returns the branded attachment reference for content-block rendering.
+ */
 export function imageRefFromFacts(facts: SimulatorImageFacts): ImageAttachmentRef {
   return {
     attachmentId: facts.attachmentId as ImageAttachmentRef['attachmentId'],

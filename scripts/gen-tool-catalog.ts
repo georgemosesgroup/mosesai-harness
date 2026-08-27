@@ -65,6 +65,9 @@ import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
 import SecurityScanRuntime from '@deepseek-ai/dsh-security-scan-moses'
 import * as ToolSecurityScan from '@deepseek-ai/dsh-tool-security-scan-moses'
+import * as ToolIosSim from '@deepseek-ai/dsh-tool-ios-sim'
+import { IosSimulator, SimulatorId } from '@deepseek-ai/dsh-ios-sim'
+import type { SimulatorCapability, SimulatorDevice } from '@deepseek-ai/dsh-ios-sim'
 import * as ToolSessionPeek from '@deepseek-ai/dsh-tool-session-peek-moses'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
@@ -579,6 +582,39 @@ const TOOL_PACKAGES: ToolPackage[] = [
     scope: ctx => catalogChildScopes.get(ctx) as Agent,
     note:
       'All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.',
+  },
+  {
+    // The catalog mounts a scripted in-memory provider: the tool schemas and
+    // their model-facing text do not depend on which substrate backs the seam,
+    // and a real Xcode/simulator catalog fixture would be unrunnable on CI.
+    pkg: '@deepseek-ai/dsh-tool-ios-sim',
+    dir: 'tool-ios-sim',
+    source: 'packages/iossim/tool-ios-sim/src/index.ts',
+    requires: ['ctx.tools', 'ctx.iosSimulator'],
+    writes: ['tool/call', 'tool/result', 'iosSim/action'],
+    async mount(ctx) {
+      class ScriptedSimProvider extends IosSimulator {
+        override get capabilities() {
+          return new Set(['list', 'boot', 'install', 'launch', 'terminate', 'screenshot', 'openUrl'] satisfies SimulatorCapability[])
+        }
+        override get providerName(): string {
+          return 'catalog-scripted-provider'
+        }
+        override doList(): Promise<readonly SimulatorDevice[]> {
+          return Promise.resolve([{
+            id: SimulatorId('UDID-CATALOG'),
+            name: 'iPhone 17 Pro',
+            state: 'booted' as const,
+            deviceTypeIdentifier: 'com.apple.CoreSimulator.SimDeviceType.iPhone-17-Pro',
+            runtimeIdentifier: 'com.apple.CoreSimulator.SimRuntime.iOS-26-1',
+          }])
+        }
+      }
+      await ctx.plugin(ScriptedSimProvider)
+      await ctx.plugin(ToolIosSim)
+    },
+    note:
+      '`sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `describe`/`input`/`stream` stay reserved phase seams — calling them rejects with SIMULATOR_CAPABILITY_UNAVAILABLE.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-todo',

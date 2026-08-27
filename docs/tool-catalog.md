@@ -39,6 +39,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`, `ctx.systemPrompt`, `a live continuable in-process child Agent` | `tool/call`, `tool/result`, `a user-role message in the direct parent session` | - | Registered per continuable in-process child rather than globally, so this schema is visible only inside such a child and survives its global `toolFilter`. The same contribution installs the child-scoped `tool:report` prompt section, which this catalog does not render. The parent-facing `send_message` tool is installed independently. |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
+| `@deepseek-ai/dsh-tool-ios-sim` | `sim_launch`, `sim_list`, `sim_open_url`, `sim_screenshot` | `ctx.tools`, `ctx.iosSimulator` | `tool/call`, `tool/result`, `iosSim/action` | - | `sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `describe`/`input`/`stream` stay reserved phase seams — calling them rejects with SIMULATOR_CAPABILITY_UNAVAILABLE. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
 | `@deepseek-ai/dsh-tool-security-scan-moses` | `security_scan` | `ctx.tools`, `ctx.securityScan`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments. |
@@ -2111,6 +2112,93 @@ Wait for the next teammate status, mailbox, or shared-task change after this cal
 Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
 All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
+
+<a id="deepseek-aidsh-tool-ios-sim"></a>
+
+## `@deepseek-ai/dsh-tool-ios-sim`
+
+### `sim_launch`
+
+Launch one INSTALLED application on an iOS simulator by bundle identifier (for example com.apple.Preferences for Settings). Auto-targets the single booted simulator unless `device` names one. Installs nothing: deploy apps through other means first. The result echoes the resolved device and reports geometry in points when the provider can attest it.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "bundle_id": {
+      "type": "string",
+      "description": "Bundle identifier of an app already installed on the target simulator."
+    },
+    "device": {
+      "type": "string",
+      "description": "Simulator id from sim_list; omitted means the single booted simulator."
+    }
+  },
+  "required": [
+    "bundle_id"
+  ]
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+### `sim_list`
+
+List the iOS simulators this host can control (id, display name, boot state, runtime). Use an id verbatim as the optional `device` argument of the other sim_* tools; omitting `device` auto-targets the single booted simulator when exactly one exists.
+
+```json
+{
+  "type": "object",
+  "properties": {}
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+### `sim_open_url`
+
+Open one URL on an iOS simulator — https pages in Safari or any custom scheme the installed apps registered. Auto-targets the single booted simulator unless `device` names one.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "url": {
+      "type": "string",
+      "description": "Absolute URL for the device's URL handler."
+    },
+    "device": {
+      "type": "string",
+      "description": "Simulator id from sim_list; omitted means the single booted simulator."
+    }
+  },
+  "required": [
+    "url"
+  ]
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+### `sim_screenshot`
+
+Take a PNG screenshot of an iOS simulator screen and return the image itself. Auto-targets the single booted simulator unless `device` names one. Requires the current model to accept image input. Coordinate taps are unavailable by design until element references arrive; use screenshots to inspect state, not to aim inputs.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "device": {
+      "type": "string",
+      "description": "Simulator id from sim_list; omitted means the single booted simulator."
+    }
+  }
+}
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
+
+`sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `describe`/`input`/`stream` stay reserved phase seams — calling them rejects with SIMULATOR_CAPABILITY_UNAVAILABLE.
 
 <a id="deepseek-aidsh-tool-todo"></a>
 

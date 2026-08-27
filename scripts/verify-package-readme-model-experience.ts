@@ -45,6 +45,8 @@ const SENTENCE_MODEL_EXPERIENCE: Readonly<Record<string, SentenceContract>> = {
   'packages/attachment/attachment': { kind: 'indirect', reason: 'The storage seam delegates model request rendering to provider adapters.' },
   'packages/attachment/attachment-local': { kind: 'indirect', reason: 'The local backend delegates model request rendering to provider adapters.' },
   'packages/shell/shell': { kind: 'indirect', reason: 'The service interface delegates all model rendering to dsh-tool-bash.' },
+  'packages/iossim/ios-sim': { kind: 'none', reason: 'The definition is pure capability vocabulary; consumers such as dsh-tool-ios-sim own every projection.' },
+  'packages/iossim/ios-sim-simctl': { kind: 'indirect', reason: 'The provider backend delegates model rendering to dsh-tool-ios-sim over the simulator seam.' },
   'packages/shell/shell-env': { kind: 'indirect', reason: 'The env service exposes managed DSH_* facts through the shell tools (dsh-tool-bash/dsh-tool-pwsh); it registers no prompt or schema of its own.' },
   'packages/shell/bash-local': { kind: 'indirect', reason: 'The executor backend delegates model rendering to dsh-tool-bash.' },
   'packages/security/security-scan-moses': { kind: 'indirect', reason: 'The seam enforces target authorization and delegates all model rendering to dsh-tool-security-scan-moses.' },

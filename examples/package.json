@@ -39,6 +39,8 @@
     "@deepseek-ai/dsh-hooks-claude-code": "workspace:*",
     "@deepseek-ai/dsh-hooks-codex": "workspace:*",
     "@deepseek-ai/dsh-invariants": "workspace:*",
+    "@deepseek-ai/dsh-ios-sim": "workspace:*",
+    "@deepseek-ai/dsh-ios-sim-simctl": "workspace:*",
     "@deepseek-ai/dsh-jobs-local": "workspace:*",
     "@deepseek-ai/dsh-llm": "workspace:*",
     "@deepseek-ai/dsh-llm-deepseek": "workspace:*",
@@ -56,8 +58,8 @@
     "@deepseek-ai/dsh-sandbox-policy": "workspace:^",
     "@deepseek-ai/dsh-scope": "workspace:*",
     "@deepseek-ai/dsh-sdk-jsonrpc-server": "workspace:*",
-    "@deepseek-ai/dsh-security-scan-moses": "workspace:*",
     "@deepseek-ai/dsh-security-scan-local-moses": "workspace:*",
+    "@deepseek-ai/dsh-security-scan-moses": "workspace:*",
     "@deepseek-ai/dsh-session": "workspace:*",
     "@deepseek-ai/dsh-session-checkpoint-policy": "workspace:*",
     "@deepseek-ai/dsh-session-persistence-jsonl": "workspace:*",
@@ -97,6 +99,7 @@
     "@deepseek-ai/dsh-tool-fs": "workspace:*",
     "@deepseek-ai/dsh-tool-fs-search": "workspace:*",
     "@deepseek-ai/dsh-tool-goal": "workspace:*",
+    "@deepseek-ai/dsh-tool-ios-sim": "workspace:*",
     "@deepseek-ai/dsh-tool-jobs": "workspace:*",
     "@deepseek-ai/dsh-tool-lsp": "workspace:*",
     "@deepseek-ai/dsh-tool-pwsh": "workspace:*",
@@ -119,5 +122,6 @@
     "@deepseek-ai/dsh-web": "workspace:*",
     "@deepseek-ai/dsh-web-fetch-http": "workspace:*",
     "@deepseek-ai/dsh-workflow-worker-thread": "workspace:*"
+
   }
 }

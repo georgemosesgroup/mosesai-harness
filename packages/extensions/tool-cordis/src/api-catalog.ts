@@ -894,6 +894,73 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'iosSimulator',
+    summary: 'Abstract iOS-simulator service.',
+    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe` and `input` reject on every provider until one implements them; their result types are `Promise<never>` deliberately — nothing legitimate can come back yet.',
+    methods: [
+      {
+        signature: 'async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice[]>',
+        description: 'List devices visible to this provider\'s substrate, in substrate order.',
+        parameters: [{ name: 'request', description: 'the caller\'s request; phase 1 carries no knobs.' }],
+        returns: 'every device currently listed by the provider\'s substrate.',
+      },
+      {
+        signature: 'async boot(request: SimulatorBootRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Bring the target device to a powered-on state; already-booted targets succeed.',
+        parameters: [{ name: 'request', description: 'the target reference (omitted = the provider\'s explicit resolution) with optional deadline knob.' }],
+        returns: 'the target the provider actually resolved and powered on.',
+      },
+      {
+        signature: 'async shutdown(request: SimulatorShutdownRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Power the target device off; already-shutdown targets succeed.',
+        parameters: [{ name: 'request', description: 'the target reference (omitted = the provider\'s explicit resolution) with optional deadline knob.' }],
+        returns: 'the target the provider actually resolved and powered off.',
+      },
+      {
+        signature: 'async install(request: SimulatorInstallRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Deploy one application bundle onto the target device.',
+        parameters: [{ name: 'request', description: 'the target reference plus the host path of the application bundle to deploy.' }],
+        returns: 'the target the provider actually deployed onto.',
+      },
+      {
+        signature: 'async launch(request: SimulatorLaunchRequest): Promise<SimulatorLaunchResult>',
+        description: 'Start one installed application and report what the substrate observed.',
+        parameters: [{ name: 'request', description: 'the target reference and the bundle identifier of an installed app.' }],
+        returns: 'substrate-observed launch facts: resolved target, bundle, pid when printed, geometry or its note.',
+      },
+      {
+        signature: 'async terminate(request: SimulatorTerminateRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Stop one running application.',
+        parameters: [{ name: 'request', description: 'the target reference and the bundle identifier to stop.' }],
+        returns: 'the target the provider actually resolved.',
+      },
+      {
+        signature: 'async screenshot(request: SimulatorScreenshotRequest): Promise<SimulatorScreenshot>',
+        description: 'Capture the target device\'s current screen as a complete PNG raster.',
+        parameters: [{ name: 'request', description: 'the target reference with optional deadline knob.' }],
+        returns: 'the resolved target plus the complete PNG raster and its pixel facts.',
+      },
+      {
+        signature: 'async openUrl(request: SimulatorOpenUrlRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Open one URL through the target device\'s URL handler.',
+        parameters: [{ name: 'request', description: 'the target reference and the absolute URL to open.' }],
+        returns: 'the target the provider actually resolved.',
+      },
+      {
+        signature: 'async describe(request: SimulatorDescribeRequest): Promise<never>',
+        description: 'Availability-tree read — declared for the phase-2 seam, implemented by no provider yet. The `never` result documents that a successful return is impossible today: callers can rely on rejection without feature-testing.',
+        parameters: [{ name: 'request', description: 'the target reference; payload surface reserved for the availability-tree seam.' }],
+        returns: 'never resolves today — rejects until a provider implements it.',
+      },
+      {
+        signature: 'async input(request: SimulatorInputRequest): Promise<never>',
+        description: 'Structured input — declared for the phase-2 seam (element references from the availability tree, not screenshot-coordinate taps). Rejects on every provider today; see describe.',
+        parameters: [{ name: 'request', description: 'the target reference; no coordinate vocabulary by design.' }],
+        returns: 'never resolves today — rejects until a provider implements it.',
+      },
+    ],
+  },
+  {
     key: 'jobs',
     summary: 'Abstract background job registry.',
     description: 'Abstract background job registry. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as `ctx.jobs` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- Registrations outlive producer and controller fibers. Owner and service disposal cancel live work and await compliant producers; a throwing teardown cancel force-fails only the record. Teardown cancellation also marks the record reported, because a record its owner is being destroyed for has no reader left.\n- Owned-job access is fenced by the owner\'s session id. Ids are predictable, so authorization — not secrecy — is the boundary.\n- Settlement is first-wins: one terminal record, released waiters, and one round of contained listener notification, even against a late producer outcome. Completion is announced last, after the record is committed and every other observer of the settlement has seen it, because a reporter may open a model turn synchronously.\n- start refuses work while no attached job controller serves the spec\'s owner, so a producer cannot start work that owner cannot collect or stop. One registry serves every composition in the process, so this question — and completion-listener delivery — is owner-relative rather than process-wide: registrations made from an unscoped context serve every owner, and registrations made under an agent composition\'s scope serve exactly the agents composed under it.',
@@ -3517,6 +3584,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ImageRequestPolicy {\n    maxPixels: number;\n    maxBytes: number;\n}',
   },
   {
+    name: 'ImageResultView',
+    declaration: 'export interface ImageResultView {\n    card: \'image\';\n    title?: string;\n    origin?: string;\n    attachmentId: string;\n    mediaType: string;\n    bytes: number;\n    width: number;\n    height: number;\n}',
+  },
+  {
     name: 'ImageVariantId',
     declaration: 'export type ImageVariantId = Branded<\'ImageVariantId\'>;',
   },
@@ -4130,7 +4201,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SecurityScanRequest',
-    declaration: 'export interface SecurityScanRequest {\n    readonly scanner: SecurityScannerId;\n    readonly targets: readonly string[];\n    readonly options?: Readonly<Record<string, SecurityScanOptionValue>>;\n}',
+    declaration: 'export interface SecurityScanRequest {\n    readonly scanner: SecurityScannerId;\n    readonly targets: readonly string[];\n    readonly options?: Readonly<Record<string, SecurityScanOptionValue>>;\n    readonly cwd?: string;\n}',
   },
   {
     name: 'SecurityScanResult',
@@ -4443,6 +4514,78 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'ShellSandboxInfo',
     declaration: 'export interface ShellSandboxInfo {\n    mode: SandboxMode;\n    denied: boolean;\n    enforcement?: SandboxEnforcement;\n    runnerFailed?: boolean;\n}',
+  },
+  {
+    name: 'SimulatorBootRequest',
+    declaration: 'export interface SimulatorBootRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorDescribeRequest',
+    declaration: 'export interface SimulatorDescribeRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorDevice',
+    declaration: 'export interface SimulatorDevice {\n    id: SimulatorId;\n    name: string;\n    state: SimulatorState;\n    deviceTypeIdentifier: string;\n    runtimeIdentifier: string;\n}',
+  },
+  {
+    name: 'SimulatorId',
+    declaration: 'export type SimulatorId = Branded<\'SimulatorId\'>;',
+  },
+  {
+    name: 'SimulatorInputRequest',
+    declaration: 'export interface SimulatorInputRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorInstallRequest',
+    declaration: 'export interface SimulatorInstallRequest extends SimulatorTargetedRequest {\n    appPath: string;\n}',
+  },
+  {
+    name: 'SimulatorLaunchRequest',
+    declaration: 'export interface SimulatorLaunchRequest extends SimulatorTargetedRequest {\n    bundleId: string;\n}',
+  },
+  {
+    name: 'SimulatorLaunchResult',
+    declaration: 'export interface SimulatorLaunchResult {\n    simulatorId: SimulatorId;\n    bundleId: string;\n    pid?: number | undefined;\n    geometry?: SimulatorPointsSize | undefined;\n    geometryNote?: string | undefined;\n}',
+  },
+  {
+    name: 'SimulatorListRequest',
+    declaration: 'export interface SimulatorListRequest {\n}',
+  },
+  {
+    name: 'SimulatorOpenUrlRequest',
+    declaration: 'export interface SimulatorOpenUrlRequest extends SimulatorTargetedRequest {\n    url: string;\n}',
+  },
+  {
+    name: 'SimulatorPointsSize',
+    declaration: 'export interface SimulatorPointsSize {\n    widthPoints: number;\n    heightPoints: number;\n}',
+  },
+  {
+    name: 'SimulatorResolvedTarget',
+    declaration: 'export interface SimulatorResolvedTarget {\n    simulatorId: SimulatorId;\n}',
+  },
+  {
+    name: 'SimulatorScreenshot',
+    declaration: 'export interface SimulatorScreenshot {\n    simulatorId: SimulatorId;\n    data: Uint8Array;\n    mediaType: \'image/png\';\n    widthPx: number;\n    heightPx: number;\n}',
+  },
+  {
+    name: 'SimulatorScreenshotRequest',
+    declaration: 'export type SimulatorScreenshotRequest = SimulatorTargetedRequest;',
+  },
+  {
+    name: 'SimulatorShutdownRequest',
+    declaration: 'export interface SimulatorShutdownRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorState',
+    declaration: 'export type SimulatorState = \'booted\' | \'shutdown\';',
+  },
+  {
+    name: 'SimulatorTargetedRequest',
+    declaration: 'export interface SimulatorTargetedRequest {\n    simulator?: SimulatorId | undefined;\n    timeoutMs?: number | undefined;\n}',
+  },
+  {
+    name: 'SimulatorTerminateRequest',
+    declaration: 'export interface SimulatorTerminateRequest extends SimulatorTargetedRequest {\n    bundleId: string;\n}',
   },
   {
     name: 'SkillCandidate',
@@ -4910,7 +5053,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolResultView',
-    declaration: 'export type ToolResultView = GenericResultView | TerminalResultView | DiffResultView | SearchResultView | ReadResultView | WebResultView;',
+    declaration: 'export type ToolResultView = GenericResultView | TerminalResultView | DiffResultView | SearchResultView | ReadResultView | WebResultView | ImageResultView;',
   },
   {
     name: 'ToolRunContext',

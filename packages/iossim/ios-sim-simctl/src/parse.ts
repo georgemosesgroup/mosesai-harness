@@ -37,7 +37,10 @@ export function parseDeviceList(stdout: string): readonly SimulatorDevice[] {
       }
       if (typeof record.udid !== 'string' || record.udid.length === 0) continue
       // Substrate rows advertise availability as boolean or YES/NO strings across versions.
-      const available = record.isAvailable === undefined ? true : String(record.isAvailable) !== 'false' && String(record.isAvailable) !== 'NO'
+      const rawAvailability = record.isAvailable
+      // Substrate rows advertise availability as boolean or YES/NO strings
+      // across versions; the closed unavailable forms are exactly those two.
+      const available = !(rawAvailability === false || rawAvailability === 'false' || rawAvailability === 'NO' || rawAvailability === 'no')
       if (!available) continue
       const state: SimulatorState = typeof record.state === 'string' && /^booted$/iu.test(record.state) ? 'booted' : 'shutdown'
       devices.push({
