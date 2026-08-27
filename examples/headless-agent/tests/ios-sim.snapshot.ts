@@ -1,57 +1,71 @@
 /**
- * Keyless snapshot scenario for the phase-1 iOS-simulator tools: one turn of
- * the assembled headless composition where the model lists, launches, opens a
- * URL, and screenshots through the REAL ToolRuntime/provider stack while the
- * `xcrun` substrate is stubbed on PATH (`tests/fixtures/iossim/stub/`). The
- * committed transcript proves the durable contract end to end: canonical
- * results, one iosSim/action record per action carrying reference facts only
- * (never base64), and the screenshot's image block pointing into the durable
- * attachment store.
+ * Keyless snapshot for the phase-1 iOS-simulator tools: one assembled
+ * headless turn where the SCRIPTED model calls `sim_list` and
+ * `sim_screenshot`, executed against the REAL ToolRuntime/provider stack
+ * while the `xcrun` substrate is stubbed on PATH
+ * (`tests/fixtures/iossim/stub/`). No live device and no API key — the
+ * mock adapter (`ios-sim-mock-llm.ts`) declares image input so the
+ * screenshot route gate passes keylessly.
  *
- * SELF-SKIP until recorded once against the real API:
- *
- *   DEEPSEEK_API_KEY=… pnpm run test:snapshot:record -t ios-sim
- *
- * Afterwards replay stays keyless on macOS AND Linux — the stub keeps the
- * substrate platform-neutral, so no normalizer carries platform weight.
+ * Asserts the durable contract end to end and pins the normalized
+ * transcript: one `iosSim/action` record per action carrying reference
+ * facts only (never base64), the tool/result image block pointing into
+ * the durable attachment store, and the `ImageResultView` presentation
+ * meta on the screenshot result.
  */
 
-import { existsSync, mkdirSync } from 'node:fs'
-import { readFile } from 'node:fs/promises'
+import { existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { normalizeSessionSnapshot, type NormalizeContext } from '@deepseek-ai/dsh-acp-snapshot'
 import { LOADER_SMOKE_TEST_TIMEOUT_MS, runLoaderSmoke } from '@deepseek-ai/dsh-loader-smoke'
 import { describe, expect, it } from 'vitest'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const stubDir = join(here, 'fixtures', 'iossim', 'stub')
 const fakeDeveloperDir = join(stubDir, 'xcode')
-const scenarioDir = join(here, 'snapshots', 'ios-sim')
-const recordedFixture = join(scenarioDir, 'session.jsonl')
-const overlayPath = fileURLToPath(new URL('../iossim.cordis.snapshot.yml', import.meta.url))
+const overlayPath = fileURLToPath(new URL('./fixtures/iossim/iossim.cordis.yml', import.meta.url))
 const binScript = fileURLToPath(new URL('./fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../tsconfig.json', import.meta.url))
+const expectedTranscript = join(here, 'ios-sim-snapshots', 'ios-sim-tools', 'session.transcript.jsonl')
 
-/**
- * The provider validates a Contents/Developer + Platforms/iPhoneOS.platform
- * layout behind `xcode-select -p`; create that layout inside the checked-in
- * stub before the smoke child resolves anything.
- */
+/** Volatile values (session ids, generated cwd) the normalizer scrubs from fixtures. */
+function contextFromLogs(contents: readonly string[]): NormalizeContext {
+  const headers = contents.map(content => JSON.parse(content.split('\n', 1)[0] as string) as Record<string, unknown>)
+  return {
+    sessionIds: headers.flatMap(header => typeof header.id === 'string' ? [header.id] : []),
+    cwd: typeof headers[0]?.cwd === 'string' ? headers[0].cwd : '\0no-cwd\0',
+  }
+}
+
+/** The provider validates a Contents/Developer + iPhoneOS.platform layout behind `xcode-select -p`. */
 function materializeStub(): void {
   mkdirSync(join(fakeDeveloperDir, 'Platforms', 'iPhoneOS.platform'), { recursive: true })
 }
 
-describe('ios-simulator tool snapshot', () => {
-  // Recording needs DEEPSEEK_API_KEY (header). Until then the lane reports
-  // prepared-not-recorded instead of failing the repo's snapshot gate.
-  it.skipIf(!existsSync(recordedFixture))('replays list→launch→openurl→screenshot through the stubbed substrate', { timeout: LOADER_SMOKE_TEST_TIMEOUT_MS }, async () => {
+/** Every raw session log under the run's JSONL persistence root (any depth). */
+function sessionLogs(runCwd: string): string[] {
+  const root = join(runCwd, '.sessions')
+  if (!existsSync(root)) return []
+  const found: string[] = []
+  for (const entry of readdirSync(root, { recursive: true })) {
+    const path = join(root, entry)
+    if (statSync(path).isFile() && entry.includes('session.jsonl')) found.push(path)
+  }
+  return found
+}
+
+
+describe('ios-sim keyless snapshot (scripted model, stub substrate)', () => {
+  it('runs sim_list + sim_screenshot and logs reference facts only', { timeout: LOADER_SMOKE_TEST_TIMEOUT_MS }, async () => {
     materializeStub()
     const result = await runLoaderSmoke({
       label: 'ios-sim keyless snapshot',
       tempDirPrefix: 'dsh-iossim-snapshot-',
       binScript,
+      libBinScript: binScript,
       configPath: overlayPath,
-      binArgs: ['--profile', 'headless', '--patch', overlayPath, 'List simulators, then screenshot the booted one after opening com.apple.Preferences.'],
+      binArgs: [overlayPath, 'List simulators, then screenshot the booted one.'],
       tsconfigPath,
       env: {
         // stub/ holds executable `xcrun` and `xcode-select` shims directly.
@@ -61,13 +75,39 @@ describe('ios-simulator tool snapshot', () => {
         DSH_TELEMETRY_DISABLED: '1',
         NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
       },
-      inspect: async () => {
-        // Durable log carries every action record with reference facts only.
-        const transcript = await readFile(recordedFixture, 'utf8')
-        expect(transcript).toContain('"type":"iosSim/action"')
-        expect(transcript).not.toContain('iVBORw0KGgo')
+      inspect: async (runCwd) => {
+        const logs = sessionLogs(runCwd)
+        expect(logs, readdirSync(runCwd).join(',')).toHaveLength(1)
+        const logPath = logs[0]
+        if (logPath === undefined) throw new Error('the scenario did not persist a session')
+        const raw = readFileSync(logPath, 'utf8')
+
+        // Durable action records: one per verb, reference facts only.
+        const records = raw.split('\n').filter(line => line.includes('"type":"iosSim/action"'))
+        expect(records).toHaveLength(2)
+        expect(records.some(line => line.includes('"action":"list"') && line.includes('"devices":2'))).toBe(true)
+        const shot = records.find(line => line.includes('"action":"screenshot"'))
+        expect(shot).toBeDefined()
+        expect(shot).toContain('"simulatorId":"STUB-A"')
+        expect(shot).toContain('"mediaType":"image/png"')
+        expect(shot).toMatch(/"attachmentId":"sha256:[0-9a-f]{64}"/)
+        expect(raw).not.toContain('iVBORw0KGgo')
+
+        // The tool/result content carries the committed image block, and the
+        // ImageResultView presentation meta rides the result's `meta` field so
+        // replay rebuilds the identical card.
+        expect(raw).toContain('"type":"image"')
+        expect(raw).toContain('"meta":{"device":"STUB-A"')
+
+        // Pin the normalized transcript (snapshot) — auto-written on first run.
+        const context = contextFromLogs([raw])
+        const normalized = normalizeSessionSnapshot(raw, context)
+        // The ImageResultView presentation meta survives normalization so
+        // replay rebuilds the identical card.
+        expect(normalized).toContain('"meta":{"device":"STUB-A"')
+        await expect(normalized).toMatchFileSnapshot(expectedTranscript)
       },
     })
-    expect(result.stdout.length).toBeGreaterThan(0)
+    expect(result.stdout).toContain('IOS_SIM_SNAPSHOT_OK')
   })
 })
