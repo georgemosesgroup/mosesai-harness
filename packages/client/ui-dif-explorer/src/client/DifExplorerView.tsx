@@ -189,7 +189,6 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
         tree={viewer.tree}
         query={viewer.query}
         t={(key, params) => props.t(key, params)}
-        onQuery={(query) => { patch({ query }) }}
         onOpen={(selectedPath) => { patch({ selectedPath, selectedChange: null }) }}
       />
     )
@@ -214,25 +213,61 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
 
   return (
     <div className={css.surface}>
-      <div className={css.tabsRow}>
-        {(['files', 'changes'] as const).map(scopeTab => (
+      <div className={css.toolbar}>
+        <div className={css.toolbarGroup}>
           <button
-            key={scopeTab}
             type="button"
-            className={clsx(css.tabButton, viewer.tab === scopeTab && css.tabActive)}
-            onClick={() => { patch({ tab: scopeTab }) }}
+            className={css.toggle}
+            aria-pressed={viewer.tab === 'files'}
+            onClick={() => { patch({ tab: 'files' }) }}
           >
-            {scopeTab === 'files' ? props.t('tab.files') : props.t('tab.changes')}
+            <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4 1.5h5.25L12.5 4.75V14.5H4z" />
+              <path d="M9.25 1.5v3.25h3.25" />
+            </svg>
+            {props.t('tab.files')}
           </button>
-        ))}
+          <button
+            type="button"
+            className={css.toggle}
+            aria-pressed={viewer.tab === 'changes'}
+            onClick={() => { patch({ tab: 'changes' }) }}
+          >
+            <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path d="M4.75 2.25v5.5" />
+              <path d="M2 5h5.5" />
+              <path d="M11.25 8.25v5.5" />
+              <path d="M8.5 11h5.5" />
+            </svg>
+            {props.t('tab.changes')}
+          </button>
+        </div>
+        {viewer.tab === 'files' && (
+          <div className={css.search}>
+            <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <circle cx="7" cy="7" r="4.6" />
+              <path d="M10.4 10.4 14 14" />
+            </svg>
+            <input
+              type="search"
+              className={css.searchInput}
+              value={viewer.query}
+              placeholder={props.t('files.search')}
+              onChange={(event) => { patch({ query: event.target.value }) }}
+            />
+          </div>
+        )}
         <button
           type="button"
-          className={css.refreshButton}
+          className={clsx(css.toggle, css.iconOnly)}
           title="⟳"
           aria-label="⟳"
           onClick={() => { setRevision(value => value + 1) }}
         >
-          ⟳
+          <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M13.2 8a5.2 5.2 0 1 1-1.6-3.75" />
+            <path d="M13.4 1.9v2.6h-2.6" />
+          </svg>
         </button>
       </div>
       {viewer.selectedPath !== null && viewer.rootId !== null
@@ -259,13 +294,11 @@ function FilesPane({
   tree,
   query,
   t,
-  onQuery,
   onOpen,
 }: {
   tree: TreeResponse | null
   query: string
   t: Translate
-  onQuery: (query: string) => void
   onOpen: (path: string) => void
 }): React.ReactNode {
   const statuses = useMemo(
@@ -329,12 +362,6 @@ function FilesPane({
 
   return (
     <div className={css.filesPane}>
-      <input
-        className={css.searchInput}
-        value={query}
-        placeholder={t('files.search')}
-        onChange={(event) => { onQuery(event.target.value) }}
-      />
       <div className={css.paneScroll}>
         {nodes.length === 0
           ? <div className={css.emptyNote}>{t('files.empty')}</div>
@@ -425,17 +452,57 @@ function ChangesPane({
     target === 'worktree' ? t('changes.scope.worktree')
       : target === 'commit' ? t('changes.scope.commit') : t('changes.scope.session')
 
+  const scopeIcon = (target: Scope): React.ReactNode => {
+    if (target === 'worktree') {
+      return (
+        <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <circle cx="4.5" cy="3.75" r="1.9" />
+          <circle cx="4.5" cy="12.25" r="1.9" />
+          <path d="M4.5 5.65v4.7" />
+          <circle cx="11.5" cy="3.75" r="1.9" />
+          <path d="M11.5 5.65c0 3.4-4.5 3.2-7 4.4" />
+        </svg>
+      )
+    }
+    if (target === 'session') {
+      return (
+        <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M2.5 3.5h11v7H6.25L3.5 13v-2.5H2.5z" />
+        </svg>
+      )
+    }
+    return (
+      <svg className={css.toggleIcon} viewBox="0 0 16 16" fill="none" aria-hidden="true">
+        <circle cx="8" cy="8" r="3.4" />
+        <path d="M8 1.5v3.1" />
+        <path d="M8 11.4v3.1" />
+      </svg>
+    )
+  }
+
   return (
     <div className={css.changesPane}>
       <div className={css.filterRow}>
-        {(['worktree', 'session', 'commit'] as const).map(target => (
-          <button
-            key={target}
-            type="button"
-            className={clsx(css.scopeButton, target === scope && css.scopeActive)}
-            onClick={() => { onScope(target); setEntries([]) }}
-          >{scopeLabel(target)}</button>
-        ))}
+        <div className={css.toolbarGroup}>
+          {(['worktree', 'session', 'commit'] as const).map(target => (
+            <button
+              key={target}
+              type="button"
+              className={css.toggle}
+              aria-pressed={target === scope}
+              onClick={() => {
+                // Re-clicking the active scope must not wipe the loaded ledger:
+                // the fetch effect keys on scope and would not re-run.
+                if (target === scope) return
+                onScope(target)
+                setEntries([])
+              }}
+            >
+              {scopeIcon(target)}
+              {scopeLabel(target)}
+            </button>
+          ))}
+        </div>
         <select
           className={css.filterSelect}
           value={statusFilter}
