@@ -48,7 +48,7 @@ function sessionLogs(runCwd: string): string[] {
   const root = join(runCwd, '.sessions')
   if (!existsSync(root)) return []
   const found: string[] = []
-  for (const entry of readdirSync(root, { recursive: true })) {
+  for (const entry of readdirSync(root, { recursive: true, encoding: 'utf8' })) {
     const path = join(root, entry)
     if (statSync(path).isFile() && entry.includes('session.jsonl')) found.push(path)
   }
