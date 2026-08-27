@@ -1,0 +1,30 @@
+#!/usr/bin/env sh
+# Test double for the scanner CLI binaries. Behavior is environment-driven:
+#   STUB_EXIT           process exit code (default 0)
+#   STUB_SLEEP_SECONDS  fractional seconds to sleep before exiting
+#   STUB_STDOUT         text written to stdout
+#   STUB_STDERR         text written to stderr
+#   STUB_ARGV=1         echo one argv element per line before anything else
+#   STUB_IMPOSTOR=1     answer -version/--version with a usage screen and exit 2
+#                       (a same-named CLI from another package)
+# Default answer to -version/--version: a plausible projectdiscovery-style line,
+# because the real binaries all print one and the provider probes for it.
+case "${STUB_IMPOSTOR:-0}" in
+  1) if [ "$1" = "-version" ] || [ "$1" = "--version" ]; then
+       printf 'Usage: %s [OPTIONS] URL\nError: Invalid value\n' "$(basename "$0")" >&2
+       exit 2
+     fi ;;
+esac
+if [ "$1" = "-version" ] || [ "$1" = "--version" ]; then
+  printf '%s version 1.0.0 (stub)\n' "$(basename "$0")"
+  exit 0
+fi
+if [ "${STUB_ARGV:-0}" = "1" ]; then
+  for arg in "$@"; do
+    printf '%s\n' "$arg"
+  done
+fi
+if [ -n "${STUB_STDOUT:-}" ]; then printf '%s' "$STUB_STDOUT"; fi
+if [ -n "${STUB_STDERR:-}" ]; then printf '%s' "$STUB_STDERR" >&2; fi
+if [ -n "${STUB_SLEEP_SECONDS:-}" ]; then sleep "$STUB_SLEEP_SECONDS"; fi
+exit "${STUB_EXIT:-0}"

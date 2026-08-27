@@ -63,6 +63,9 @@ import * as ToolTeam from '@deepseek-ai/dsh-experimental-tool-agent-team'
 import * as ToolTodo from '@deepseek-ai/dsh-tool-todo'
 import * as ToolSubagent from '@deepseek-ai/dsh-tool-subagent'
 import * as ToolWeb from '@deepseek-ai/dsh-tool-web'
+import SecurityScanRuntime from '@deepseek-ai/dsh-security-scan-moses'
+import * as ToolSecurityScan from '@deepseek-ai/dsh-tool-security-scan-moses'
+import * as ToolSessionPeek from '@deepseek-ai/dsh-tool-session-peek-moses'
 import VmWorkflowEngine from '@deepseek-ai/dsh-workflow-worker-thread'
 import * as ToolRalph from '@deepseek-ai/dsh-tool-ralph'
 import * as ToolWorkflow from '@deepseek-ai/dsh-tool-workflow'
@@ -453,6 +456,22 @@ const TOOL_PACKAGES: ToolPackage[] = [
       'The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies.',
   },
   {
+    pkg: '@deepseek-ai/dsh-tool-session-peek-moses',
+    dir: 'tool-session-peek-moses',
+    source: 'packages/session-query/tool-session-peek-moses/src/index.ts',
+    requires: ['ctx.tools', 'ctx.systemPrompt', 'ctx.sessionQuery'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // Same seam as tool-session-query: an in-memory engine satisfies the
+      // inject, and the schemas do not depend on corpus contents.
+      await ctx.plugin(SessionStore)
+      await ctx.plugin(SqliteSessionQueryEngine, { path: ':memory:' })
+      await ctx.plugin(ToolSessionPeek)
+    },
+    note:
+      'Read-only cross-session visibility over ctx.sessionQuery (list/read/search other sessions of this install). Not loaded by any shipped bundle — enabled through a deployment profile patch.',
+  },
+  {
     pkg: '@deepseek-ai/dsh-tool-subagent',
     dir: 'tool-subagent',
     source: 'packages/subagent/tool-subagent/src/index.ts',
@@ -588,6 +607,21 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(VmWorkflowEngine, { provider: 'mock' })
       await ctx.plugin(ToolWorkflow)
     },
+  },
+  {
+    pkg: '@deepseek-ai/dsh-tool-security-scan-moses',
+    dir: 'tool-security-scan-moses',
+    source: 'packages/security/tool-security-scan-moses/src/index.ts',
+    requires: ['ctx.tools', 'ctx.securityScan', 'ctx.systemPrompt'],
+    writes: ['tool/call', 'tool/result'],
+    async mount(ctx) {
+      // The schema does not depend on provider identity; a throwaway runtime
+      // with a placeholder allowlist satisfies the injected seam.
+      await ctx.plugin(SecurityScanRuntime, { allowlist: ['catalog.example'] })
+      await ctx.plugin(ToolSecurityScan)
+    },
+    note:
+      'security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-web',

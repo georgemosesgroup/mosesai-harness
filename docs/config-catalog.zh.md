@@ -1708,6 +1708,81 @@ export interface JsonRpcConfig {
 
 来源：[`packages/sdk/server/src/index.ts:29`](../packages/sdk/server/src/index.ts)
 
+<a id="deepseek-aidsh-security-scan-local-moses"></a>
+
+## `@deepseek-ai/dsh-security-scan-local-moses`
+
+需要：`securityScan` · `subprocess`
+
+```ts config-catalog
+/** Plugin config; every field is defaulted and validated at load. */
+export interface Config {
+  /** Explicit binary path per scanner; omit to resolve the name on PATH. */
+  binPaths?: Record<string, string>
+  /** Directories an ffuf `wordlist` option may be relative to. */
+  wordlistDirs?: string[]
+  /** Working directory for scan processes (default: process.cwd()). */
+  cwd?: string
+  /** Default scan deadline in milliseconds. */
+  timeoutMs?: number
+  /** Upper bound applied to {@link Config.timeoutMs}; scans are long, so this defaults high. */
+  maxTimeoutMs?: number
+  /** Per-stream in-memory output cap; overflow keeps the tail. */
+  maxOutputBytes?: number
+  /** Per-stream spill cap for the complete stream when truncated. */
+  maxSpillBytes?: number
+  /** SIGTERM→SIGKILL escalation grace; at most MAX_TIMER_DELAY_MS. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/security/security-scan-local-moses/src/index.ts:43`](../packages/security/security-scan-local-moses/src/index.ts)
+
+<a id="deepseek-aidsh-security-scan-moses"></a>
+
+## `@deepseek-ai/dsh-security-scan-moses`
+
+```ts config-catalog
+/** Runtime config. The allowlist is REQUIRED — an empty list is a load failure. */
+export interface SecurityScanRuntimeConfig {
+  /** Authorized targets (hosts, `.domain`, IP literals, CIDR). See the README for semantics. */
+  allowlist: string[]
+  /** Upper bound on targets accepted by one scan call. Defaults to 8. */
+  maxTargetsPerScan?: number
+  /**
+   * Pin one provider id. Omitted = auto-select when exactly one registered
+   * provider is usable for the requested scanner.
+   */
+  provider?: string
+}
+```
+
+来源：[`packages/security/security-scan-moses/src/index.ts:43`](../packages/security/security-scan-moses/src/index.ts)
+
+<a id="deepseek-aidsh-session-coordination-moses"></a>
+
+## `@deepseek-ai/dsh-session-coordination-moses`
+
+需要：`tools` · `systemPrompt`
+
+```ts config-catalog
+/** Deployment-owned lease bounds, enforcement mode, and always-allowed paths. */
+export interface Config {
+  /** Lease lifetime used when a call omits `ttlMinutes`. Defaults to 15. */
+  defaultTtlMinutes?: number
+  /** Upper bound any lease may request. Defaults to 120. */
+  maxTtlMinutes?: number
+  /** Write-path enforcement: `off`, `deny`, or `ask`. Defaults to `deny`. */
+  enforcement?: 'off' | 'deny' | 'ask'
+  /** Tool names the enforcement inspects. Defaults to `['write', 'edit']`. */
+  enforcedTools?: string[]
+  /** Path patterns writes are always allowed into, claim or no claim. */
+  bypassPaths?: string[]
+}
+```
+
+来源：[`packages/session/session-coordination-moses/src/index.ts:45`](../packages/session/session-coordination-moses/src/index.ts)
+
 <a id="deepseek-aidsh-session-persistence-jsonl"></a>
 
 ## `@deepseek-ai/dsh-session-persistence-jsonl`
@@ -2731,6 +2806,52 @@ export interface Config {
 ```
 
 来源：[`packages/workflow/tool-ralph/src/index.ts:23`](../packages/workflow/tool-ralph/src/index.ts)
+
+<a id="deepseek-aidsh-tool-security-scan-moses"></a>
+
+## `@deepseek-ai/dsh-tool-security-scan-moses`
+
+需要：`tools` · `securityScan` · `systemPrompt`
+
+```ts config-catalog
+/** Plugin config: scanner enablement, timeout budget, and the output cap. */
+export interface Config {
+  /** Enable/disable individual scanners in the tool's enum. All default to true. */
+  scanners?: Record<string, boolean>
+  /** Cooperative timeout budget (ms) attached to the tool definition. */
+  timeoutMs?: number
+  /** Cap on the complete rendered output text. */
+  maxOutputChars?: number
+}
+```
+
+来源：[`packages/security/tool-security-scan-moses/src/index.ts:54`](../packages/security/tool-security-scan-moses/src/index.ts)
+
+<a id="deepseek-aidsh-tool-session-peek-moses"></a>
+
+## `@deepseek-ai/dsh-tool-session-peek-moses`
+
+需要：`tools` · `sessionQuery` · `systemPrompt`
+
+```ts config-catalog
+/** Deployment-owned paging, truncation, and deadline bounds. */
+export interface Config {
+  /** Page size used when a call omits `limit`. Defaults to 20. */
+  defaultLimit?: number
+  /** Hard ceiling for any requested page size. Defaults to 100. */
+  maxLimit?: number
+  /** Per-event semantic-text cap inside `peek_session_read` output. Defaults to 4000. */
+  eventTextMaxChars?: number
+  /** Model-facing character budget enforced by every renderer. Defaults to 24000. */
+  maxOutputChars?: number
+  /** Cooperative deadline for full-text search calls, milliseconds. Defaults to 30000. */
+  searchTimeoutMs?: number
+  /** Retries for transient search-index stabilization on a busy install. Defaults to 2. */
+  searchStabilizationRetries?: number
+}
+```
+
+来源：[`packages/session-query/tool-session-peek-moses/src/index.ts:42`](../packages/session-query/tool-session-peek-moses/src/index.ts)
 
 <a id="deepseek-aidsh-tool-session-query"></a>
 

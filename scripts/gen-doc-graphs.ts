@@ -249,6 +249,13 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The interface supplies exact reads, filters, and traces; its concrete backend adds full-text reconciliation, ranking, snippets, and cursor generations, while the model consumer owns workspace authority and cursor-free rendering.',
   },
   {
+    key: 'sessionCoordination',
+    pkg: 'session-coordination-moses',
+    title: 'Cross-session path-lease registry',
+    mode: 'seam',
+    note: 'One process-wide TTL claim table shared by every coexisting session of the host; the same package registers the four model-facing workspace_* tools and the tools/pre-execute write enforcement.',
+  },
+  {
     key: 'fileReferences',
     pkg: 'file-reference',
     title: 'File reference discovery',
@@ -512,6 +519,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     implementations: ['web-search-exa', 'web-search-perplexity', 'web-search-deepseek', 'web-fetch-http'],
     consumers: ['tool-web'],
     note: 'Search and fetch providers register into one ctx.web seam; tool-web owns the stable model-facing names.',
+  },
+  {
+    key: 'securityScan',
+    pkg: 'security-scan-moses',
+    title: 'Security scanning provider registry',
+    mode: 'seam',
+    implementations: ['security-scan-local-moses'],
+    consumers: ['tool-security-scan-moses'],
+    note: 'Target allowlist enforcement lives in the ctx.securityScan seam; security_scan is the model-facing consumer over whitelisted CLI scanners.',
   },
   {
     key: 'spillStore',

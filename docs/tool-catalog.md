@@ -33,6 +33,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
 | `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
 | `@deepseek-ai/dsh-tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
+| `@deepseek-ai/dsh-tool-session-peek-moses` | `peek_session_list`, `peek_session_read`, `peek_session_search` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery` | `tool/call`, `tool/result` | - | Read-only cross-session visibility over ctx.sessionQuery (list/read/search other sessions of this install). Not loaded by any shipped bundle — enabled through a deployment profile patch. |
 | `@deepseek-ai/dsh-tool-subagent` | `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered tool name is the load-time `toolName` config (default `subagent`); the schema above is that default. The shipped compositions load this package once per subagent backend, so the model additionally sees `subagent_fork` bound to the fork backend. Each instance's description, `run_in_background` parameter, and system-prompt policy follow its own `backgroundMode` and `enableRunInBackground`, so the two shipped schemas are not identical: `subagent` is `continuable` and defaults omitted calls to background with automatic settlement delivery, while `subagent_fork` stays `one-shot` and defaults them to foreground — see `packages/bundle/base/cordis.patch.yml` and `examples/acp-agent/cordis.yml`. |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
 | `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`, `ctx.systemPrompt`, `a live continuable in-process child Agent` | `tool/call`, `tool/result`, `a user-role message in the direct parent session` | - | Registered per continuable in-process child rather than globally, so this schema is visible only inside such a child and survives its global `toolFilter`. The same contribution installs the child-scoped `tool:report` prompt section, which this catalog does not render. The parent-facing `send_message` tool is installed independently. |
@@ -40,6 +41,7 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
+| `@deepseek-ai/dsh-tool-security-scan-moses` | `security_scan` | `ctx.tools`, `ctx.securityScan`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -1497,6 +1499,92 @@ Source: [`packages/session-query/tool-session-query/src/index.ts`](../packages/s
 
 The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies.
 
+<a id="deepseek-aidsh-tool-session-peek-moses"></a>
+
+## `@deepseek-ai/dsh-tool-session-peek-moses`
+
+### `peek_session_list`
+
+List other sessions recorded by this DSH install, newest first, with their titles and live/persisted availability. Read-only overview; follow up with peek_session_read or peek_session_search.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "limit": {
+      "type": "integer",
+      "description": "Maximum sessions to return, newest first. Defaults to 20."
+    }
+  }
+}
+```
+
+Source: [`packages/session-query/tool-session-peek-moses/src/index.ts`](../packages/session-query/tool-session-peek-moses/src/index.ts)
+
+### `peek_session_read`
+
+Read a bounded window of another session's event log in this DSH install. Returns the newest events first by default; use offset to page further back. Long text is truncated.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "sessionId": {
+      "type": "string",
+      "description": "Target session id from peek_session_list or peek_session_search."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum events returned counting back from the end. Defaults to 20."
+    },
+    "offset": {
+      "type": "integer",
+      "description": "How many NEWEST events to skip first (page backwards)."
+    }
+  },
+  "required": [
+    "sessionId"
+  ]
+}
+```
+
+Source: [`packages/session-query/tool-session-peek-moses/src/index.ts`](../packages/session-query/tool-session-peek-moses/src/index.ts)
+
+### `peek_session_search`
+
+Full-text search over other sessions of this DSH install. Without sessionId, returns the strongest matching session per hit across the whole install; with sessionId, searches inside that one session and returns matching events. Read-only; paginate via nextCursor.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "description": "Literal case-insensitive full-text query."
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Search inside this one session instead of across the install."
+    },
+    "limit": {
+      "type": "integer",
+      "description": "Maximum hits on this page. Defaults to 20."
+    },
+    "cursor": {
+      "type": "string",
+      "description": "Opaque nextCursor echoed by a previous page."
+    }
+  },
+  "required": [
+    "query"
+  ]
+}
+```
+
+Source: [`packages/session-query/tool-session-peek-moses/src/index.ts`](../packages/session-query/tool-session-peek-moses/src/index.ts)
+
+Read-only cross-session visibility over ctx.sessionQuery (list/read/search other sessions of this install). Not loaded by any shipped bundle — enabled through a deployment profile patch.
+
 <a id="deepseek-aidsh-tool-subagent"></a>
 
 ## `@deepseek-ai/dsh-tool-subagent`
@@ -2168,6 +2256,54 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 ```
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
+
+<a id="deepseek-aidsh-tool-security-scan-moses"></a>
+
+## `@deepseek-ai/dsh-tool-security-scan-moses`
+
+### `security_scan`
+
+Run an authorized security scanner against allowlisted targets you own. Enabled scanners: nuclei, httpx, katana, ffuf, nmap, sqlmap. Options come from each scanner's whitelist; raw flags are never accepted.
+
+```json
+{
+  "type": "object",
+  "properties": {
+    "scanner": {
+      "type": "string",
+      "description": "Which scanner to run.",
+      "enum": [
+        "nuclei",
+        "httpx",
+        "katana",
+        "ffuf",
+        "nmap",
+        "sqlmap"
+      ]
+    },
+    "targets": {
+      "type": "array",
+      "description": "URLs or host[:port] strings; every host must be on this deployment allowlist.",
+      "items": {
+        "type": "string"
+      }
+    },
+    "options": {
+      "type": "object",
+      "description": "Scanner-specific whitelisted options (e.g. nuclei severity/tags; nmap ports). Values are validated; raw argv is impossible.",
+      "additionalProperties": true
+    }
+  },
+  "required": [
+    "scanner",
+    "targets"
+  ]
+}
+```
+
+Source: [`packages/security/tool-security-scan-moses/src/index.ts`](../packages/security/tool-security-scan-moses/src/index.ts)
+
+security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments.
 
 <a id="deepseek-aidsh-tool-web"></a>
 

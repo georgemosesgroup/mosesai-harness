@@ -1974,6 +1974,36 @@
       "doc": "docs/subsystems/feedback.md",
       "symbol": "MessageFeedbackDeleteResult",
       "source": "packages/feedback/message-feedback/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/security.md",
+      "symbol": "SecurityScannerId",
+      "source": "packages/security/security-scan-moses/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/security.md",
+      "symbol": "SecurityScanOptionValue",
+      "source": "packages/security/security-scan-moses/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/security.md",
+      "symbol": "SecurityScanRequest",
+      "source": "packages/security/security-scan-moses/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/security.md",
+      "symbol": "ScanOutput",
+      "source": "packages/security/security-scan-moses/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/security.md",
+      "symbol": "SecurityScanResult",
+      "source": "packages/security/security-scan-moses/src/types.ts"
+    },
+    {
+      "doc": "docs/subsystems/security.md",
+      "symbol": "SecurityScanProvider",
+      "source": "packages/security/security-scan-moses/src/types.ts"
     }
   ]
 }
