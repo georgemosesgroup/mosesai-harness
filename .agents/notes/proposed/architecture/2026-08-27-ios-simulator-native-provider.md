@@ -21,7 +21,7 @@ Nothing above the provider moves. The capability vocabulary stays closed at ten 
 
 ### Gate 0 — licence
 
-Confirm the licence terms of FBSimulatorControl and FBControlCore, and record the pinned upstream revision under the [vendoring policy](../../../../vendor/README.md), before any native source lands. A licence that forbids redistribution changes the whole approach — a runtime dependency on a user-installed `idb`, or an XCTest-based path — so no other step may begin until this one answers.
+Answered in writing before any native source lands. FBSimulatorControl and FBControlCore both live in [facebook/idb](https://github.com/facebook/idb) — the standalone repositories no longer exist (`facebook/FBSimulatorControl` redirects there, `facebook/FBControlCore` is gone) — and that repository is [MIT-licensed](https://github.com/facebook/idb/blob/main/LICENSE) (Copyright (c) Meta Platforms, Inc. and affiliates), with no framework-level licence files and no BSD text in the current framework README; the BSD-with-patent-grant wording found in old forks belongs to the retired standalone repository. Redistribution is permitted with the licence text retained, so vendoring is allowed and the fallback paths (a user-installed `idb`, or an XCTest-based route) stay alternatives rather than a triggered switch. The pinned revision is recorded in the [vendor manifest](../../../../vendor/README.md): `main` at `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5` (2026-08-27) for both frameworks.
 
 ### Phase 2 — the helper and `describe`
 
@@ -41,7 +41,7 @@ The panel becomes an input surface in this phase. Without a stream it repaints f
 
 ### Phase 4 — `stream`
 
-`stream` gains its method and the helper encodes frames through VideoToolbox. Frame rate, resolution scale, and codec become provider configuration with real effect, and the panel's settings become settings of something rather than labels. Until this phase lands, the panel must not present controls whose only honest value is the one they already have.
+`stream` gains its method and the helper encodes frames through VideoToolbox. Frame rate, resolution scale, and codec become provider configuration with real effect, and the panel's settings become settings of something rather than labels. Until this phase lands, the panel must not present controls whose only honest value is the one they already have. Upstream bounds where the frames can come from: a Simulator presented by the host app (`Simulator.app`, or `DeviceHub.app` from Xcode 27) has its framebuffer consumed by that app's process, unavailable to a process linking FBSimulatorControl, so screen-bearing work boots without the host app — a supported path.
 
 ### Process ownership and failure
 

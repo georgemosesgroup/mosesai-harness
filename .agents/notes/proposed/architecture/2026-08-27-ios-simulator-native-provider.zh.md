@@ -21,7 +21,7 @@ Status: proposed
 
 ### Gate 0 — 许可
 
-在任何原生源码落地之前，确认 FBSimulatorControl 与 FBControlCore 的许可条款，并按[vendoring 政策](../../../../vendor/README.md)在清单中记录锁定的上游版本。若许可禁止再分发，整条路线就会改变 —— 转为依赖用户自行安装的 `idb`，或走 XCTest 路径 —— 所以在它给出答案之前，其他步骤一律不得开始。
+在任何原生源码落地之前，已给出书面答案。FBSimulatorControl 与 FBControlCore 均位于 [facebook/idb](https://github.com/facebook/idb) —— 独立仓库已不存在（`facebook/FBSimulatorControl` 重定向到 idb，`facebook/FBControlCore` 已消失）—— 而该仓库以 [MIT](https://github.com/facebook/idb/blob/main/LICENSE) 许可（Copyright (c) Meta Platforms, Inc. and affiliates），框架级没有单独的许可文件，现行框架 README 中也没有 BSD 字样；旧 fork 里的 BSD 与专利授权文本属于已退役的独立仓库。允许以保留许可文本为前提进行再分发，因此 vendoring 可行，回退路径（用户自装的 `idb`，或 XCTest 路线）只作为备选项存在，而非被触发的切换。锁定的修订已记入 [vendor 清单](../../../../vendor/README.md)：两个框架均为 `main` 的 `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5`（2026-08-27）。
 
 ### Phase 2 — helper 与 `describe`
 
@@ -41,7 +41,7 @@ Phase 2 只实现一项能力：`describe` 返回一台设备的可用性树。�
 
 ### Phase 4 — `stream`
 
-`stream` 获得其方法，helper 通过 VideoToolbox 编码帧。帧率、分辨率缩放与编码器成为真正生效的提供方配置，面板的设置也就成了某个东西的设置，而不只是标签。在本阶段落地之前，面板不得呈现任何其唯一诚实取值就是当前取值的控件。
+`stream` 获得其方法，helper 通过 VideoToolbox 编码帧。帧率、分辨率缩放与编码器成为真正生效的提供方配置，面板的设置也就成了某个东西的设置，而不只是标签。在本阶段落地之前，面板不得呈现任何其唯一诚实取值就是当前取值的控件。上游还划定了帧的来源边界：由宿主应用呈现的模拟器（`Simulator.app`，Xcode 27 起为 `DeviceHub.app`），其 framebuffer 被该应用进程占用，链接 FBSimulatorControl 的进程拿不到 —— 需要屏幕的工作必须以无宿主应用的方式启动，这是受支持的路径。
 
 ### 进程归属与失败
 

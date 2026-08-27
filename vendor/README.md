@@ -26,6 +26,17 @@ Third-party dependencies of the vendored packages stay on npm: `@standard-schema
 
 Intentionally **not** vendored (verified unused by this set): `reggol`, `@cordisjs/utils`, `@cordisjs/element`, `@cordisjs/unyaml` (dev-time YAML import hook only).
 
+## Native framework pins
+
+The [`dsh-ios-sim-native` helper](../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md) links two frameworks from [facebook/idb](https://github.com/facebook/idb) — the repository the upstream `FBSimulatorControl`/`FBControlCore` names redirect to; the former standalone repos no longer exist. Gate 0 licence verdict (recorded there before any native source lands): the idb repository is MIT-licensed ([LICENSE](https://github.com/facebook/idb/blob/main/LICENSE), Copyright (c) Meta Platforms, Inc. and affiliates), there are no framework-level licence files, and the current framework README carries no BSD text — the BSD-with-patent-grant wording in old forks belongs to the retired standalone repository. Redistribution and vendoring are permitted with the licence text retained. The frameworks ship no versioned artefacts, so the pin is by commit:
+
+| Framework | Upstream repo | Version | License | Commit |
+|---|---|---|---|---|
+| `FBSimulatorControl/` | https://github.com/facebook/idb (`FBSimulatorControl/`) | — (monorepo, no framework releases) | MIT | `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5` |
+| `FBControlCore/` | https://github.com/facebook/idb (`FBControlCore/`) | — (monorepo, no framework releases) | MIT | `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5` |
+
+Whether phase 2 copies their source under `vendor/` (per [the vendored-package cookbook](../docs/cookbook/adding-a-vendored-package.md)) or fetches the pin at helper build time is that phase's decision; either path updates this manifest first. Both frameworks weakly link Apple's private `CoreSimulator`/`SimulatorKit` — a platform fact outside any licence, tracked in the note's risks.
+
 ## Local modifications
 
 Keep this log exhaustive — every divergence from upstream must be listed.

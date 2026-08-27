@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md
-2026-08-27-ios-simulator-native-provider.md: 23e543365d0351d189cb993871f5f4f5a164f557
-2026-08-27-ios-simulator-native-provider.zh.md: c61f45ad3f06711a4fd76772e1eea0441eebc85a
+2026-08-27-ios-simulator-native-provider.md: 95ed0412c2d5a27e29b229449800adb3846d3712
+2026-08-27-ios-simulator-native-provider.zh.md: cd7d27446028dc29e16202c2c2054238f32c63cf
