@@ -1,0 +1,88 @@
+# Agent Note: iOS 模拟器 — 承载 describe、input 与 stream 的原生提供方
+
+Status: proposed
+
+
+[English](2026-08-27-ios-simulator-native-provider.md) | 中文
+
+## 问题
+
+[level-0 seam](../../implemented/architecture/2026-08-27-ios-simulator-seam.zh.md) 把 `describe`、`input`、`stream` 声明为契约成员，在提供方实现之前一律拒绝，并指明它们未来的归宿是 idb 一类的提供方。那份 Agent Note 对目的地的判断正确，但对抵达代价只字未提，于是周边正文被读成：剩下的工作不过是在同一 substrate 之上再写一个 TypeScript 包。事实并非如此，而这个差别决定了 phase-2 的工作能否开始。
+
+当前 Xcode 上的 `xcrun simctl` 既不提供触控注入，也不提供可用性树读取；其 `ui` 子命令只设置外观与内容尺寸。任何参数、超时或解析上的努力，都无法让 `doDescribe` 或 `doInput` 在 `dsh-ios-sim-simctl` 上变得可达：这些操作在 substrate 上根本不存在，而不只是不便。因此，任何建立在该提供方之上的 phase-2 分支在评审之前就已经作废，这一点必须写进仓库，而不是留在评审者脑中。
+
+另有两项事实决定了替代方案的形状。注入触控与读取树需要经由 FBSimulatorControl 和 FBControlCore 链接 CoreSimulator —— 即 idb 所依赖的框架 —— 这意味着一个原生的、独立构建、独立签名的可执行文件，而不是一个 workspace 包。而实时视频流需要在同一进程内使用硬件编码器，这正是 stream 能力无法在「每次调用一张截图」的提供方上事后补装的原因。
+
+## 提案
+
+新增第二个提供方 `dsh-ios-sim-native`，由一个链接 FBSimulatorControl、FBControlCore 与 VideoToolbox 的原生后台 helper 支撑。helper 承担公开 CLI 无法完成的每一项操作；提供方只是它的一个瘦类型化客户端。`dsh-ios-sim-simctl` 保留为没有 helper 的宿主上的回退，组合仍与今天一样只挂载一个提供方。
+
+提供方之上的一切都不动。能力词汇表仍固定为十项，逐动词 gating 仍是强制点，`dsh-tool-ios-sim` 的四个工具保留其 schema，`iosSim/action` 仍是仅记录事件且 `SESSION_FORMAT_VERSION` 保持 `0`：更强的提供方声明更多能力，同一道 gate 放行更多动词。这正是 level-0 那份 Agent Note 买下的性质，本提案花的就是它。
+
+### Gate 0 — 许可
+
+在任何原生源码落地之前，确认 FBSimulatorControl 与 FBControlCore 的许可条款，并按[vendoring 政策](../../../../vendor/README.md)在清单中记录锁定的上游版本。若许可禁止再分发，整条路线就会改变 —— 转为依赖用户自行安装的 `idb`，或走 XCTest 路径 —— 所以在它给出答案之前，其他步骤一律不得开始。
+
+### Phase 2 — helper 与 `describe`
+
+helper 作为一个 `native/` workspace 与 [`landlock-run`](../../../../native/README.zh.md) 并列，沿用它的三包 npm 家族、逐架构 CI 构建与发布流程。它是一个没有用户界面的后台可执行文件，由提供方拉起，通过标准流以分帧的请求/响应协议通信。
+
+Phase 2 只实现一项能力：`describe` 返回一台设备的可用性树。元素的标识、角色、标签、启用状态与以点为单位的 frame 来自框架，而不是对栅格图的解析。让 helper 只带一项能力上线，是对许可、构建、签名与拉起路径端到端可用的证明，在它们承载更多之前先行完成。
+
+几何信息在此不再缺席。只要由原生提供方服务该调用，`SimulatorLaunchResult.geometry` 就会填充；在 simctl 提供方之下，现有的 `geometryNote` 仍是答案 —— 「点或诚实缺席」的规则由实证满足，与 level-0 Agent Note 的规定完全一致。
+
+### Phase 3 — `input` 与可交互面板
+
+`input` 执行点按、滑动、按键与文本输入，其请求接受两种目标形式：来自前一次 `describe` 的元素引用，以及以设备坐标表示的点。level-0 的契约正文禁止坐标点按，是因为 level 0 无法为坐标系提供实证；一旦 helper 能实证几何，该禁令便不再描述真实的限制，而一个由人点击画面的面板根本拿不出元素引用。两种形式必须从该动词的第一次提交起就存在于请求类型中，因为事后追加第二种会改变已发布的工具 schema。
+
+由模型发起的输入是 model-visible 动作，因此与其他动词一样追加一条 `iosSim/action` 记录。由人在面板上发起的输入不是模型动作，绝不能记为模型动作；它是否以另一种事件类型记录，是 phase 3 在首次提交前必须敲定的唯一决定，因为它触及持久日志。
+
+面板在本阶段成为输入面。没有流时它靠截图重绘，于是其刷新控件不再是装饰：人点击一帧过期画面时需要画面追上来，面板必须让这段滞后可见，而不是把它藏起来。
+
+### Phase 4 — `stream`
+
+`stream` 获得其方法，helper 通过 VideoToolbox 编码帧。帧率、分辨率缩放与编码器成为真正生效的提供方配置，面板的设置也就成了某个东西的设置，而不只是标签。在本阶段落地之前，面板不得呈现任何其唯一诚实取值就是当前取值的控件。
+
+### 进程归属与失败
+
+helper 是每个安装一个进程，而非每个会话一个，这与模拟器宿主的行为一致：两个会话驱动两台设备时共用一个 helper。提供方对它进行监管 —— 异常退出即重启、重试次数有上限、达到上限后给出独立错误码 —— 从而让 helper 死亡表现为一个具名的模拟器故障，而绝不是 agent 崩溃。会话拆除不得杀死另一会话正在使用的 helper；helper 的生命周期绑定安装进程，子进程归属的[防御性模式](../../../../docs/defensive-patterns.zh.md)原样适用。
+
+### 与本阶梯无关的一项
+
+`simctl io recordVideo` 是公开的，今天即可使用。录屏可以作为独立的能力与工具变更在现有提供方上交付，不得排在 helper 之后。
+
+## 备选方案
+
+**在 `dsh-ios-sim-simctl` 上扩展 `describe` 与 `input`。** 依据实证否决：这些操作在 substrate 上并不存在。之所以记录，是因为 subsystem 页面与包 README 中关于 phase-2 的措辞恰好引向这种读法，并且已经有一条分支据此开工。
+
+**要求用户自行安装 `idb` 二进制并对其 shell out。** 它让 harness 免于原生源码，又复用同一批框架，并在 gate 0 禁止 vendoring 时仍是回退方案。作为主路径被否决：它把一项硬依赖推到每个用户的机器上，把契约绑定到另一个项目的 CLI 文本输出 —— 正是 seam 存在以避免的解析耦合 —— 并且无法承载 phase 4 的视频编码器。
+
+**经由 XCTest 驱动输入。** 公开且受 Apple 支持，但每次交互都是一次测试包的构建与运行：每次点按数秒延迟、一份需要管理的构建产物，且在测试进程之外无法读树。对可交互面板不可用。
+
+**只做坐标输入，与人使用设备的方式一致。** 请求类型更简单，对面板也够用，但它丢弃了 `describe` 已经返回的元素引用，并把模型推回从栅格图上读坐标 —— 正是 level-0 契约正文所要防止的习惯。两种形式的代价不过是请求类型里的一个 union。
+
+**只做元素引用输入，如 level-0 契约正文所述。** 在面板成为输入面之后被否决：对画面的一次点击产生的是一个点，强行走树查找会让人的点按依赖一次可能与他所见不符的新鲜 `describe`。
+
+**推迟流，长期把面板当作查看器。** 最省事，且在输入尚不存在时是诚实的。作为终态被否决：一个画面滞后的输入面比查看器和流都差，因此 phase 3 也就把项目锁定到了 phase 4。
+
+## 验收标准
+
+在任何原生源码提交之前，gate 0 已给出书面答案，许可条款与锁定版本已记入 vendor 清单。
+
+Phase 2 完成的标志是：挂载 `dsh-ios-sim-native` 的组合能在两种受支持架构上为一台已启动设备返回可用性树；`unadvertisedCapabilities` 证明该提供方的声明与钩子一致；`SIMULATOR_CAPABILITY_UNAVAILABLE` 在该提供方上仍拒绝 `input` 与 `stream`；并且按[测试政策](../../../../docs/testing.zh.md)，有一条经由真实可运行示例的无密钥快照覆盖一次 `describe` 调用。
+
+Phase 3 完成的标志是：`input` 接受两种目标形式；模型发起的输入追加 `iosSim/action`；面板输入的记录决定已写入本 Agent Note 并已实现；调用中途杀死 helper 会产生具名的监管错误，而不是未处理的 rejection。
+
+Phase 4 完成的标志是：帧率、缩放与编码器是经校验的提供方配置；面板不再呈现任何不改变可观察行为的控件。
+
+每个阶段都在与代码同一次变更中更新 subsystem 页面、受影响的包 README 以及两套 SDK 的预期输出。
+
+## 风险
+
+Gate 0 可能给出否定答案，而回退路径明显更差：用户自装 `idb` 与 XCTest 两条路都失去 phase 4。先回答它就是缓解手段。
+
+原生 helper 为一个运行时以 TypeScript 为主的仓库增加了构建矩阵、代码签名与一个受监管的进程。`landlock-run` 证明这种形态在此处负担得起，但它使 CI 必须维持绿色的平台面翻倍，且签名或公证失败会彻底阻断模拟器，而不是让它降级。
+
+vendored 的框架源码会相对 Xcode 发布而老化：CoreSimulator 是私有的，其接口会移动。simctl 提供方作为回退继续挂载，使 helper 损坏时 list、launch 与 screenshot 仍可工作，从而把损害限定在输入与流。
+
+Phase 3 明知地把 `input` 扩展到超出 level-0 契约正文所允许的范围。该禁令是被取代而非被遗忘：必须在同一次变更中改写契约 JSDoc，否则源码将与本 Agent Note 自相矛盾。
