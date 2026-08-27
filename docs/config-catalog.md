@@ -909,7 +909,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/iossim/ios-sim-simctl/src/index.ts:87`](../packages/iossim/ios-sim-simctl/src/index.ts)
+Source: [`packages/iossim/ios-sim-simctl/src/index.ts:90`](../packages/iossim/ios-sim-simctl/src/index.ts)
 
 <a id="deepseek-aidsh-jobs-local"></a>
 
