@@ -1,0 +1,17 @@
+{
+  "name": "@deepseek-ai/iossim-helper-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "BSD-3-Clause",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "build:js": "pnpm --filter @deepseek-ai/iossim-helper build:js",
+    "build:native": "node ./scripts/build.mjs",
+    "typecheck:js": "pnpm --filter @deepseek-ai/iossim-helper typecheck"
+  },
+  "devDependencies": {
+    "@deepseek-ai/iossim-helper": "workspace:*",
+    "typescript": "^6.0.3"
+  }
+}

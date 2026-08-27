@@ -1,0 +1,39 @@
+{
+  "name": "@deepseek-ai/iossim-helper",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "The iossim-helper native helper for iOS-simulator describe over FBSimulatorControl: per-platform prebuilt binaries plus the JS seam that resolves the binary and owns the protocol constants",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness/deepseek-harness.git",
+    "directory": "native/iossim-helper/packages/entry"
+  },
+  "main": "lib/index.js",
+  "types": "lib/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "README.md",
+    "lib/"
+  ],
+  "scripts": {
+    "build:js": "tsc -b",
+    "typecheck": "tsc --noEmit && tsc -b --dry"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "BSD-3-Clause",
+  "publishConfig": {
+    "access": "public"
+  },
+  "optionalDependencies": {
+    "@deepseek-ai/iossim-helper-darwin-arm64": "workspace:*",
+    "@deepseek-ai/iossim-helper-darwin-x64": "workspace:*"
+  }
+}

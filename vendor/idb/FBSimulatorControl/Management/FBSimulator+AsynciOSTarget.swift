@@ -1,0 +1,37 @@
+/*
+ * Copyright (c) Meta Platforms, Inc. and affiliates.
+ *
+ * This source code is licensed under the MIT license found in the
+ * LICENSE file in the root directory of this source tree.
+ */
+
+import FBControlCore
+import Foundation
+
+// MARK: - FBSimulator+XCTraceRecordCommands
+
+extension FBSimulator: XCTraceRecordCommands {
+
+  public func startXctraceRecord(
+    configuration: FBXCTraceRecordConfiguration,
+    logger: any FBControlCoreLogger
+  ) async throws -> FBXCTraceRecordOperation {
+    try await xctraceRecordCommands.startXctraceRecord(configuration, logger: logger)
+  }
+}
+
+// MARK: - FBSimulator+InstrumentsCommands
+
+extension FBSimulator: InstrumentsCommands {
+
+  public func startInstruments(
+    configuration: FBInstrumentsConfiguration,
+    logger: any FBControlCoreLogger
+  ) async throws -> FBInstrumentsOperation {
+    try await FBInstrumentsOperation.operationAsync(target: self, configuration: configuration, logger: logger)
+  }
+}
+
+// MARK: - FBSimulator+AsynciOSTarget
+
+extension FBSimulator: AsynciOSTarget {}

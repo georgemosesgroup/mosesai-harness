@@ -5,6 +5,11 @@ packages:
   # its native build and publication scripts under native/landlock-run.
   - native/landlock-run
   - native/landlock-run/packages/*
+  # The iOS-simulator helper follows the same native-workspace template: the
+  # npm family under native/iossim-helper, the framework sources vendored
+  # under vendor/idb/.
+  - native/iossim-helper
+  - native/iossim-helper/packages/*
   # Product assemblies over the package tier; apps/cli owns the `dsh` bin.
   - apps/*
   - website

@@ -1,0 +1,5 @@
+Build/
+iossim-helper.xcodeproj/
+node_modules/
+lib/.tsbuildinfo
+packages/*/bin/

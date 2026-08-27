@@ -1,0 +1,10 @@
+{
+  "platform": "darwin-x64",
+  "binaries": [
+    {
+      "tool": "iossim-helper",
+      "kind": "mach-o-static-frameworks",
+      "path": "bin/iossim-helper"
+    }
+  ]
+}

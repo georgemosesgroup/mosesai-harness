@@ -1,0 +1,28 @@
+{
+  "name": "@deepseek-ai/iossim-helper-darwin-x64",
+  "version": "0.1.0",
+  "description": "Prebuilt iossim-helper native helper binary for darwin-x64 — resolved as a file path by @deepseek-ai/iossim-helper, never imported",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deepseek-harness/deepseek-harness.git",
+    "directory": "native/iossim-helper/packages/darwin-x64"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "files": [
+    "README.md",
+    "bin/",
+    "prebuilds.json"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "BSD-3-Clause",
+  "publishConfig": {
+    "access": "public"
+  }
+}

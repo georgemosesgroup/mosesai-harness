@@ -767,6 +767,28 @@ importers:
         specifier: workspace:*
         version: link:../packages/workflow/workflow-worker-thread
 
+  native/iossim-helper:
+    devDependencies:
+      '@deepseek-ai/iossim-helper':
+        specifier: workspace:*
+        version: link:packages/entry
+      typescript:
+        specifier: ^6.0.3
+        version: 6.0.3
+
+  native/iossim-helper/packages/darwin-arm64: {}
+
+  native/iossim-helper/packages/darwin-x64: {}
+
+  native/iossim-helper/packages/entry:
+    optionalDependencies:
+      '@deepseek-ai/iossim-helper-darwin-arm64':
+        specifier: workspace:*
+        version: link:../darwin-arm64
+      '@deepseek-ai/iossim-helper-darwin-x64':
+        specifier: workspace:*
+        version: link:../darwin-x64
+
   native/landlock-run:
     devDependencies:
       '@deepseek-ai/node-addon-landlock-run':
