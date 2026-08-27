@@ -6,6 +6,7 @@ import { readCardModel } from './models/read-card-model.ts'
 import { searchCardModel } from './models/search-card-model.ts'
 import { terminalBlockLabels, terminalCardModel } from './models/terminal-card-model.ts'
 import { resultText } from './models/tool-call-model.ts'
+import { imageCardModel } from './models/image-card-model.ts'
 import { webCardModel } from './models/web-card-model.ts'
 import css from './ToolDetails.module.css'
 
@@ -41,6 +42,19 @@ export function ToolDetails({
         <SearchBlock {...search.card} className={css.cardBody} />
         {search.recovery !== undefined ? <div className={css.recovery}>{search.recovery}</div> : null}
       </>
+    )
+  }
+  const image = imageCardModel(block)
+  if (image !== null) {
+    // Pure facts over the committed attachment reference: raster previewing
+    // needs a session-authorized loader, which tool panes do not own yet.
+    return (
+      <figure className={css.imageCard}>
+        {image.origin !== undefined ? <figcaption className={css.imageCaption}>{image.origin}</figcaption> : null}
+        <pre className={css.imageMeta}>
+          {[`${String(image.width)}×${String(image.height)} px`, `${String(Math.round(image.bytes / 1024 * 10) / 10)} KB`, image.mediaType, `attachment ${image.attachmentId}`].join('\n')}
+        </pre>
+      </figure>
     )
   }
   const web = webCardModel(block)

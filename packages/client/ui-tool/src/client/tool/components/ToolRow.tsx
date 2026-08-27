@@ -27,6 +27,7 @@ import type { TranslateNS } from '@deepseek-ai/dsh-client-ui-slots'
 import { CHAT_DIFF_MAX_LINES, type DiffCardModel } from '../models/diff-card-model.ts'
 import { CHAT_READ_MAX_LINES, type ReadCardModel } from '../models/read-card-model.ts'
 import { CHAT_SEARCH_MAX_LINES, type SearchCardModel } from '../models/search-card-model.ts'
+import type { ImageCardModel } from '../models/image-card-model.ts'
 import { terminalBlockLabels, type TerminalCardModel } from '../models/terminal-card-model.ts'
 import type { ToolRowState, ToolRowVariant } from '../models/tool-call-model.ts'
 import css from './ToolRow.module.css'
@@ -86,6 +87,13 @@ export interface ToolRowProps {
    * list or fetched-source card when present.
    */
   web?: WebBlockProps | null | undefined
+  /**
+   * Image-card material for a call whose result intent carries one committed
+   * raster (`card: 'image'`, derived by `imageCardModel`); it replaces the text
+   * body with attachment metadata while pane-side raster loading waits on a
+   * session-authorized loader.
+   */
+  image?: ImageCardModel | null | undefined
   state: ToolRowState
   /**
    * Filesystem path from tool args; when set with onOpenFile, the summary
@@ -141,6 +149,7 @@ export function ToolRow({
   read,
   search,
   web,
+  image,
   state,
   filePath,
   onOpenFile,
@@ -152,6 +161,7 @@ export function ToolRow({
   const readBody = read ?? null
   const searchBody = search ?? null
   const webBody = web ?? null
+  const imageBody = image ?? null
   const outputText = output ?? null
   // A card replaces the text body; a call carries at most one card kind, so the
   // card props are mutually exclusive. Any of them, or a text body/output,
@@ -258,38 +268,47 @@ export function ToolRow({
                       )}
                     </>
                   )
-                  : webBody !== null
-                    ? <WebBlock {...webBody} className={css.webBody} />
-                    : (
-                      <>
-                        {variant === 'code' && body !== null && (
-                          <div className={css.bodyScroll}>
-                            <CodeBlock code={body} lang="typescript" copyLabel={t('copy')} copiedLabel={t('copied')} className={css.codeBody} />
-                          </div>
-                        )}
-                        {(cardBody !== null || outputText !== null) && (
-                          <div className={css.ioCard}>
-                            {cardBody !== null && (
-                              <div className={css.ioSection}>
-                                <span className={css.ioLabel}>IN</span>
-                                <span className={css.ioText}>{cardBody}</span>
-                              </div>
-                            )}
-                            {cardBody !== null && outputText !== null && (
-                              <span className={css.ioDivider} aria-hidden />
-                            )}
-                            {outputText !== null && (
-                              <div className={css.ioSection}>
-                                <span className={css.ioLabel}>OUT</span>
-                                <span className={css.ioText} data-error={state === 'error' || undefined}>
-                                  {outputText}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
+                  : imageBody !== null
+                    ? (
+                      <figure className={css.imageCard}>
+                        {imageBody.origin !== undefined ? <figcaption className={css.imageCaption}>{imageBody.origin}</figcaption> : null}
+                        <pre className={css.imageMeta}>
+                          {[`${String(imageBody.width)}×${String(imageBody.height)} px`, `${String(Math.round(imageBody.bytes / 1024 * 10) / 10)} KB`, imageBody.mediaType].join(' · ')}
+                        </pre>
+                      </figure>
+                    )
+                    : webBody !== null
+                      ? <WebBlock {...webBody} className={css.webBody} />
+                      : (
+                        <>
+                          {variant === 'code' && body !== null && (
+                            <div className={css.bodyScroll}>
+                              <CodeBlock code={body} lang="typescript" copyLabel={t('copy')} copiedLabel={t('copied')} className={css.codeBody} />
+                            </div>
+                          )}
+                          {(cardBody !== null || outputText !== null) && (
+                            <div className={css.ioCard}>
+                              {cardBody !== null && (
+                                <div className={css.ioSection}>
+                                  <span className={css.ioLabel}>IN</span>
+                                  <span className={css.ioText}>{cardBody}</span>
+                                </div>
+                              )}
+                              {cardBody !== null && outputText !== null && (
+                                <span className={css.ioDivider} aria-hidden />
+                              )}
+                              {outputText !== null && (
+                                <div className={css.ioSection}>
+                                  <span className={css.ioLabel}>OUT</span>
+                                  <span className={css.ioText} data-error={state === 'error' || undefined}>
+                                    {outputText}
+                                  </span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
           {inspect !== undefined && (
             <button
               type="button"
