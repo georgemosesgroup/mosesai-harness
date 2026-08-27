@@ -7,9 +7,11 @@
  * references, so the seam must exist before any provider can fill it. No
  * provider over the public `simctl` substrate can ever implement them —
  * `simctl` has no touch injection and no availability-tree read — so they
- * belong to the planned native provider linking FBSimulatorControl and
- * FBControlCore ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)),
- * while `'stream'` stays a reserved capability name for the future video surface.
+ * belong to the native provider linking FBSimulatorControl and FBControlCore
+ * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)):
+ * `describe` carries its typed result from phase 2, while `input` stays a
+ * rejecting `Promise<never>` until phase 3 and `'stream'` stays a reserved
+ * capability name for the future video surface.
  *
  * Providers that cannot attest a fact leave the result field unset and explain
  * why in the documented note field; they never answer with invented zeros
@@ -25,6 +27,7 @@ import { SimulatorError } from './errors.ts'
 import type {
   SimulatorBootRequest,
   SimulatorDescribeRequest,
+  SimulatorDescribeResult,
   SimulatorDevice,
   SimulatorInputRequest,
   SimulatorInstallRequest,
@@ -43,11 +46,15 @@ export { SimulatorId } from './brand.ts'
 export { SIMULATOR_CAPABILITIES, VERB_CAPABILITY, CAPABILITY_IMPL_HOOKS } from './capabilities.ts'
 export type { SimulatorCapability, SimulatorVerb } from './capabilities.ts'
 export { SimulatorError } from './errors.ts'
+export { SIMULATOR_ERROR_CODES } from './errors.ts'
 export type { SimulatorErrorCode } from './errors.ts'
 export type {
+  SimulatorAccessibilityElement,
   SimulatorBootRequest,
   SimulatorDescribeRequest,
+  SimulatorDescribeResult,
   SimulatorDevice,
+  SimulatorElementFrame,
   SimulatorInputRequest,
   SimulatorInstallRequest,
   SimulatorLaunchRequest,
@@ -98,9 +105,12 @@ export const GEOMETRY_UNAVAILABLE_NOTE
  *   equally loud instead of returning a fake result.
  * - `boot` and `shutdown` are idempotent power-state flips; a provider treats
  *   an already-settled target as success.
- * - `describe` and `input` reject on every provider until one implements them;
- *   their result types are `Promise<never>` deliberately — nothing legitimate
- *   can come back yet.
+ * - `describe` is served only by providers that declare it — today the native
+ *   provider over the FBSimulatorControl helper — and returns the device
+ *   availability tree with stable element references; `input` returns
+ *   `Promise<never>` deliberately, because nothing legitimate can come back
+ *   until a provider implements it; unadvertised verbs reject through the
+ *   capability gate like every other verb.
  */
 export abstract class IosSimulator extends Service {
   constructor(ctx: Context) {
@@ -194,26 +204,26 @@ export abstract class IosSimulator extends Service {
   }
 
   /**
-   * Availability-tree read — declared for the phase-2 seam, implemented by no
-   * provider yet and unreachable from any provider over the public `simctl`
-   * substrate, which has no availability-tree read; only the planned native
-   * provider (FBSimulatorControl/FBControlCore helper) can implement it. The
-   * `never` result documents that a successful return is impossible today:
-   * callers can rely on rejection without feature-testing.
-   * @param request - the target reference; payload surface reserved for the availability-tree seam.
-   * @returns never resolves today — rejects until a provider implements it.
+   * Availability-tree read — the device's accessibility tree with stable
+   * element references, served by providers that declare the `describe`
+   * capability (today the native provider over the FBSimulatorControl
+   * helper). A provider that does not declare it rejects through the
+   * capability gate, so callers can rely on a loud error without
+   * feature-testing.
+   * @param request - the target reference; the explicit target-resolution step fills omissions.
+   * @returns the availability tree of the resolved device, with the facts the read observed.
    */
-  async describe(request: SimulatorDescribeRequest): Promise<never> {
+  async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult> {
     this.require('describe')
     return this.doDescribe(request)
   }
 
   /**
-   * Structured input — declared for the phase-2 seam (element references from
+   * Structured input — declared for the phase-3 seam (element references from
    * the availability tree, not screenshot-coordinate taps). Unreachable from
    * any provider over the public `simctl` substrate, which has no touch
-   * injection; only the planned native provider can implement it. Rejects on
-   * every provider today; see {@link describe}.
+   * injection; the native provider implements it in phase 3. Rejects on every
+   * provider today; see {@link describe}.
    * @param request - the target reference; no coordinate vocabulary by design.
    * @returns never resolves today — rejects until a provider implements it.
    */
@@ -254,7 +264,7 @@ export abstract class IosSimulator extends Service {
     return this.unimplemented('openUrl')
   }
 
-  protected doDescribe(_request: SimulatorDescribeRequest): Promise<never> {
+  protected doDescribe(_request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult> {
     return this.unimplemented('describe')
   }
 

@@ -891,6 +891,35 @@ export interface Config {
 
 Source: [`packages/runtime-diagnostics/invariants/src/index.ts:15`](../packages/runtime-diagnostics/invariants/src/index.ts)
 
+<a id="deepseek-aidsh-ios-sim-native"></a>
+
+## `@deepseek-ai/dsh-ios-sim-native`
+
+Requires: `subprocess`
+
+```ts config-catalog
+/** Plugin config (all optional — `static Config` supplies the defaults). */
+export interface Config {
+  /**
+   * Explicit helper-binary path overriding the entry package's resolution —
+   * the test-injection and custom-install escape hatch. Never read from the
+   * environment: which binary serves simulator operations is composition
+   * state, not ambient state.
+   */
+  helperPath?: string
+  /** Default helper-request deadline in milliseconds. */
+  timeoutMs?: number
+  /** Upper bound for every helper-request deadline. */
+  maxTimeoutMs?: number
+  /** Supervised restarts before `SIMULATOR_HELPER_SUPERVISION_EXHAUSTED`; cumulative for this provider's lifetime. */
+  maxRestarts?: number
+  /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
+  graceMs?: number
+}
+```
+
+Source: [`packages/iossim/ios-sim-native/src/index.ts:57`](../packages/iossim/ios-sim-native/src/index.ts)
+
 <a id="deepseek-aidsh-ios-sim-simctl"></a>
 
 ## `@deepseek-ai/dsh-ios-sim-simctl`

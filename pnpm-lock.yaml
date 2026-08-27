@@ -520,6 +520,9 @@ importers:
       '@deepseek-ai/dsh-ios-sim':
         specifier: workspace:*
         version: link:../packages/iossim/ios-sim
+      '@deepseek-ai/dsh-ios-sim-native':
+        specifier: workspace:*
+        version: link:../packages/iossim/ios-sim-native
       '@deepseek-ai/dsh-ios-sim-simctl':
         specifier: workspace:*
         version: link:../packages/iossim/ios-sim-simctl
@@ -766,6 +769,9 @@ importers:
       '@deepseek-ai/dsh-workflow-worker-thread':
         specifier: workspace:*
         version: link:../packages/workflow/workflow-worker-thread
+      '@deepseek-ai/iossim-helper':
+        specifier: workspace:*
+        version: link:../native/iossim-helper/packages/entry
 
   native/iossim-helper:
     devDependencies:
@@ -5536,6 +5542,31 @@ importers:
       '@deepseek-ai/dsh-llm':
         specifier: workspace:^
         version: link:../../llm/llm
+
+  packages/iossim/ios-sim-native:
+    dependencies:
+      '@deepseek-ai/schemastery':
+        specifier: link:../../../vendor/schemastery
+        version: link:../../../vendor/schemastery
+    devDependencies:
+      '@deepseek-ai/cordis':
+        specifier: workspace:^
+        version: link:../../../vendor/cordis
+      '@deepseek-ai/dsh-invariants':
+        specifier: workspace:^
+        version: link:../../runtime-diagnostics/invariants
+      '@deepseek-ai/dsh-ios-sim':
+        specifier: workspace:^
+        version: link:../ios-sim
+      '@deepseek-ai/dsh-subprocess':
+        specifier: workspace:^
+        version: link:../../subprocess/subprocess
+      '@deepseek-ai/dsh-timeout':
+        specifier: workspace:^
+        version: link:../../util/timeout
+      '@deepseek-ai/iossim-helper':
+        specifier: workspace:^
+        version: link:../../../native/iossim-helper/packages/entry
 
   packages/iossim/ios-sim-simctl:
     dependencies:

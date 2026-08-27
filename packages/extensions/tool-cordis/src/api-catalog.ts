@@ -896,7 +896,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'iosSimulator',
     summary: 'Abstract iOS-simulator service.',
-    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe` and `input` reject on every provider until one implements them; their result types are `Promise<never>` deliberately — nothing legitimate can come back yet.',
+    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe` is served only by providers that declare it — today the native provider over the FBSimulatorControl helper — and returns the device availability tree with stable element references; `input` returns `Promise<never>` deliberately, because nothing legitimate can come back until a provider implements it; unadvertised verbs reject through the capability gate like every other verb.',
     methods: [
       {
         signature: 'async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice[]>',
@@ -947,14 +947,14 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the target the provider actually resolved.',
       },
       {
-        signature: 'async describe(request: SimulatorDescribeRequest): Promise<never>',
-        description: 'Availability-tree read — declared for the phase-2 seam, implemented by no provider yet and unreachable from any provider over the public `simctl` substrate, which has no availability-tree read; only the planned native provider (FBSimulatorControl/FBControlCore helper) can implement it. The `never` result documents that a successful return is impossible today: callers can rely on rejection without feature-testing.',
-        parameters: [{ name: 'request', description: 'the target reference; payload surface reserved for the availability-tree seam.' }],
-        returns: 'never resolves today — rejects until a provider implements it.',
+        signature: 'async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult>',
+        description: 'Availability-tree read — the device\'s accessibility tree with stable element references, served by providers that declare the `describe` capability (today the native provider over the FBSimulatorControl helper). A provider that does not declare it rejects through the capability gate, so callers can rely on a loud error without feature-testing.',
+        parameters: [{ name: 'request', description: 'the target reference; the explicit target-resolution step fills omissions.' }],
+        returns: 'the availability tree of the resolved device, with the facts the read observed.',
       },
       {
         signature: 'async input(request: SimulatorInputRequest): Promise<never>',
-        description: 'Structured input — declared for the phase-2 seam (element references from the availability tree, not screenshot-coordinate taps). Unreachable from any provider over the public `simctl` substrate, which has no touch injection; only the planned native provider can implement it. Rejects on every provider today; see describe.',
+        description: 'Structured input — declared for the phase-3 seam (element references from the availability tree, not screenshot-coordinate taps). Unreachable from any provider over the public `simctl` substrate, which has no touch injection; the native provider implements it in phase 3. Rejects on every provider today; see describe.',
         parameters: [{ name: 'request', description: 'the target reference; no coordinate vocabulary by design.' }],
         returns: 'never resolves today — rejects until a provider implements it.',
       },
@@ -4516,6 +4516,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ShellSandboxInfo {\n    mode: SandboxMode;\n    denied: boolean;\n    enforcement?: SandboxEnforcement;\n    runnerFailed?: boolean;\n}',
   },
   {
+    name: 'SimulatorAccessibilityElement',
+    declaration: 'export interface SimulatorAccessibilityElement {\n    reference: string;\n    identifier?: string | undefined;\n    role: string;\n    label?: string | undefined;\n    frame?: SimulatorElementFrame | undefined;\n    enabled: boolean;\n    children: readonly SimulatorAccessibilityElement[];\n}',
+  },
+  {
     name: 'SimulatorBootRequest',
     declaration: 'export interface SimulatorBootRequest extends SimulatorTargetedRequest {\n}',
   },
@@ -4524,8 +4528,16 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SimulatorDescribeRequest extends SimulatorTargetedRequest {\n}',
   },
   {
+    name: 'SimulatorDescribeResult',
+    declaration: 'export interface SimulatorDescribeResult {\n    simulatorId: SimulatorId;\n    root: SimulatorAccessibilityElement | null;\n    screen?: SimulatorPointsSize | undefined;\n    truncated: boolean;\n}',
+  },
+  {
     name: 'SimulatorDevice',
     declaration: 'export interface SimulatorDevice {\n    id: SimulatorId;\n    name: string;\n    state: SimulatorState;\n    deviceTypeIdentifier: string;\n    runtimeIdentifier: string;\n}',
+  },
+  {
+    name: 'SimulatorElementFrame',
+    declaration: 'export interface SimulatorElementFrame {\n    xPoints: number;\n    yPoints: number;\n    widthPoints: number;\n    heightPoints: number;\n}',
   },
   {
     name: 'SimulatorId',

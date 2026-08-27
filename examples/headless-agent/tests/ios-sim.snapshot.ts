@@ -28,6 +28,9 @@ const overlayPath = fileURLToPath(new URL('./fixtures/iossim/iossim.cordis.yml',
 const binScript = fileURLToPath(new URL('./fixtures/headless-driver.ts', import.meta.url))
 const tsconfigPath = fileURLToPath(new URL('../../../tsconfig.json', import.meta.url))
 const expectedTranscript = join(here, 'ios-sim-snapshots', 'ios-sim-tools', 'session.transcript.jsonl')
+const nativeOverlayPath = fileURLToPath(new URL('./fixtures/iossim/iossim-native.cordis.yml', import.meta.url))
+const nativeDriver = fileURLToPath(new URL('./fixtures/iossim/iossim-native-driver.ts', import.meta.url))
+const expectedNativeTranscript = join(here, 'ios-sim-snapshots', 'ios-sim-native', 'session.transcript.jsonl')
 
 /** Volatile values (session ids, generated cwd) the normalizer scrubs from fixtures. */
 function contextFromLogs(contents: readonly string[]): NormalizeContext {
@@ -109,5 +112,58 @@ describe('ios-sim keyless snapshot (scripted model, stub substrate)', () => {
       },
     })
     expect(result.stdout).toContain('IOS_SIM_SNAPSHOT_OK')
+  })
+
+  it('native provider: gates the four tools, serves describe, keeps input reserved', { timeout: LOADER_SMOKE_TEST_TIMEOUT_MS }, async () => {
+    const result = await runLoaderSmoke({
+      label: 'ios-sim native-provider snapshot',
+      tempDirPrefix: 'dsh-iossim-native-snapshot-',
+      binScript: nativeDriver,
+      libBinScript: nativeDriver,
+      configPath: nativeOverlayPath,
+      binArgs: [nativeOverlayPath, 'List simulators, then screenshot the booted one.'],
+      tsconfigPath,
+      env: {
+        // The fixture config points the provider's helperPath override at the
+        // committed protocol stub through this env fact.
+        IOSIM_NATIVE_HELPER: join(here, 'fixtures', 'iossim', 'native-stub-helper.mjs'),
+        DSH_TELEMETRY_DISABLED: '1',
+        NODE_OPTIONS: [process.env.NODE_OPTIONS, '--disable-warning=ExperimentalWarning'].filter(Boolean).join(' '),
+      },
+      inspect: async (runCwd) => {
+        const logs = sessionLogs(runCwd)
+        expect(logs, readdirSync(runCwd).join(',')).toHaveLength(1)
+        const logPath = logs[0]
+        if (logPath === undefined) throw new Error('the scenario did not persist a session')
+        const raw = readFileSync(logPath, 'utf8')
+
+        // Rejected tool calls are gating facts, not actions: no iosSim/action
+        // record exists, and the transcript names the capability + provider.
+        expect(raw).not.toContain('"type":"iosSim/action"')
+        // The JSONL escapes the message's quotes, so the capability names
+        // match in their escaped spelling.
+        expect(raw).toContain('does not declare the \\"list\\" capability')
+        expect(raw).toContain('does not declare the \\"screenshot\\" capability')
+        expect(raw).toContain('@deepseek-ai/dsh-ios-sim-native')
+
+        // The direct service probe: describe served (references issued),
+        // input still the reserved rejecting member. The driver persisted the
+        // probe payload into the run cwd, which inspect receives.
+        const probePayload = JSON.parse(readFileSync(join(runCwd, 'native-probe.json'), 'utf8')) as {
+          describe: { simulatorId: string; screen: { widthPoints: number; heightPoints: number }; truncated: boolean; references: string[] }
+          input: { code: string }
+        }
+        expect(probePayload.describe.simulatorId).toBe('STUB-A')
+        expect(probePayload.describe.screen).toEqual({ widthPoints: 393, heightPoints: 852 })
+        expect(probePayload.describe.truncated).toBe(false)
+        expect(probePayload.describe.references).toEqual(['0', '0.0', '0.1'])
+        expect(probePayload.input).toEqual({ code: 'SIMULATOR_CAPABILITY_UNAVAILABLE' })
+
+        const context = contextFromLogs([raw])
+        const normalized = normalizeSessionSnapshot(raw, context)
+        await expect(normalized).toMatchFileSnapshot(expectedNativeTranscript)
+      },
+    })
+    expect(result.stdout).toContain('IOSIM_NATIVE_SNAPSHOT_OK')
   })
 })

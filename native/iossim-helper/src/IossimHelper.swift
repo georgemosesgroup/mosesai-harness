@@ -195,25 +195,27 @@ final class HelperLoop {
     var result: [String: Any] = [
       "simulatorId": simulator.udid,
       "truncated": response.truncated,
-      "elements": elementJSON(response.elements),
     ]
+    if let root = rootJSON(response.elements) {
+      result["root"] = root
+    }
     if let screen = response.screen {
       result["screen"] = ["width": screen.width, "height": screen.height]
     }
     return result
   }
 
-  /// The framework's frozen wire form for the read payload: an array of
-  /// attribute dicts (a single-element read degrades to a one-element array
-  /// and an empty read to an empty array), so the provider walks one shape.
-  private func elementJSON(_ payload: FBAccessibilityElementPayload) -> Any {
+  /// The framework's frozen wire form for the read's root element: a
+  /// frontmost read yields one application tree (or nothing on an empty
+  /// read), so the protocol carries a single root object or null.
+  private func rootJSON(_ payload: FBAccessibilityElementPayload) -> Any? {
     switch payload {
     case let .tree(elements):
-      return elements.map(\.legacyFoundationObject)
+      return elements.first?.legacyFoundationObject
     case let .single(element):
-      return [element.legacyFoundationObject]
+      return element.legacyFoundationObject
     case .empty:
-      return []
+      return nil
     }
   }
 

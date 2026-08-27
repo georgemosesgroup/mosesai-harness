@@ -2,7 +2,9 @@
 
 [English](ios-sim.md) | 中文
 
-[`dsh-ios-sim`](../../packages/iossim/ios-sim) 的 iOS 模拟器接缝：一个类型化的 `ctx.iosSimulator` 契约，每次组合只挂载一个提供方，能力词汇表封闭为十项，逐动词 gating 对未声明的动词以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。level-0 提供方是 [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl)，经由 `ctx.subprocess` 驱动公开的 `xcrun simctl` 表面；面向模型的消费方将其投影为 [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) 的工具与 log-only 的 `iosSim/action` 事件。`describe` 与 `input` 是契约成员，在提供方实现它们之前一律拒绝——而且任何构建在公开 `simctl` substrate 之上的提供方都不可能实现它们，因为 `simctl` 既无触控注入也无可用性树读取；它们需要 [Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md) 中规划的原生提供方。`'stream'` 是为同一 helper 的视频接缝保留的能力名。
+[`dsh-ios-sim`](../../packages/iossim/ios-sim) 的 iOS 模拟器接缝：一个类型化的 `ctx.iosSimulator` 契约，每次组合只挂载一个提供方，能力词汇表封闭为十项，逐动词 gating 对未声明的动词以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。level-0 提供方是 [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl)，经由 `ctx.subprocess` 驱动公开的 `xcrun simctl` 表面；面向模型的消费方将其投影为 [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) 的工具与 log-only 的 `iosSim/action` 事件。公开 `simctl` substrate 上的任何提供方都不可能实现 `describe` 或 `input`——`simctl` 既无触控注入也无可用性树读取——它们属于原生提供方 [`dsh-ios-sim-native`](../../packages/iossim/ios-sim-native)：它是 [iossim-helper](../../native/iossim-helper/README.zh.md) 可执行文件的瘦客户端，后者链接 FBSimulatorControl 与 FBControlCore（按 [vendoring 政策](../../vendor/README.md) 锁定）。`describe` 自 phase 2 起被服务，返回下方类型化的可用性树；`input` 在 phase 3 之前仍是保留的 `Promise<never>`，`'stream'` 是同一 helper 的视频接缝保留名（[Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
+
+可用性树词汇：`SimulatorDescribeResult` 携带最前台应用的根 `SimulatorAccessibilityElement`——role、label、substrate 标识、以点为单位的 frame、enabled 状态，以及提供方铸造的索引路径 `reference`（input 动词的元素目标形式将点名它）——再加读取实证的、以点为单位的屏幕尺寸。引用在一次结果内有效；重新 describe 会对活 UI 重新分页。
 
 Source: [`packages/iossim/ios-sim/src/index.ts`](../../packages/iossim/ios-sim/src/index.ts)
 
@@ -26,7 +28,7 @@ Enforced semantics:
 - Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.
 - The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.
 - `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.
-- `describe` and `input` reject on every provider until one implements them; their result types are `Promise<never>` deliberately — nothing legitimate can come back yet.
+- `describe` is served only by providers that declare it — today the native provider over the FBSimulatorControl helper — and returns the device availability tree with stable element references; `input` returns `Promise<never>` deliberately, because nothing legitimate can come back until a provider implements it; unadvertised verbs reject through the capability gate like every other verb.
 
 ```ts cordis-catalog
 /**
@@ -86,23 +88,23 @@ async screenshot(request: SimulatorScreenshotRequest): Promise<SimulatorScreensh
 async openUrl(request: SimulatorOpenUrlRequest): Promise<SimulatorResolvedTarget>
 
 /**
- * Availability-tree read — declared for the phase-2 seam, implemented by no
- * provider yet and unreachable from any provider over the public `simctl`
- * substrate, which has no availability-tree read; only the planned native
- * provider (FBSimulatorControl/FBControlCore helper) can implement it. The
- * `never` result documents that a successful return is impossible today:
- * callers can rely on rejection without feature-testing.
- * @param request - the target reference; payload surface reserved for the availability-tree seam.
- * @returns never resolves today — rejects until a provider implements it.
+ * Availability-tree read — the device's accessibility tree with stable
+ * element references, served by providers that declare the `describe`
+ * capability (today the native provider over the FBSimulatorControl
+ * helper). A provider that does not declare it rejects through the
+ * capability gate, so callers can rely on a loud error without
+ * feature-testing.
+ * @param request - the target reference; the explicit target-resolution step fills omissions.
+ * @returns the availability tree of the resolved device, with the facts the read observed.
  */
-async describe(request: SimulatorDescribeRequest): Promise<never>
+async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult>
 
 /**
- * Structured input — declared for the phase-2 seam (element references from
+ * Structured input — declared for the phase-3 seam (element references from
  * the availability tree, not screenshot-coordinate taps). Unreachable from
  * any provider over the public `simctl` substrate, which has no touch
- * injection; only the planned native provider can implement it. Rejects on
- * every provider today; see {@link describe}.
+ * injection; the native provider implements it in phase 3. Rejects on every
+ * provider today; see {@link describe}.
  * @param request - the target reference; no coordinate vocabulary by design.
  * @returns never resolves today — rejects until a provider implements it.
  */

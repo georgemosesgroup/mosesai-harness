@@ -132,8 +132,68 @@ export interface SimulatorOpenUrlRequest extends SimulatorTargetedRequest {
   url: string
 }
 
-/** `describe` request — payload surface reserved for the availability-tree seam. */
+/** `describe` request — targets one device; the payload surface stays object-shaped for future knobs. */
 export interface SimulatorDescribeRequest extends SimulatorTargetedRequest {}
+
+/** Frame of one availability-tree element, in POINTS with the origin at the top-left corner. */
+export interface SimulatorElementFrame {
+  /** Horizontal offset of the element's leading edge, in points. */
+  xPoints: number
+  /** Vertical offset of the element's top edge, in points. */
+  yPoints: number
+  /** Horizontal extent in points. */
+  widthPoints: number
+  /** Vertical extent in points. */
+  heightPoints: number
+}
+
+/**
+ * One element of the device availability tree as `describe` observed it. Every
+ * fact is substrate-reported — the framework reads the accessibility tree, no
+ * raster is parsed — and an attribute the element does not carry is absent,
+ * never a silent zero.
+ */
+export interface SimulatorAccessibilityElement {
+  /**
+   * Stable element reference within THIS describe result: the address the
+   * input verb's element-target form names. Derived by the provider from the
+   * tree walk; a later describe re-reads a live UI and may repaginate, so a
+   * reference is meaningful only against the result that issued it.
+   */
+  reference: string
+  /** Substrate-native accessibility identifier, when the app declares one. */
+  identifier?: string | undefined
+  /** Normalized accessibility role (e.g. `Button`, `TextField`, `Window`). */
+  role: string
+  /** Accessibility label, when the element carries one. */
+  label?: string | undefined
+  /** Element frame in points; absent when the substrate cannot attest it. */
+  frame?: SimulatorElementFrame | undefined
+  /** Whether the element currently accepts interaction. */
+  enabled: boolean
+  /** Child elements in substrate order; empty for leaves. */
+  children: readonly SimulatorAccessibilityElement[]
+}
+
+/** Result of `describe`: the availability tree of one device, plus what the read observed. */
+export interface SimulatorDescribeResult {
+  /** The target the provider actually resolved and read — required on every result. */
+  simulatorId: SimulatorId
+  /**
+   * The root of the frontmost application's element tree, or `null` when the
+   * read found no frontmost application to report (a quiet springboard is a
+   * successful empty read, not a failure).
+   */
+  root: SimulatorAccessibilityElement | null
+  /**
+   * Device display size in POINTS (origin top-left) when the read attested it
+   * — the geometry fact the level-0 contract named the availability tree as
+   * the future source of.
+   */
+  screen?: SimulatorPointsSize | undefined
+  /** True when the substrate's read was cut short (depth/element caps), so the tree is partial. */
+  truncated: boolean
+}
 
 /**
  * `input` request — payload surface reserved for the input seam. Deliberately

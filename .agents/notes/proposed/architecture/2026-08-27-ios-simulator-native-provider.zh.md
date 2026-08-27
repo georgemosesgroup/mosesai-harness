@@ -23,13 +23,13 @@ Status: proposed
 
 在任何原生源码落地之前，已给出书面答案。FBSimulatorControl 与 FBControlCore 均位于 [facebook/idb](https://github.com/facebook/idb) —— 独立仓库已不存在（`facebook/FBSimulatorControl` 重定向到 idb，`facebook/FBControlCore` 已消失）—— 而该仓库以 [MIT](https://github.com/facebook/idb/blob/main/LICENSE) 许可（Copyright (c) Meta Platforms, Inc. and affiliates），框架级没有单独的许可文件，现行框架 README 中也没有 BSD 字样；旧 fork 里的 BSD 与专利授权文本属于已退役的独立仓库。允许以保留许可文本为前提进行再分发，因此 vendoring 可行，回退路径（用户自装的 `idb`，或 XCTest 路线）只作为备选项存在，而非被触发的切换。锁定的修订已记入 [vendor 清单](../../../../vendor/README.md)：两个框架均为 `main` 的 `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5`（2026-08-27）。
 
-### Phase 2 — helper 与 `describe`
+### Phase 2 — helper 与 `describe`（已交付）
 
-helper 作为一个 `native/` workspace 与 [`landlock-run`](../../../../native/README.zh.md) 并列，沿用它的三包 npm 家族、逐架构 CI 构建与发布流程。它是一个没有用户界面的后台可执行文件，由提供方拉起，通过标准流以分帧的请求/响应协议通信。
+helper 以 [`native/iossim-helper`](../../../../native/iossim-helper/README.zh.md) workspace 的形式与 [`landlock-run`](../../../../native/README.zh.md) 并列，沿用其两层 npm 家族模板：拥有路径解析与协议常量的 entry 包，加上以文件路径解析、绝不被 import 的逐架构平台包。它是一个没有用户界面的后台可执行文件，由提供方拉起，通过标准流以长度前缀的 JSON 请求/响应协议通信；它的 hello 帧是拉起证明，stdin 上的 EOF 意味着完成，它不读任何环境变量。其框架源码是按锁定提交 vendored 在 `vendor/idb/` 的干净 idb 切片，构建把一切编译进一个自包含 Mach-O 二进制——可执行文件之外无可分发之物。
 
-Phase 2 只实现一项能力：`describe` 返回一台设备的可用性树。元素的标识、角色、标签、启用状态与以点为单位的 frame 来自框架，而不是对栅格图的解析。让 helper 只带一项能力上线，是对许可、构建、签名与拉起路径端到端可用的证明，在它们承载更多之前先行完成。
+Phase 2 只实现一项能力：`describe` 返回一台设备的可用性树，由提供方 `dsh-ios-sim-native` 作为瘦类型化客户端承载——它监管 helper：异常退出即重启、有界的重试次数、越界后的具名耗尽代码、会杀掉卡死子进程的 deadline，以及先关 stdin 再等待的拆除。元素的角色、标签、标识、启用状态与以点为单位的 frame 来自框架，而不是对栅格图的解析。让 helper 只带一项能力上线，是对许可、构建、签名与拉起路径端到端可用的证明，在它们承载更多之前先行完成。
 
-几何信息在此不再缺席。只要由原生提供方服务该调用，`SimulatorLaunchResult.geometry` 就会填充；在 simctl 提供方之下，现有的 `geometryNote` 仍是答案 —— 「点或诚实缺席」的规则由实证满足，与 level-0 Agent Note 的规定完全一致。
+几何实证随树而来。describe 结果在读取实证它时携带以点为单位的屏幕尺寸——这正是 level-0 Agent Note 指定为几何未来源头的可用性树事实——而 `SimulatorLaunchResult.geometry` 保持其「点或诚实缺席」规则，仍只在能为启动几何背书的提供方服务时填充，这随 helper 能力集的成长而来；在 simctl 提供方之下，`geometryNote` 仍是答案。
 
 ### Phase 3 — `input` 与可交互面板
 

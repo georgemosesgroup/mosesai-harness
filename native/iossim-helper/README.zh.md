@@ -14,7 +14,7 @@
 - **Hello。** stdout 上未经请求的第一帧：`{"helper": "iossim-helper", "protocol": 1, "ops": ["describe"]}`。它是拉起证明——提供方等待它、校验协议版本，并拒绝宣布任何其他内容的 helper。没有 `id` 的帧是 hello；此后每帧都带整数 `id`。
 - **请求。** `{"id": N, "op": "describe", "params": {"simulatorId": "UDID" | null}}`。省略（null）的 `simulatorId` 按接缝的显式规则对已启动设备解析：必须恰好一台已启动，零台或多台各自以独立代码失败。
 - **响应。** 成功：`{"id": N, "ok": true, "result": …}`。失败：`{"id": N, "ok": false, "error": {"code": …, "message": …}}`——`code` 来自模拟器接缝的失败词汇（`SIMULATOR_DEVICE_NOT_FOUND`、`SIMULATOR_TARGET_AMBIGUOUS`……），每次失败跨进程边界仍保有各自的修复路径。
-- **describe 结果。** `{simulatorId, elements, screen?, truncated}`——`elements` 是最前台应用可用性树的框架自有序列化形态（role、label、identifier、以点为单位的 frame、enabled、children），`screen` 是已实证的显示尺寸（点），`truncated` 表示读取是否被截断。
+- **describe 结果。** `{simulatorId, root?, screen?, truncated}`——`root` 是最前台应用可用性树的框架自有序列化形态（role、label、identifier、以点为单位的 frame、enabled、children），读取无可报告之物时缺席，`screen` 是已实证的显示尺寸（点），`truncated` 表示读取是否被截断。
 - **诊断。** stderr 承载自由文本，永远不是协议。stdout 只是协议，别无其他。
 - **生命周期。** stdin 上的 EOF 意味着结束：helper 排干并以 `0` 退出。helper 级致命失败（错误 argv、不可写 stdout）以 `70` 退出；非零退出对提供方的监管而言就是死掉的 helper。helper 不读环境变量、不接受参数——哪个二进制服务模拟器操作，绝不由环境状态决定。
 

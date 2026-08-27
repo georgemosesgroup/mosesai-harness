@@ -1,0 +1,37 @@
+{"type":"session","version":0,"id":"{{sessionId}}","createdAt":0,"cwd":"{{cwd}}","delegationDepth":0}
+{"type":"agent/inbox/spliced","data":{"target":"next-turn","start":0,"inserted":[{"content":[{"type":"text","text":"List simulators, then screenshot the booted one."}],"source":{"kind":"user"},"role":"user","id":"{{sessionId}}"}]}}
+{"type":"turn/start","data":{"turn":1}}
+{"type":"agent/inbox/spliced","data":{"target":"next-turn","start":0,"removedCount":1,"inserted":[]}}
+{"type":"step/start","data":{"turn":1,"step":1}}
+{"type":"user/message","data":{"content":[{"type":"text","text":"List simulators, then screenshot the booted one."}],"source":{"kind":"user"},"role":"user","id":"{{sessionId}}"},"surfaceOp":"append"}
+{"type":"session/title","data":{"title":"List simulators, then screenshot the","messageSeqs":[4],"source":{"kind":"fallback"}}}
+{"type":"request/header","data":{"header":{"config":{"provider":"ios-sim-native-mock","model":"ios-sim-native-mock"},"system":"{{system}}","tools":"{{tools}}"},"reason":"initial"}}
+{"type":"request/context","data":{"provider":"ios-sim-native-mock","model":"ios-sim-native-mock"}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"tool-call-delta","index":0,"id":"ios-sim-native-list-call","name":"sim_list","argumentsDelta":"{}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"ios-sim-native-list-call","name":"sim_list","arguments":"{}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"usage","usage":{"inputTokens":9,"outputTokens":2}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":1,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/message","data":{"turn":1,"step":1,"message":{"role":"assistant","content":[{"type":"tool-call","id":"ios-sim-native-list-call","name":"sim_list","arguments":"{}"}],"source":{"kind":"model","provider":"ios-sim-native-mock","model":"ios-sim-native-mock"},"id":"{{sessionId}}"},"usage":{"inputTokens":9,"outputTokens":2}},"sourceEventSeqs":[8,9,10,11,12],"surfaceOp":"append"}
+{"type":"tool/call","data":{"turn":1,"step":1,"callId":"ios-sim-native-list-call","name":"sim_list","arguments":"{}"}}
+{"type":"tool/result","data":{"turn":1,"step":1,"message":{"source":{"kind":"tool","callId":"ios-sim-native-list-call"},"content":[{"type":"tool-result","toolCallId":"ios-sim-native-list-call","content":[{"type":"text","text":"Error: the mounted simulator provider \"@deepseek-ai/dsh-ios-sim-native\" does not declare the \"list\" capability, so \"list\" cannot run; mount a provider that declares \"list\" to enable it (ctx.iosSimulator mounts exactly one provider)"}],"isError":true}],"role":"user","id":"{{sessionId}}"},"error":{"name":"SimulatorError","code":"SIMULATOR_CAPABILITY_UNAVAILABLE"}},"sourceEventSeqs":[14],"surfaceOp":"append"}
+{"type":"step/end","data":{"turn":1,"step":1}}
+{"type":"step/start","data":{"turn":1,"step":2}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-start","index":0,"blockType":"tool-call"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"tool-call-delta","index":0,"id":"ios-sim-native-shot-call","name":"sim_screenshot","argumentsDelta":"{}"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"block-end","index":0,"block":{"type":"tool-call","id":"ios-sim-native-shot-call","name":"sim_screenshot","arguments":"{}"}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"usage","usage":{"inputTokens":12,"outputTokens":2}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":2,"chunk":{"type":"finish","reason":{"kind":"tool-calls"}}}}
+{"type":"assistant/message","data":{"turn":1,"step":2,"message":{"role":"assistant","content":[{"type":"tool-call","id":"ios-sim-native-shot-call","name":"sim_screenshot","arguments":"{}"}],"source":{"kind":"model","provider":"ios-sim-native-mock","model":"ios-sim-native-mock"},"id":"{{sessionId}}"},"usage":{"inputTokens":12,"outputTokens":2}},"sourceEventSeqs":[18,19,20,21,22],"surfaceOp":"append"}
+{"type":"tool/call","data":{"turn":1,"step":2,"callId":"ios-sim-native-shot-call","name":"sim_screenshot","arguments":"{}"}}
+{"type":"tool/result","data":{"turn":1,"step":2,"message":{"source":{"kind":"tool","callId":"ios-sim-native-shot-call"},"content":[{"type":"tool-result","toolCallId":"ios-sim-native-shot-call","content":[{"type":"text","text":"Error: the mounted simulator provider \"@deepseek-ai/dsh-ios-sim-native\" does not declare the \"screenshot\" capability, so \"screenshot\" cannot run; mount a provider that declares \"screenshot\" to enable it (ctx.iosSimulator mounts exactly one provider)"}],"isError":true}],"role":"user","id":"{{sessionId}}"},"error":{"name":"SimulatorError","code":"SIMULATOR_CAPABILITY_UNAVAILABLE"}},"sourceEventSeqs":[24],"surfaceOp":"append"}
+{"type":"step/end","data":{"turn":1,"step":2}}
+{"type":"step/start","data":{"turn":1,"step":3}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-start","index":0,"blockType":"text"}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"text-delta","index":0,"text":"IOSIM_NATIVE_SNAPSHOT_OK: the native provider answered both unadvertised tools with the capability gate."}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"block-end","index":0,"block":{"type":"text","text":"IOSIM_NATIVE_SNAPSHOT_OK: the native provider answered both unadvertised tools with the capability gate."}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"usage","usage":{"inputTokens":17,"outputTokens":6}}}}
+{"type":"assistant/chunk","data":{"turn":1,"step":3,"chunk":{"type":"finish","reason":{"kind":"stop"}}}}
+{"type":"assistant/message","data":{"turn":1,"step":3,"message":{"role":"assistant","content":[{"type":"text","text":"IOSIM_NATIVE_SNAPSHOT_OK: the native provider answered both unadvertised tools with the capability gate."}],"source":{"kind":"model","provider":"ios-sim-native-mock","model":"ios-sim-native-mock"},"id":"{{sessionId}}"},"usage":{"inputTokens":17,"outputTokens":6}},"sourceEventSeqs":[28,29,30,31,32],"surfaceOp":"append"}
+{"type":"step/end","data":{"turn":1,"step":3}}
+{"type":"turn/end","data":{"turn":1,"reason":{"kind":"completed"}}}

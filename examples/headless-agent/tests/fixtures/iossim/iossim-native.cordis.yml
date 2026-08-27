@@ -1,0 +1,40 @@
+- id: ios-sim-native-mock-llm
+  name: './ios-sim-native-mock-llm.ts'
+
+- id: base
+  name: '@deepseek-ai/cordis-plugin-include'
+  config:
+    path: ../../../cordis.yml
+    patches:
+      - id: llm-deepseek
+        name: '@deepseek-ai/dsh-llm-deepseek'
+        disabled: true
+      - id: agent-spine
+        name: '@deepseek-ai/dsh-agent-spine-demo'
+        config:
+          agents:
+            - id: main
+              provider: ios-sim-native-mock
+              model: ios-sim-native-mock
+              cwd: !!js process.cwd()
+          workspaceContext: false
+          dshHome: './.dsh-home'
+          persona: 'Keyless ios-sim native-provider snapshot.'
+      - id: persistence
+        name: '@deepseek-ai/dsh-session-persistence-jsonl'
+        config:
+          root: './.sessions'
+          compression: none
+      - insert:
+          - id: attachments-local
+            name: '@deepseek-ai/dsh-attachment-local'
+          # The native provider replaces the simctl fallback for this scenario;
+          # its helper is the committed protocol stub (path injected by the
+          # test env, because !!js evaluates against the loader context, not a
+          # module scope), so the run needs no Xcode and no booted device.
+          - id: ios-sim
+            name: '@deepseek-ai/dsh-ios-sim-native'
+            config:
+              helperPath: !!js process.env.IOSIM_NATIVE_HELPER
+          - id: tool-ios-sim
+            name: '@deepseek-ai/dsh-tool-ios-sim'
