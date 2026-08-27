@@ -40,7 +40,11 @@ export interface CollapsedZone {
   readonly newTo?: number
 }
 
-/** Unified order: del before add inside each change cluster. */
+/**
+ * Unified order: del before add inside each change cluster.
+ * @param hunks - per-hunk row groups in diff order.
+ * @returns the interleaved render rows.
+ */
 export function rowsUnified(hunks: readonly DiffRowView[][]): RenderRow[] {
   const out: RenderRow[] = []
   hunks.forEach((hunkRows, hunkIndex) => {
@@ -67,6 +71,8 @@ export interface SplitPair {
 /**
  * Walk each hunk once, pairing consecutive del+add clusters one-to-one and
  * padding remainder sides, exactly like GitHub's split panes.
+ * @param hunks - per-hunk row groups in diff order.
+ * @returns side-paired rows for the split panes.
  */
 export function rowsSplit(hunks: readonly DiffRowView[][]): SplitPair[] {
   const pairs: SplitPair[] = []
@@ -121,6 +127,9 @@ export interface IntraPart {
  * Intra-line fragments of one changed pair, cached per pair-text key so
  * scrolling never recomputes word diffs. Equal fragments stay unmarked;
  * changed runs carry `marked`.
+ * @param leftText - the removed-side line text.
+ * @param rightText - the added-side line text.
+ * @returns cached fragment pair with marked runs.
  */
 export function intraLine(leftText: string, rightText: string): IntraPair {
   const key = `${leftText}\u0000${rightText}`

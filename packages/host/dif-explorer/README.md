@@ -17,7 +17,7 @@ None. Roots come from `ctx.workspaceRegistry`; session ledgers come from `ctx.se
 
 ## Model Experience
 
-None as a producer. This package serves browser UI only and never enters an LLM request: no prompt sections, no tools, no token-meter contribution.
+None, as this Host gateway serves browser UI only and never enters an LLM request: no prompt sections, no tools, no token-meter contribution.
 
 #### KV Cache effect
 

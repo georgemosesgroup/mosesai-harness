@@ -14,7 +14,7 @@ Strictly read-only: the plugin registers no tools, no write-capable service call
 
 ## Model Experience
 
-None as a producer. This package is browser presentation only and never enters an LLM request.
+None, as this package is browser presentation only and never enters an LLM request.
 
 #### KV Cache effect
 

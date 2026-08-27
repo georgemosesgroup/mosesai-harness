@@ -53,7 +53,11 @@ export function looksBinary(buffer: Uint8Array): boolean {
   return suspicious * 10 >= window.length * 3
 }
 
-/** SHA-256 over bytes, hex-encoded. */
+/**
+ * SHA-256 over bytes, hex-encoded.
+ * @param buffer - the bytes to hash.
+ * @returns the hex-encoded digest.
+ */
 export function sha256Hex(buffer: Uint8Array): string {
   return createHash('sha256').update(buffer).digest('hex')
 }
@@ -139,7 +143,12 @@ export function buildHunks(oldText: string, newText: string): {
   return { hunks, additions, deletions }
 }
 
-/** Count change rows cheaply without materializing hunk objects (ledger scan use). */
+/**
+ * Count change rows cheaply without materializing hunk objects (ledger scan use).
+ * @param oldText - the prior content, when it exists.
+ * @param newText - the new content.
+ * @returns the number of non-context rows across all hunks.
+ */
 export function countChangedRows(oldText: string, newText: string): number {
   return buildHunks(oldText, newText).hunks.reduce(
     (sum, hunk) => sum + hunk.rows.filter(row => row.kind !== 'context').length,

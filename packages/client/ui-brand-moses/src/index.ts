@@ -8,8 +8,8 @@
  * existing hrefs is the only way to state the answer once.
  */
 
+import type { ServerResponse } from 'node:http'
 import type { Context } from '@deepseek-ai/cordis'
-import type { WebRoute } from '@deepseek-ai/dsh-host-webserver'
 import { bootWordmarkInjection, windowRuleInjection } from './boot-wordmark.ts'
 import {
   BRAND_ICON_PATH, BRAND_ICON_SVG, BRAND_MANIFEST, BRAND_MANIFEST_PATH,
@@ -25,8 +25,8 @@ export const name = 'client-ui-brand-moses'
 export const inject = ['webServer']
 
 /** Serve one immutable text asset. */
-function textAsset(body: string, type: string): WebRoute['handler'] {
-  return (_req, res) => {
+function textAsset(body: string, type: string): (req: unknown, res: ServerResponse) => void {
+  return (_req: unknown, res: ServerResponse) => {
     res.writeHead(200, {
       'content-type': type,
       // The bytes change only when this package does, and the shell is

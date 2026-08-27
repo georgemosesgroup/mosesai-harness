@@ -1756,7 +1756,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/security/security-scan-local-moses/src/index.ts:101`](../packages/security/security-scan-local-moses/src/index.ts)
+Source: [`packages/security/security-scan-local-moses/src/index.ts:104`](../packages/security/security-scan-local-moses/src/index.ts)
 
 <a id="deepseek-aidsh-security-scan-moses"></a>
 

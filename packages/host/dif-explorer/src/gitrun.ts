@@ -35,6 +35,9 @@ const ALLOWED_SUBCOMMANDS = new Set([
   'name-rev',
 ])
 
+/**
+ * Extra arguments and output selection for one allowlisted git invocation.
+ */
 export interface GitRunOptions {
   /** Additional argv after the subcommand (git's own args, ordered). */
   readonly args?: readonly string[]
@@ -52,11 +55,25 @@ export interface GitRunOptions {
  * @returns the full stdout of the invocation (string, or Buffer when `raw`).
  * @throws {GitRunnerError} when the subcommand is not allowlisted or git fails.
  */
+/**
+ * Spawn one allowlisted read-only git command inside `root`.
+ * @param root - canonical workspace root used as the child's cwd.
+ * @param subcommand - the git subcommand; must appear on the fixed allowlist.
+ * @param options - extra argv, cancellation, and output selection.
+ * @returns the full stdout of the invocation.
+ */
 export function runGit(
   root: string,
   subcommand: string,
   options: GitRunOptions & { raw?: false },
 ): Promise<string>
+/**
+ * Raw-byte overload: identical semantics with a Buffer result.
+ * @param root - canonical workspace root used as the child's cwd.
+ * @param subcommand - the git subcommand; must appear on the fixed allowlist.
+ * @param options - extra argv, cancellation, and raw-byte output selection.
+ * @returns the full stdout as a Buffer.
+ */
 export function runGit(
   root: string,
   subcommand: string,
@@ -139,7 +156,11 @@ export function parsePorcelainZ(output: string): readonly PorcelainRecord[] {
   return records
 }
 
-/** Map porcelain XY pairs onto the four-wire status letters (index side wins). */
+/**
+ * Map porcelain XY pairs onto the four-wire status letters (index side wins).
+ * @param xy - the two-letter porcelain status field.
+ * @returns the wire status letter for the change.
+ */
 export function statusFromPorcelain(xy: string): 'A' | 'M' | 'D' | 'R' {
   if (xy.includes('?')) return 'A'
   const code = xy.charAt(0)
@@ -159,7 +180,7 @@ export interface NameStatusChange {
 /**
  * Parse one `git log --name-status -z --format=%x1e%H%x1f%cI` commit block.
  * A leading record separator left by naive splitting is tolerated.
- * @param block - a single `\u001e`-separated chunk (header line then NUL-separated changes).
+ * @param blockRaw - a single `\u001e`-separated chunk (header line then NUL-separated changes).
  * @returns the commit oid with its file changes.
  */
 export function parseLogBlock(blockRaw: string): {

@@ -90,6 +90,9 @@ const IDENTITY_PROBE_FLAGS: Record<SecurityScannerId, readonly string[]> = {
  * non-empty output (every supported tool prints a version line), and no
  * usage/error screen — the telltale signature of a same-named CLI from
  * another package answering its own option grammar instead.
+ * @param output - complete probe stdout; identity evidence lives here.
+ * @param exitCode - probe exit status; nonzero rejects before content checks.
+ * @returns true when the binary may be treated as the expected scanner.
  */
 export function looksLikeScannerBinary(output: string, exitCode: number): boolean {
   if (exitCode !== 0) return false
@@ -316,7 +319,7 @@ export class LocalSecurityScanProvider implements SecurityScanProvider {
     const spawnBroken = probe.error !== undefined
       && ['ENOEXEC', 'EACCES', 'ENOENT', 'ELOOP', 'ETXTBSY'].includes((probe.error as NodeJS.ErrnoException).code ?? '')
     if (spawnBroken) return
-    const output = `${probe.stdout ?? ''}\n${probe.stderr ?? ''}`
+    const output = `${probe.stdout}\n${probe.stderr}`
     if (!looksLikeScannerBinary(output, exitCode)) {
       const detail = output.trim().split('\n').slice(0, 2).join(' ⏎ ')
       throw new SecurityScanError(

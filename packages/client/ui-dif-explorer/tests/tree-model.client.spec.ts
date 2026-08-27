@@ -31,7 +31,7 @@ describe('fuzzyScore', () => {
   })
 
   it('rewards boundary-aligned contiguity above separated interiors', () => {
-    const aligned = fuzzyScore('docs/readme.md', 'read')
+    const aligned = fuzzyScore('assets/readme.md', 'read')
     const separated = fuzzyScore('xrxexaxdxxxx.mdxx', 'read')
     expect(aligned).not.toBeNull()
     expect(separated).not.toBeNull()
@@ -44,7 +44,7 @@ describe('fuzzyScore', () => {
 })
 
 describe('filterTreePaths', () => {
-  const files = ['src/index.ts', 'src/ui/theme.css', 'docs/readme.md']
+  const files = ['src/index.ts', 'src/ui/theme.css', 'assets/readme.md']
 
   it('passes the list through untouched for blank queries', () => {
     expect(filterTreePaths(files, '   ')).toEqual(files)
@@ -53,6 +53,6 @@ describe('filterTreePaths', () => {
   it('drops paths that do not fuzzily match', () => {
     const kept = filterTreePaths(files, 'themcss'.slice(0, 5))
     expect(kept).toContain('src/ui/theme.css')
-    expect(kept).not.toContain('docs/readme.md')
+    expect(kept).not.toContain('assets/readme.md')
   })
 })

@@ -58,12 +58,12 @@ describe('parseNumstatZ', () => {
 
 describe('parseLogBlock', () => {
   it('extracts oid, ISO date, and name-status changes including renames', () => {
-    const block = '\u001e0000000000000000000000000000000000000000\u001f2026-08-26T12:00:00.000Z\nA\u0000docs/new.md\u0000M\u0000src/main.ts\u0000R\u0000old.ts\u0000new.ts\u0000'
+    const block = '\u001e0000000000000000000000000000000000000000\u001f2026-08-26T12:00:00.000Z\nA\u0000notes/new.txt\u0000M\u0000src/main.ts\u0000R\u0000old.ts\u0000new.ts\u0000'
     const parsed = parseLogBlock(block)
     expect(parsed?.oid).toHaveLength(40)
     expect(parsed?.at).toBe('2026-08-26T12:00:00.000Z')
     expect(parsed?.changes).toEqual([
-      { status: 'A', path: 'docs/new.md' },
+      { status: 'A', path: 'notes/new.txt' },
       { status: 'M', path: 'src/main.ts' },
       { status: 'R', path: 'new.ts', oldPath: 'old.ts' },
     ])

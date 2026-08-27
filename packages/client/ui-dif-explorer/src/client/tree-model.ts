@@ -15,7 +15,11 @@ export interface TreeNode {
   readonly children?: readonly TreeNode[]
 }
 
-/** Build nested tree nodes from a sorted flat file list. */
+/**
+ * Build nested tree nodes from a sorted flat file list.
+ * @param files - the flat path list, already sorted.
+ * @returns the nested node tree rooted at an implicit root directory.
+ */
 export function buildTree(files: readonly string[]): readonly TreeNode[] {
   const rootChildren: TreeNode[] = []
   const dirIndex = new Map<string, TreeNode>([['', { name: '', path: '', dir: true, children: rootChildren }]])
@@ -57,7 +61,12 @@ function rootParent(children: TreeNode[]): TreeNode {
   return { name: '', path: '', dir: true, children }
 }
 
-/** Subsequence fuzziness with bonus for word starts; empty query matches all. */
+/**
+ * Subsequence fuzziness with bonus for word starts; empty query matches all.
+ * @param path - the target path text to score against.
+ * @param query - the user's filter needle.
+ * @returns a positive score, or null when the query does not match at all.
+ */
 export function fuzzyScore(path: string, query: string): number | null {
   if (query.length === 0) return 0
   const target = path.toLowerCase()
@@ -75,7 +84,12 @@ export function fuzzyScore(path: string, query: string): number | null {
   return score * 100 - Math.min(target.length, 99)
 }
 
-/** Filter paths by the query then rebuild the tree from survivors. */
+/**
+ * Filter paths by the query then rebuild the tree from survivors.
+ * @param files - the flat path list to filter.
+ * @param query - the user's filter needle.
+ * @returns matching paths in their input order.
+ */
 export function filterTreePaths(files: readonly string[], query: string): readonly string[] {
   if (query.trim().length === 0) return files
   return files.filter(path => fuzzyScore(path, query.trim()) !== null)

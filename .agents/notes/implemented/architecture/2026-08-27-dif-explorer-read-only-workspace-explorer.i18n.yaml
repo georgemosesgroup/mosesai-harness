@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-27-dif-explorer-read-only-workspace-explorer.md
+2026-08-27-dif-explorer-read-only-workspace-explorer.md: dbf3aedfe413ad2ce1e1f30022f78dc4bb69d0bb
+2026-08-27-dif-explorer-read-only-workspace-explorer.zh.md: 1a056cd7f87a841745764f9fa10cc2b4e9dcda63

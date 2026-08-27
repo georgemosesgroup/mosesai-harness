@@ -31,6 +31,7 @@ export const BOOT_WORDMARK = 'MOSES AI'
  *
  * A pseudo-element rather than a border on the body: a border would move the
  * layout by a pixel and hand the page a scrollbar it did not have.
+ * @returns the window-rule style injection for the shell index.
  */
 export function windowRuleInjection(): IndexInjection {
   return {
@@ -47,7 +48,11 @@ export function windowRuleInjection(): IndexInjection {
   }
 }
 
-/** The wordmark override as a head style row. */
+/**
+ * The wordmark override as a head style row.
+ * @param text - override copy; defaults to the shipped boot wordmark.
+ * @returns the style-row index injection replacing the boot wordmark.
+ */
 export function bootWordmarkInjection(text: string = BOOT_WORDMARK): IndexInjection {
   return {
     kind: 'style',

@@ -2,6 +2,9 @@
 
 Status: implemented
 
+
+English | [中文](2026-08-27-ios-simulator-seam.zh.md)
+
 English
 
 ## Problem
