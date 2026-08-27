@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-面向模型的 iOS 模拟器工具，架在[能力接缝](../ios-sim/README.zh.md)（`ctx.iosSimulator`）上。Phase 1 注册且仅注册四个动词——`sim_list`、`sim_launch`、`sim_open_url`、`sim_screenshot`——每次成功调用都会向调用 agent 的会话日志追加一条 **`iosSim/action`** 记录，回放时即可还原"哪台设备被做了什么"。Schema 自动汇入生成的 [tool catalog](../../../docs/tool-catalog.zh.md#tool-ios-sim)；本文件只写增量。
+面向模型的 iOS 模拟器工具，架在[能力接缝](../ios-sim/README.zh.md)（`ctx.iosSimulator`）上。Phase 1 注册且仅注册四个动词——`sim_list`、`sim_launch`、`sim_open_url`、`sim_screenshot`——每次成功调用都会向调用 agent 的会话日志追加一条 **`iosSim/action`** 记录，回放时即可还原"哪台设备被做了什么"。Schema 自动汇入生成的 [tool catalog](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-ios-sim)；本文件只写增量。
 
 没有输入动词、没有面板：phase-2 输入将读取设备可用性树中的元素引用；针对截图的坐标点击在设计上不可达，工具描述已用模型可见文本说明这一点。
 

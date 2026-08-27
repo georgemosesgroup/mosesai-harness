@@ -397,6 +397,15 @@ const SERVICE_ROLES: ServiceRole[] = [
     note: 'The bash executors, the PTY shell backend, the LSP host, and the out-of-process ACP, Codex, and Claude Code subagent backends spawn through ctx.subprocess; the service owns process coordinates, tree/session lifetime, stdio dispositions, terminal mechanics, and kill escalation.',
   },
   {
+    key: 'iosSimulator',
+    pkg: 'iossim/ios-sim',
+    title: 'iOS simulator capability seam',
+    mode: 'seam',
+    implementations: ['simctl'],
+    consumers: ['tool-ios-sim'],
+    note: 'The level-0 simctl provider runs the public xcrun surface through ctx.subprocess behind a fixed allowlist; tool-ios-sim projects list/launch/openurl/screenshot and appends iosSim/action records. Unadvertised capabilities (describe/input/stream today) reject loudly in the Service Definition gate.',
+  },
+  {
     key: 'shell',
     pkg: 'shell',
     title: 'Bash executor seam',

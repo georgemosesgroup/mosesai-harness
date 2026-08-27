@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Model-facing iOS-simulator tools over the [capability seam](../ios-sim/README.md) (`ctx.iosSimulator`). Phase 1 registers exactly four verbs — `sim_list`, `sim_launch`, `sim_open_url`, `sim_screenshot` — and every successful call appends one **`iosSim/action`** record to the calling agent's session log, so replay shows which device did what even when result text alone would not tell. Schemas flow into the generated [tool catalog](../../../docs/tool-catalog.md#tool-ios-sim); this file notes only deltas.
+Model-facing iOS-simulator tools over the [capability seam](../ios-sim/README.md) (`ctx.iosSimulator`). Phase 1 registers exactly four verbs — `sim_list`, `sim_launch`, `sim_open_url`, `sim_screenshot` — and every successful call appends one **`iosSim/action`** record to the calling agent's session log, so replay shows which device did what even when result text alone would not tell. Schemas flow into the generated [tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-tool-ios-sim); this file notes only deltas.
 
 No input verbs and no panel: phase-2 input reads element references from the device availability tree; coordinate tapping on screenshots is out of reach by design, and the tool descriptions say so in model-facing text.
 
