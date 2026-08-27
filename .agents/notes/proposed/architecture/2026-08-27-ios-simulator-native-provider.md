@@ -53,7 +53,7 @@ The helper is one process per installation, not per session, matching how a simu
 
 ## Alternatives considered
 
-**Extend `dsh-ios-sim-simctl` with `describe` and `input`.** Rejected on evidence: the operations do not exist on the substrate. This is recorded because the phase-2 wording in the subsystem page and package READMEs invites exactly this reading, and one branch has already been started against it.
+**Extend `dsh-ios-sim-simctl` with `describe` and `input`.** Rejected on evidence: the operations do not exist on the substrate. The subsystem page and package READMEs state this restriction and link this note, because one branch was already started against the earlier simctl-only reading.
 
 **Require a user-installed `idb` binary and shell out to it.** Keeps the harness free of native source and reuses the same frameworks, and remains the fallback if gate 0 forbids vendoring. Rejected as the primary path: it moves a hard dependency onto every user's machine, ties the contract to another project's CLI text output — the parsing coupling the seam exists to avoid — and cannot host a video encoder for phase 4.
 

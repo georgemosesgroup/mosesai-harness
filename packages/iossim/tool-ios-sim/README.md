@@ -4,7 +4,7 @@ English | [中文](README.zh.md)
 
 Model-facing iOS-simulator tools over the [capability seam](../ios-sim/README.md) (`ctx.iosSimulator`). Phase 1 registers exactly four verbs — `sim_list`, `sim_launch`, `sim_open_url`, `sim_screenshot` — and every successful call appends one **`iosSim/action`** record to the calling agent's session log, so replay shows which device did what even when result text alone would not tell. Schemas flow into the generated [tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-tool-ios-sim); this file notes only deltas.
 
-No input verbs and no panel: phase-2 input reads element references from the device availability tree; coordinate tapping on screenshots is out of reach by design, and the tool descriptions say so in model-facing text.
+No input verbs and no panel: `describe` and `input` require the planned native provider — the public `simctl` substrate has no touch injection and no availability-tree read, so no provider over it can ever implement them ([Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)); coordinate tapping on screenshots is out of reach by design, and the tool descriptions say so in model-facing text.
 
 ## Render intent — decided up front
 
@@ -39,5 +39,5 @@ Append-only while the tool catalog itself is static: schemas join the stable too
 ## Known Limitations and Deferred Work
 
 - **Screenshot card shows metadata, not yet the raster, inside the GUI** — tool panes have no session-authorized loader today; the wired `card: 'image'` data path and fallback behavior are complete.
-- **No describe/input/stream tools** — the contract verbs reject with `SIMULATOR_CAPABILITY_UNAVAILABLE`; tools arrive with the phase-2 availability-tree provider.
+- **No describe/input/stream tools** — the contract verbs reject with `SIMULATOR_CAPABILITY_UNAVAILABLE`; no provider over the public `simctl` surface can implement them, so the tools arrive with the planned native provider.
 - **No install/build helpers** — deploying apps stays outside phase 1; the seam already carries `install` for providers that implement it.

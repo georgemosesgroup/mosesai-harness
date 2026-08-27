@@ -53,7 +53,7 @@ helper 是每个安装一个进程，而非每个会话一个，这与模拟器�
 
 ## 备选方案
 
-**在 `dsh-ios-sim-simctl` 上扩展 `describe` 与 `input`。** 依据实证否决：这些操作在 substrate 上并不存在。之所以记录，是因为 subsystem 页面与包 README 中关于 phase-2 的措辞恰好引向这种读法，并且已经有一条分支据此开工。
+**在 `dsh-ios-sim-simctl` 上扩展 `describe` 与 `input`。** 依据实证否决：这些操作在 substrate 上并不存在。subsystem 页面与包 README 已写明这一限制并链接本 Agent Note；记录它是因为曾有一条分支据此前的 simctl-only 读法开工。
 
 **要求用户自行安装 `idb` 二进制并对其 shell out。** 它让 harness 免于原生源码，又复用同一批框架，并在 gate 0 禁止 vendoring 时仍是回退方案。作为主路径被否决：它把一项硬依赖推到每个用户的机器上，把契约绑定到另一个项目的 CLI 文本输出 —— 正是 seam 存在以避免的解析耦合 —— 并且无法承载 phase 4 的视频编码器。
 

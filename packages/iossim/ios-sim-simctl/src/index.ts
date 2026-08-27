@@ -7,8 +7,11 @@
  * application path, and the incompatible misconfiguration states — missing
  * Xcode tooling, missing iOS platform, target absent / not booted / ambiguous
  * — fail with DISTINCT repair messages. The provider declares no `describe`,
- * `input`, or `stream` capability: those are future phases' seams, and
- * unadvertised verbs reject loudly in the Service Definition gate.
+ * `input`, or `stream` capability: the public `simctl` substrate offers no
+ * availability-tree read, no touch injection, and no video encoding, so no
+ * provider over it can ever implement those verbs — they need the native
+ * provider ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)) —
+ * and unadvertised verbs reject loudly in the Service Definition gate.
  *
  * Device geometry in points is deliberately not reported: the public simctl
  * surface exposes no verifiable point-size fact (verified against current

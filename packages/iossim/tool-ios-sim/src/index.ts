@@ -5,9 +5,10 @@
  * `iosSim/action` record to the calling agent's session log, so replay shows
  * who drove which device even when tool-result text alone would not tell.
  *
- * No input verbs and no panel: phase 2 reads element references from the
- * device availability tree; coordinate tapping on screenshots is deliberately
- * out of reach.
+ * No input verbs and no panel: `describe` and `input` need the native
+ * provider — the public `simctl` substrate has no touch injection and no
+ * availability-tree read, so no provider over it can implement them;
+ * coordinate tapping on screenshots is deliberately out of reach.
  *
  * @module @deepseek-ai/dsh-tool-ios-sim
  */

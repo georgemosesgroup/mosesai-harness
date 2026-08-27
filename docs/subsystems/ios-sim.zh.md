@@ -2,7 +2,7 @@
 
 [English](ios-sim.md) | 中文
 
-The iOS-simulator seam of [`dsh-ios-sim`](../../packages/iossim/ios-sim): a typed `ctx.iosSimulator` contract with one mounted provider, a closed ten-name capability vocabulary, and per-verb gating that rejects unadvertised verbs with `SIMULATOR_CAPABILITY_UNAVAILABLE`. The level-0 provider is [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl) over the public `xcrun simctl` surface through `ctx.subprocess`; model-facing consumers project it as the [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) tools and the log-only `iosSim/action` event. `describe` and `input` are contract members that reject until a provider implements them (phase-2 availability-tree work), and `'stream'` is the reserved video-seam name.
+[`dsh-ios-sim`](../../packages/iossim/ios-sim) 的 iOS 模拟器接缝：一个类型化的 `ctx.iosSimulator` 契约，每次组合只挂载一个提供方，能力词汇表封闭为十项，逐动词 gating 对未声明的动词以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。level-0 提供方是 [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl)，经由 `ctx.subprocess` 驱动公开的 `xcrun simctl` 表面；面向模型的消费方将其投影为 [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) 的工具与 log-only 的 `iosSim/action` 事件。`describe` 与 `input` 是契约成员，在提供方实现它们之前一律拒绝——而且任何构建在公开 `simctl` substrate 之上的提供方都不可能实现它们，因为 `simctl` 既无触控注入也无可用性树读取；它们需要 [Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md) 中规划的原生提供方。`'stream'` 是为同一 helper 的视频接缝保留的能力名。
 
 Source: [`packages/iossim/ios-sim/src/index.ts`](../../packages/iossim/ios-sim/src/index.ts)
 
@@ -87,8 +87,11 @@ async openUrl(request: SimulatorOpenUrlRequest): Promise<SimulatorResolvedTarget
 
 /**
  * Availability-tree read — declared for the phase-2 seam, implemented by no
- * provider yet. The `never` result documents that a successful return is
- * impossible today: callers can rely on rejection without feature-testing.
+ * provider yet and unreachable from any provider over the public `simctl`
+ * substrate, which has no availability-tree read; only the planned native
+ * provider (FBSimulatorControl/FBControlCore helper) can implement it. The
+ * `never` result documents that a successful return is impossible today:
+ * callers can rely on rejection without feature-testing.
  * @param request - the target reference; payload surface reserved for the availability-tree seam.
  * @returns never resolves today — rejects until a provider implements it.
  */
@@ -96,8 +99,10 @@ async describe(request: SimulatorDescribeRequest): Promise<never>
 
 /**
  * Structured input — declared for the phase-2 seam (element references from
- * the availability tree, not screenshot-coordinate taps). Rejects on every
- * provider today; see {@link describe}.
+ * the availability tree, not screenshot-coordinate taps). Unreachable from
+ * any provider over the public `simctl` substrate, which has no touch
+ * injection; only the planned native provider can implement it. Rejects on
+ * every provider today; see {@link describe}.
  * @param request - the target reference; no coordinate vocabulary by design.
  * @returns never resolves today — rejects until a provider implements it.
  */

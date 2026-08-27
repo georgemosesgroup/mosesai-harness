@@ -948,13 +948,13 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
       },
       {
         signature: 'async describe(request: SimulatorDescribeRequest): Promise<never>',
-        description: 'Availability-tree read — declared for the phase-2 seam, implemented by no provider yet. The `never` result documents that a successful return is impossible today: callers can rely on rejection without feature-testing.',
+        description: 'Availability-tree read — declared for the phase-2 seam, implemented by no provider yet and unreachable from any provider over the public `simctl` substrate, which has no availability-tree read; only the planned native provider (FBSimulatorControl/FBControlCore helper) can implement it. The `never` result documents that a successful return is impossible today: callers can rely on rejection without feature-testing.',
         parameters: [{ name: 'request', description: 'the target reference; payload surface reserved for the availability-tree seam.' }],
         returns: 'never resolves today — rejects until a provider implements it.',
       },
       {
         signature: 'async input(request: SimulatorInputRequest): Promise<never>',
-        description: 'Structured input — declared for the phase-2 seam (element references from the availability tree, not screenshot-coordinate taps). Rejects on every provider today; see describe.',
+        description: 'Structured input — declared for the phase-2 seam (element references from the availability tree, not screenshot-coordinate taps). Unreachable from any provider over the public `simctl` substrate, which has no touch injection; only the planned native provider can implement it. Rejects on every provider today; see describe.',
         parameters: [{ name: 'request', description: 'the target reference; no coordinate vocabulary by design.' }],
         returns: 'never resolves today — rejects until a provider implements it.',
       },

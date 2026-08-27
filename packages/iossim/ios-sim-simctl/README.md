@@ -45,6 +45,6 @@ Append-only through the Consumers' session events: successful actions add small 
 
 ## Known Limitations and Deferred Work
 
-- **No point geometry from any verb** — the level-0 surface cannot attest logical sizes; coordinates for phase-2 input will arrive with an availability-tree provider, not this one.
+- **No point geometry from any verb** — the level-0 surface cannot attest logical sizes; points arrive with the planned [native provider](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md), which reads the availability tree — the public `simctl` substrate has no availability-tree read and no touch injection, so this provider can never serve `describe` or `input`.
 - **State staleness between calls** — another actor can boot/shutdown/erase a device right after a listing; verbs resolve targets against a FRESH listing each time precisely so stale answers fail loudly with their own codes.
 - **No app deployment convenience** — `install` requires an existing .app/.ipa path; no download/build helpers here.
