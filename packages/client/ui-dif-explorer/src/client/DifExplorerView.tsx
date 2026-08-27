@@ -142,6 +142,11 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
     setViewer(previous => ({ ...previous, ...next }))
   }, [])
 
+  // The explorer is bound to the open session's workspace: the root resolves
+  // once from the session summary's cwd, with the registry order as fallback.
+  const sessionSummary = props.useSessions(state => state.byId[props.sessionId])
+  const cwd = sessionSummary?.cwd
+
   useEffect(() => {
     let alive = true
     props.api.listRoots()
@@ -152,9 +157,12 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
 
   useEffect(() => {
     if (viewer.roots.length === 0 || viewer.rootId !== null) return
-    const chosen = viewer.roots[0]?.rootId
-    if (chosen !== undefined && chosen !== '') patch({ rootId: chosen })
-  }, [patch, viewer.rootId, viewer.roots])
+    const cwdRoot = cwd !== undefined
+      ? viewer.roots.find(root => root.path === cwd)
+      : undefined
+    const chosen = cwdRoot ?? viewer.roots[0]
+    if (chosen !== undefined) patch({ rootId: chosen.rootId })
+  }, [cwd, patch, viewer.rootId, viewer.roots])
 
   useEffect(() => {
     const rootId = viewer.rootId
@@ -164,7 +172,7 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
       .then((tree) => { if (alive) { patch({ tree }) } })
       .catch(() => {})
     return () => { alive = false }
-  }, [patch, props.api, viewer.rootId])
+  }, [patch, props.api, viewer.rootId, revision])
 
   useEffect(() => {
     try {
@@ -206,17 +214,6 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
 
   return (
     <div className={css.surface}>
-      <div className={css.toolbar}>
-        <select
-          className={css.rootSelect}
-          value={viewer.rootId ?? ''}
-          onChange={(event) => { patch({ rootId: event.target.value, tree: null }) }}
-          aria-label={props.t('root.pick')}
-        >
-          {viewer.roots.map(root => <option key={root.rootId} value={root.rootId}>{root.title}</option>)}
-        </select>
-        <Button variant="ghost" onClick={() => { setRevision(value => value + 1) }}>⟳</Button>
-      </div>
       <div className={css.tabsRow}>
         {(['files', 'changes'] as const).map(scopeTab => (
           <button
@@ -228,6 +225,15 @@ export function DifExplorerView(props: DifExplorerProps): React.ReactNode {
             {scopeTab === 'files' ? props.t('tab.files') : props.t('tab.changes')}
           </button>
         ))}
+        <button
+          type="button"
+          className={css.refreshButton}
+          title="⟳"
+          aria-label="⟳"
+          onClick={() => { setRevision(value => value + 1) }}
+        >
+          ⟳
+        </button>
       </div>
       {viewer.selectedPath !== null && viewer.rootId !== null
         ? (
@@ -289,26 +295,30 @@ function FilesPane({
           <button
             type="button"
             className={css.treeRow}
-            style={{ paddingLeft: depth * 14 }}
+            style={{ paddingLeft: 24 + depth * 16 }}
             onClick={() => { toggleDir(node.path) }}
           >
-            <span>{collapsed.has(node.path) ? '▸' : '▾'} {node.name}/</span>
+            <span className={css.dirChevron}>{collapsed.has(node.path) ? '▸' : '▾'}</span>
+            <span className={css.dirName}>{node.name}/</span>
             <span className={css.dirCount}>{node.children?.length ?? 0}</span>
           </button>
           {!collapsed.has(node.path) && renderNodes(node.children, depth + 1)}
         </div>
       )
     }
+    const status = statuses.get(node.path)
     return (
       <button
         key={`f:${node.path}`}
         type="button"
         className={clsx(css.treeRow, css.fileRow)}
-        style={{ paddingLeft: depth * 14 }}
+        style={{ paddingLeft: 24 + depth * 16 + 12 }}
         onClick={() => { onOpen(node.path) }}
       >
-        <span className={css.fileName}>{node.name}</span>
-        {statuses.get(node.path) !== undefined && <StatusBadge status={statuses.get(node.path) ?? 'M'} />}
+        <span className={css.fileNameWithBadge}>
+          <span className={css.fileName}>{node.name}</span>
+          {status !== undefined && <StatusBadge status={status} />}
+        </span>
       </button>
     )
   }
@@ -334,7 +344,6 @@ function FilesPane({
   )
 }
 
-/** One row of the change ledger. */
 function ChangeEntryRow({
   entry,
   t,
@@ -499,10 +508,14 @@ function DiffViewer({
   useEffect(() => {
     let alive = true
     setDiff(null)
-    const request = change !== null && change.seq !== undefined && change.scope === 'session'
-      && change.sessionId !== undefined
+    // Commit rows diff that commit against its parent; worktree rows diff
+    // HEAD against the working tree; session rows replay the logged fragment.
+    const request = change !== null && change.scope === 'session'
+      && change.seq !== undefined && change.sessionId !== undefined
       ? api.getDiff({ rootId, sessionId: change.sessionId, seq: change.seq })
-      : api.getDiff({ rootId, path })
+      : change !== null && change.scope === 'commit' && change.commitOid !== undefined
+        ? api.getDiff({ rootId, path, base: `${change.commitOid}^`, head: change.commitOid })
+        : api.getDiff({ rootId, path })
     request.then((response) => { if (alive) { setDiff(response) } }).catch(() => {})
     return () => { alive = false }
   }, [api, change, path, rootId])
@@ -552,7 +565,11 @@ function DiffViewer({
           {change.at !== undefined && (
             <span className={css.metaTime}>{change.at.replace('T', ' ').slice(0, 19).replace('Z', '')}</span>
           )}
-          <span className={css.metaSizes}>{`+${diff?.additions ?? 0} −${diff?.deletions ?? 0}`}</span>
+          <span className={css.metaSizes}>
+            <span className={css.additions}>{`+${diff?.additions ?? 0}`}</span>
+            {' '}
+            <span className={css.deletions}>{`−${diff?.deletions ?? 0}`}</span>
+          </span>
         </div>
       )}
       <DiffBody diff={diff} split={split} t={t} />
