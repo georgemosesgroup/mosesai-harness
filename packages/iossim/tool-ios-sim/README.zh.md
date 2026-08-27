@@ -4,7 +4,7 @@
 
 面向模型的 iOS 模拟器工具，架在[能力接缝](../ios-sim/README.zh.md)（`ctx.iosSimulator`）上。本包注册六个工具——`sim_list`、`sim_launch`、`sim_open_url`、`sim_screenshot`（phase 1）与 `sim_describe`、`sim_input`（phase 3，由[原生提供方](../ios-sim-native/README.zh.md)承载）——每次成功调用都会向调用 agent 的会话日志追加一条 **`iosSim/action`** 记录，回放时即可还原"哪台设备被做了什么"。Schema 自动汇入生成的 [tool catalog](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-ios-sim)；本文件只写增量。
 
-`sim_describe` 读取最前台应用的可用性树并铸造稳定的元素引用；`sim_input` 执行一次手势——点按、滑动、按键、文本输入——目标要么是元素引用，要么是设备坐标中的点。两个动词都需要[原生提供方](../ios-sim-native/README.zh.md)：公开的 `simctl` substrate 既无触控注入也无可用性树读取，任何构建其上的提供方都不可能实现它们（[Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。`input` 的审计记录点明其目标——元素引用或设备点——而永不携带文本输入设置的文本。
+`sim_describe` 读取最前台应用的可用性树并铸造稳定的元素引用；`sim_input` 执行一次手势——点按、滑动、按键、文本输入——目标要么是元素引用，要么是设备坐标中的点。两个动词都需要[原生提供方](../ios-sim-native/README.zh.md)：公开的 `simctl` substrate 既无触控注入也无可用性树读取，任何构建其上的提供方都不可能实现它们（[Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。`input` 的审计记录点明其目标——元素引用或设备点——而永不携带文本输入设置的文本。
 
 ## 渲染意图——先决定后实现
 
@@ -39,5 +39,5 @@
 ## Known Limitations and Deferred Work
 
 - **GUI 中截图卡片暂显示元数据而非栅格**——工具面板尚无会话授权的加载器；`card: 'image'` 的数据通路与回退行为已完成。
-- **没有 stream 工具**——`'stream'` 仍是保留的能力名（尚无方法）留给未来的视频表面（[note 的阶梯](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
+- **没有 stream 工具**——`'stream'` 仍是保留的能力名（尚无方法）留给未来的视频表面（[note 的阶梯](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
 - **无部署/构建助手**——应用部署不在 phase 1；接缝已带 `install` 供实现的 provider 使用。

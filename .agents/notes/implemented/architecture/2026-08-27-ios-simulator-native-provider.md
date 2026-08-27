@@ -1,6 +1,6 @@
 # Agent Note: iOS simulator — the native provider for describe, input, and stream
 
-Status: proposed
+Status: implemented
 
 
 English | [中文](2026-08-27-ios-simulator-native-provider.zh.md)
@@ -13,7 +13,7 @@ The [level-0 seam](../../implemented/architecture/2026-08-27-ios-simulator-seam.
 
 Two further facts shape the replacement. Injecting touch and reading the tree requires linking CoreSimulator through FBSimulatorControl and FBControlCore — the frameworks idb is built on — which means a native, separately built, separately signed executable rather than a workspace package. And a live video stream requires a hardware encoder in that same process, which is why the stream capability cannot be retrofitted onto a screenshot-per-call provider later.
 
-## Proposal
+## Decision
 
 A second provider, `dsh-ios-sim-native`, backed by a native background helper that links FBSimulatorControl, FBControlCore, and VideoToolbox. The helper owns every operation the public CLI cannot perform; the provider is a thin typed client for it. `dsh-ios-sim-simctl` remains the fallback for hosts without the helper, and a composition mounts exactly one provider as today.
 
@@ -43,9 +43,11 @@ Model-issued input is a model-visible action and therefore logs an `iosSim/actio
 
 The panel's input affordance — a person clicking the picture, the refresh control making screenshot-driven repaint lag visible — remains the GUI-side piece of this phase; the service and tool surfaces it needs are the ones above.
 
-### Phase 4 — `stream`
+### Phase 4 — `stream` (shipped)
 
-`stream` gains its method and the helper encodes frames through VideoToolbox. Frame rate, resolution scale, and codec become provider configuration with real effect, and the panel's settings become settings of something rather than labels. Until this phase lands, the panel must not present controls whose only honest value is the one they already have. Upstream bounds where the frames can come from: a Simulator presented by the host app (`Simulator.app`, or `DeviceHub.app` from Xcode 27) has its framebuffer consumed by that app's process, unavailable to a process linking FBSimulatorControl, so screen-bearing work boots without the host app — a supported path.
+`stream` gains its method (`startStream`) and the helper encodes frames through VideoToolbox. Frame rate, resolution scale, and codec are provider configuration with real effect — validated at load (`streamCodec`: h264/hevc/mjpeg, `streamFrameRate`, `streamScale`), overridable per request — and the helper pushes encoded chunks as type-1 binary frames while the control path stays open. A slow consumer loses the oldest chunks rather than growing an unbounded buffer: live semantics, not recording. The panel's settings become settings of something rather than labels only when the panel consumes this handle; until that GUI change lands, no stream control is presented that would not change observable behavior.
+
+Upstream bounds where the frames can come from: a Simulator presented by the host app (`Simulator.app`, or `DeviceHub.app` from Xcode 27) has its framebuffer consumed by that app's process, unavailable to a process linking FBSimulatorControl, so screen-bearing work boots without the host app — a supported path.
 
 ### Process ownership and failure
 
@@ -69,7 +71,6 @@ The helper is one process per installation, not per session, matching how a simu
 
 **Defer the stream and treat the panel as a viewer indefinitely.** Cheapest, and honest while input does not exist. Rejected as an end state: an input surface whose picture lags is worse than either a viewer or a stream, so phase 3 commits the project to phase 4.
 
-## Acceptance criteria
 
 Gate 0 is answered in writing, with the licence terms and the pinned revision recorded in the vendor manifest, before any native source is committed.
 
@@ -81,12 +82,8 @@ Phase 4 is done when frame rate, scale, and codec are validated provider configu
 
 Every phase updates the subsystem page, the affected package READMEs, and both SDK expected outputs in the same change as the code.
 
-## Risks
+## Consequences
 
-Gate 0 can fail, and the fallback paths are materially worse: a user-installed `idb` or an XCTest path both lose phase 4. Answering it first is the mitigation.
+The seam's ten-name vocabulary is fully served, and the gate that made the level-0 provider honest makes every growth honest the same way: each capability arrived with its own proof surface (describe: the tree; input: the resolved landing point; stream: the encoded chunk flow).
 
-A native helper adds a build matrix, code signing, and a supervised process to a repository whose runtime is otherwise TypeScript. `landlock-run` proves the shape is affordable here, but it doubles the platform surface that CI must keep green, and a signing or notarization failure blocks the simulator entirely rather than degrading it.
-
-Vendored framework source ages against Xcode releases: CoreSimulator is private and its interfaces move. The simctl provider staying mounted as fallback keeps list, launch, and screenshot working when the helper breaks, which bounds the damage to input and stream.
-
-Phase 3 knowingly widens `input` beyond what the level-0 contract text permits. The prohibition is superseded, not forgotten: it must be rewritten in the contract JSDoc in the same change, or the source will contradict this note.
+The cost: a native build matrix, ad-hoc code signing, and a supervised process now ride in the repository's runtime; vendored framework sources age against Xcode releases, whose private interfaces move. The simctl provider stays mounted as the fallback for list, launch, and screenshot, bounding the damage of a helper break to the served set. `SESSION_FORMAT_VERSION` stayed at `0` throughout — vocabulary growth, never a structural log change.

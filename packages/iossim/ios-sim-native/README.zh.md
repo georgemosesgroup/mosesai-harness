@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-iOS 模拟器接缝的原生 Service Provider，架在 [`iossim-helper`](../../../native/iossim-helper/README.zh.md) 后台 helper 之上——helper 链接 Meta 的 FBSimulatorControl 与 FBControlCore（MIT，按 [vendoring 政策](../../../vendor/README.md)锁定并源码 vendored），承载公开 `xcrun simctl` 表面在结构上无法完成的工作。Phase 2 只承载**一项能力——`describe`**，即带稳定元素引用的设备可用性树，作为对许可、构建与拉起路径的端到端证明；phase 3 将能力集成长出 **`input`**——点按、滑动、按键、文本输入，目标要么是元素引用，要么是设备坐标中的点（[所属 Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。其余每个公开动词都以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。
+iOS 模拟器接缝的原生 Service Provider，架在 [`iossim-helper`](../../../native/iossim-helper/README.zh.md) 后台 helper 之上——helper 链接 Meta 的 FBSimulatorControl 与 FBControlCore（MIT，按 [vendoring 政策](../../../vendor/README.md)锁定并源码 vendored），承载公开 `xcrun simctl` 表面在结构上无法完成的工作。Phase 2 只承载**一项能力——`describe`**，即带稳定元素引用的设备可用性树，作为对许可、构建与拉起路径的端到端证明；phase 3 将能力集成长出 **`input`**——点按、滑动、按键、文本输入，目标要么是元素引用，要么是设备坐标中的点；phase 4 又长出 **`stream`**——实时编码视频句柄，帧率、缩放与编码器是真实生效的配置（[所属 Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。其余每个公开动词都以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。
 
 不同的失败对应不同的修复：
 
@@ -24,6 +24,9 @@ iOS 模拟器接缝的原生 Service Provider，架在 [`iossim-helper`](../../.
 | `maxTimeoutMs` | 600000 | 上限收敛 |
 | `maxRestarts` | 3 | 达到具名耗尽失败前的受监管重启次数（按提供方实例累计） |
 | `graceMs` | 3000 | 拆除时 SIGTERM→SIGKILL 升级 |
+| `streamCodec` | `h264` | 实时流编码器：`h264`、`hevc`、`mjpeg` |
+| `streamFrameRate` | 30 | 实时流帧率上限 |
+| `streamScale` | 1 | 实时流分辨率缩放，`1` = 原生 |
 
 目标解析在 helper 内部运行，它持有 CoreSimulator 设备集绑定：省略引用要求恰好一台已启动设备，零台或多台各自以接缝自身代码失败（`SIMULATOR_DEVICE_NOT_BOOTED`、`SIMULATOR_TARGET_AMBIGUOUS`）。提供方的显式 `resolve(request): NativeInvocationSpec` 规划 helper 路径、deadline 与重启上限——动词体内不留隐藏回退（[dsh-shell 模板](../../shell/shell/src/index.ts)）。
 
@@ -49,5 +52,5 @@ describe 结果随最前台应用的元素数伸缩；大树需要消费侧剪�
 
 - **仍无 list/boot 表面**——`list`、`boot` 及其余仍留在 [`dsh-ios-sim-simctl`](../ios-sim-simctl/README.zh.md)；组合为其挂载 simctl 提供方、为输入类工作挂载本提供方，直至 helper 的能力集进一步成长。
 - **元素引用按次读取有效**——框架不提供跨读取的稳定标识，因此引用是在一次 describe 结果内有效的索引路径；重新 describe 会对活 UI 重新分页，而无法再解析的引用会以 `SIMULATOR_ELEMENT_REFERENCE_STALE` 拒绝。
-- **元素引用按次读取有效**——框架不提供跨读取的稳定标识，因此引用是在一次 describe 结果内有效的索引路径；重新 describe 会对活 UI 重新分页。
+- **实时流需要 framebuffer**——由宿主应用呈现的模拟器（`Simulator.app`，Xcode 27 起为 `DeviceHub.app`）占用其 framebuffer；承载屏幕的工作以无宿主应用的方式启动（受支持的启动路径）。
 - **仅限 macOS 且需要 Xcode**——helper 链接所选 Xcode 的 Apple 私有 CoreSimulator/SimulatorKit；没有 Xcode 的宿主无法运行本提供方（simctl 回退对其自身动词响亮降级）。

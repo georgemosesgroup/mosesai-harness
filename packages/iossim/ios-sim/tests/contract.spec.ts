@@ -54,13 +54,13 @@ describe('capability gating', () => {
     await expect(provider.boot({ simulator: SimulatorId('UDID') })).rejects.toMatchObject({ code: 'SIMULATOR_CAPABILITY_UNAVAILABLE' })
   })
 
-  it('shutdown rides the boot capability; stream has no method yet', () => {
+  it('shutdown rides the boot capability; stream gates its own capability', () => {
     expect(VERB_CAPABILITY.shutdown).toBe('boot')
     expect(VERB_CAPABILITY.list).toBe('list')
-    // Reserved name present in the closed set…
+    expect(VERB_CAPABILITY.stream).toBe('stream')
+    // The closed ten-name vocabulary is fully mapped to verbs now.
     expect([...SIMULATOR_CAPABILITIES]).toContain('stream')
-    // …and no contract verb maps to it yet.
-    expect(Object.values(VERB_CAPABILITY)).not.toContain('stream')
+    expect(Object.keys(VERB_CAPABILITY)).toHaveLength(11)
   })
 
   it('consistency helper reports advertised capabilities whose hooks stayed defaulted', () => {

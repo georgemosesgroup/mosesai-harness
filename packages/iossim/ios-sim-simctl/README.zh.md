@@ -45,6 +45,6 @@ Indirectly, through [`dsh-tool-ios-sim`](../tool-ios-sim/README.zh.md) 这样的
 
 ## Known Limitations and Deferred Work
 
-- **任何动词都不给点几何**——level-0 表面无法为逻辑尺寸背书；点几何只随[原生提供方](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)到来——它读取可用性树，而公开的 `simctl` substrate 既没有可用性树读取也没有触控注入，`describe` 与 `input` 在任何情况下都不可达于本提供方。
+- **任何动词都不给点几何**——level-0 表面无法为逻辑尺寸背书；点几何只随[原生提供方](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)到来——它读取可用性树，而公开的 `simctl` substrate 既没有可用性树读取也没有触控注入，`describe` 与 `input` 在任何情况下都不可达于本提供方。
 - **调用之间状态可能过期**——其他角色可在列表后立刻启动/关闭/抹除设备；每个动词都针对新鲜列表重新解析目标，过期答案会带着自己的代码响亮失败。
 - **不含部署便利设施**——`install` 需要已有 .app/.ipa 路径；这里不做下载/构建助手。

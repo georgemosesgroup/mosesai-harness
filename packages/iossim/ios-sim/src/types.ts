@@ -211,7 +211,7 @@ export interface SimulatorPoint {
  * (resolved by the provider against its cached result), or a point in device
  * coordinates — the form a person clicking a picture has, and the form the
  * level-0 contract text forbade until geometry became attested
- * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+ * ([Agent Note](../../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)).
  */
 export type SimulatorInputTarget =
   | { readonly kind: 'element'; reference: string }
@@ -222,9 +222,22 @@ export type SimulatorInputTarget =
  * two points; `key` presses one hardware key by its HID usage code — the
  * framework's own currency for keyboard events.
  */
+/** Swipe drags between two device points over the configured duration. */
+export interface SimulatorInputSwipe {
+  readonly kind: 'swipe'
+  start: SimulatorPoint
+  end: SimulatorPoint
+  durationMs?: number | undefined
+}
+
+/**
+ * One input gesture. `tap` and `text` act on a target; `swipe` drags between
+ * two points; `key` presses one hardware key by its HID usage code — the
+ * framework's own currency for keyboard events.
+ */
 export type SimulatorInputAction =
   | { readonly kind: 'tap'; target: SimulatorInputTarget }
-  | { readonly kind: 'swipe'; start: SimulatorPoint; end: SimulatorPoint; durationMs?: number | undefined }
+  | SimulatorInputSwipe
   | { readonly kind: 'key'; usage: number }
   | { readonly kind: 'text'; target: SimulatorInputTarget; text: string }
 
@@ -232,7 +245,8 @@ export type SimulatorInputAction =
  * `input` request — one gesture against one device. A gesture is
  * model-visible when it reaches the model-facing tool, which appends the
  * `iosSim/action` record; a person driving the panel calls the same verb and
- * never produces that record ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+ * never produces that record
+ * ([Agent Note](../../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)).
  */
 export interface SimulatorInputRequest extends SimulatorTargetedRequest {
   action: SimulatorInputAction
@@ -249,4 +263,36 @@ export interface SimulatorInputResult {
    * point at all.
    */
   actedAt?: SimulatorPoint | undefined
+}
+
+/** The video codec a live stream encodes with. */
+export type SimulatorStreamCodec = 'h264' | 'hevc' | 'mjpeg'
+
+/**
+ * `stream` request — one live video stream of one device. Every knob is
+ * optional: the mounted provider's configuration supplies the defaults, and
+ * the substrate clamps what it cannot honor exactly.
+ */
+export interface SimulatorStreamRequest extends SimulatorTargetedRequest {
+  /** Video codec. Default: the provider's configured codec. */
+  codec?: SimulatorStreamCodec | undefined
+  /** Encode at most this many frames per second. Default: the provider's configured rate. */
+  frameRate?: number | undefined
+  /** Resolution scale of the encoded output, `1` = native points × native scale. Default: the provider's configured scale. */
+  scale?: number | undefined
+}
+
+/**
+ * One live video stream. `frames` yields encoded chunks exactly as the
+ * substrate produced them — a live surface, so a slow consumer loses chunks
+ * rather than growing an unbounded buffer. `stop` releases the substrate
+ * resources; the iterable ends after it.
+ */
+export interface SimulatorStreamHandle {
+  /** The codec the substrate actually negotiated. */
+  codec: SimulatorStreamCodec
+  /** Encoded video chunks (codec container framing, e.g. Annex-B for h264). */
+  frames: AsyncIterable<Uint8Array>
+  /** Stop the stream; idempotent. */
+  stop(): Promise<void>
 }

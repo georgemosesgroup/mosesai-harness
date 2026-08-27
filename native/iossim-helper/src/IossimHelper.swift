@@ -22,7 +22,7 @@ import Foundation
 
 /// The one supported protocol version; the hello frame announces it and the
 /// provider refuses anything else.
-let PROTOCOL_VERSION = 1
+let PROTOCOL_VERSION = 2
 
 /// Upper bound of one frame's JSON body in bytes. A deep availability tree is
 /// measured in megabytes at worst; anything past this bound is a protocol
@@ -133,6 +133,11 @@ struct IossimHelper {
 final class HelperLoop {
   private let reader = FrameReader(fileHandle: .standardInput)
   private var control: FBSimulatorControl?
+  /// Serializes every stdout write: control frames from the main-actor loop
+  /// and video chunks from the substrate's consumer queues share one pipe.
+  private let stdoutLock = NSLock()
+  /// The one live video stream, if a `stream-start` is active.
+  private var videoStream: (any FBVideoStream)?
 
   func run() async {
     // The hello frame is the launch proof: the provider waits for it, so a
@@ -140,7 +145,7 @@ final class HelperLoop {
     guard writeFrame([
       "helper": "iossim-helper",
       "protocol": PROTOCOL_VERSION,
-      "ops": ["describe", "input"],
+      "ops": ["describe", "input", "stream"],
     ]) else {
       exit(HELPER_FAILURE_EXIT)
     }
@@ -178,6 +183,20 @@ final class HelperLoop {
       case "input":
         do {
           let result = try await input(params)
+          writeFrame(["id": id, "ok": true, "result": result])
+        } catch {
+          writeFailure(id: id, error: error)
+        }
+      case "stream-start":
+        do {
+          let result = try await startStream(params)
+          writeFrame(["id": id, "ok": true, "result": result])
+        } catch {
+          writeFailure(id: id, error: error)
+        }
+      case "stream-stop":
+        do {
+          let result = try await stopStream()
           writeFrame(["id": id, "ok": true, "result": result])
         } catch {
           writeFailure(id: id, error: error)
@@ -315,6 +334,90 @@ final class HelperLoop {
     }
   }
 
+  // MARK: - Stream
+
+  /// `stream-start`: open one live encoded video stream on the device's
+  /// framebuffer. The knobs are the provider's validated configuration; the
+  /// substrate clamps what it cannot honor exactly.
+  private func startStream(_ params: [String: Any]) async throws -> [String: Any] {
+    let simulator = try resolveSimulator(requestedUdid: params["simulatorId"] as? String)
+    let codecRaw = params["codec"] as? String ?? "h264"
+    let format: FBVideoStreamFormat
+    switch codecRaw {
+    case "h264": format = .compressedVideo(withCodec: .h264, transport: .annexB)
+    case "hevc": format = .compressedVideo(withCodec: .hevc, transport: .annexB)
+    case "mjpeg": format = .mjpeg(encoder: .requireHardware)
+    default:
+      throw RequestFailure(
+        code: "SIMULATOR_HELPER_REQUEST_FAILED",
+        message: "unknown stream codec \(codecRaw); the helper encodes h264, hevc, or mjpeg")
+    }
+    let frameRate = double(params["frameRate"]).map { Int($0) }
+    let scale = double(params["scale"])
+    let configuration = FBVideoStreamConfiguration(
+      format: format,
+      framesPerSecond: frameRate,
+      rateControl: nil,
+      scaleFactor: scale,
+      keyFrameRate: nil)
+    do {
+      let framebuffer = try await simulator.connectToFramebuffer()
+      let consumer = VideoConsumer { [weak self] data in
+        self?.writeVideoChunk(data)
+      }
+      videoStream = try await FBSimulatorVideoStream.start(
+        framebuffer: framebuffer,
+        configuration: configuration,
+        to: consumer,
+        logger: simulator.logger)
+    } catch let failure as RequestFailure {
+      throw failure
+    } catch {
+      throw RequestFailure(
+        code: "SIMULATOR_HELPER_REQUEST_FAILED",
+        message: "the video stream could not start: \(describe(error)); a Simulator.app presenting the device holds the framebuffer — boot without it")
+    }
+    return ["simulatorId": simulator.udid, "codec": codecRaw]
+  }
+
+  /// `stream-stop`: release the framebuffer stream. Idempotent — a second
+  /// stop with no active stream answers successfully.
+  private func stopStream() async throws -> [String: Any] {
+    let stream = videoStream
+    videoStream = nil
+    if let stream {
+      do {
+        try await stream.stopStreaming()
+      } catch {
+        throw RequestFailure(
+          code: "SIMULATOR_HELPER_REQUEST_FAILED",
+          message: "the video stream could not stop cleanly: \(describe(error))")
+      }
+    }
+    return ["stopped": true]
+  }
+
+  /// Bridges the substrate's encoded video chunks into type-1 stdout frames.
+  /// The consumer callback runs on substrate queues; `writeVideoChunk` is
+  /// nonisolated and shares the stdout lock with the control loop.
+  final class VideoConsumer: NSObject, FBDataConsumer, @unchecked Sendable {
+    private let sink: (Data) -> Void
+
+    init(sink: @escaping (Data) -> Void) {
+      self.sink = sink
+      super.init()
+    }
+
+    func consumeData(_ data: Data) {
+      sink(data)
+    }
+
+    func consumeEndOfFile() {
+      // The provider stops the stream explicitly; an EOF here carries no
+      // extra protocol fact.
+    }
+  }
+
   // MARK: - Simulator resolution
 
   private func resolveControl() throws -> FBSimulatorControl {
@@ -403,17 +506,31 @@ final class HelperLoop {
     String(describing: error)
   }
 
-  private func writeBody(_ data: Data) -> Bool {
-    var length = UInt32(data.count).bigEndian
+  private nonisolated func writeTyped(_ type: UInt8, _ payload: Data) -> Bool {
+    stdoutLock.lock()
+    defer { stdoutLock.unlock() }
+    var length = UInt32(payload.count + 1).bigEndian
     let prefix = Data(bytes: &length, count: 4)
     do {
       try FileHandle.standardOutput.write(contentsOf: prefix)
-      try FileHandle.standardOutput.write(contentsOf: data)
+      try FileHandle.standardOutput.write(contentsOf: Data([type]))
+      try FileHandle.standardOutput.write(contentsOf: payload)
       return true
     } catch {
       // stdout is the protocol: an unwritable stdout ends the helper.
       FileHandle.standardError.write(Data("iossim-helper: stdout write failed: \(error)\n".utf8))
       exit(HELPER_FAILURE_EXIT)
     }
+  }
+
+  private nonisolated func writeBody(_ data: Data) -> Bool {
+    writeTyped(0, data)
+  }
+
+  /// One encoded video chunk, framed as a type-1 payload. Called from the
+  /// substrate's consumer queues, so it shares the stdout lock with the
+  /// control loop's frames.
+  private nonisolated func writeVideoChunk(_ data: Data) -> Bool {
+    writeTyped(1, data)
   }
 }

@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Native Service Provider for the iOS-simulator seam over the [`iossim-helper`](../../../native/iossim-helper/README.md) background helper, which links Meta's FBSimulatorControl and FBControlCore (MIT, pinned and source-vendored per [the vendoring policy](../../../vendor/README.md)) and serves what the public `xcrun simctl` surface structurally cannot. Phase 2 shipped **exactly one capability — `describe`**, the device availability tree with stable element references, as the end-to-end proof of the licence, build, and launch path; phase 3 grew the set with **`input`** — tap, swipe, key, and text entry, against either an element reference or a device point ([the owning Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)). Every other public verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE`.
+Native Service Provider for the iOS-simulator seam over the [`iossim-helper`](../../../native/iossim-helper/README.md) background helper, which links Meta's FBSimulatorControl and FBControlCore (MIT, pinned and source-vendored per [the vendoring policy](../../../vendor/README.md)) and serves what the public `xcrun simctl` surface structurally cannot. Phase 2 shipped **exactly one capability — `describe`**, the device availability tree with stable element references, as the end-to-end proof of the licence, build, and launch path; phase 3 grew the set with **`input`** — tap, swipe, key, and text entry, against either an element reference or a device point — and phase 4 with **`stream`** — a live encoded-video handle with frame rate, scale, and codec as real configuration ([the owning Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)). Every other public verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE`.
 
 Distinct failures, distinct repairs:
 
@@ -24,6 +24,9 @@ Distinct failures, distinct repairs:
 | `maxTimeoutMs` | 600000 | upper clamp |
 | `maxRestarts` | 3 | supervised restarts before the named exhaustion failure (cumulative per provider instance) |
 | `graceMs` | 3000 | SIGTERM→SIGKILL escalation on teardown |
+| `streamCodec` | `h264` | Live-stream codec: `h264`, `hevc`, or `mjpeg` |
+| `streamFrameRate` | 30 | Live-stream frame-rate cap |
+| `streamScale` | 1 | Live-stream resolution scale, `1` = native |
 
 Target resolution runs INSIDE the helper, which owns the CoreSimulator device-set binding: an omitted reference requires exactly ONE booted device there, and zero or several each fail with the seam's own codes (`SIMULATOR_DEVICE_NOT_BOOTED`, `SIMULATOR_TARGET_AMBIGUOUS`). The provider's explicit `resolve(request): NativeInvocationSpec` plans helper path, deadline, and restart bound — verb bodies carry no hidden fallbacks ([dsh-shell template](../../shell/shell/src/index.ts)).
 
@@ -49,5 +52,5 @@ Nothing on its own: the provider appends no session events, so it never grows a 
 
 - **Still no list/boot surface** — `list`, `boot`, and the rest stay with [`dsh-ios-sim-simctl`](../ios-sim-simctl/README.md); compositions mount the simctl provider for those and the native provider for input-class work until the helper's capability set grows further.
 - **Element references are per-read** — the framework names no stable cross-read identity, so references are index paths valid within one describe result; a re-describe repaginates a live UI, and a reference that no longer resolves rejects with `SIMULATOR_ELEMENT_REFERENCE_STALE`.
-- **Element references are per-read** — the framework names no stable cross-read identity, so references are index paths valid within one describe result; a re-describe repaginates a live UI.
+- **Live stream needs the framebuffer** — a Simulator presented by the host app (`Simulator.app`, or `DeviceHub.app` from Xcode 27) consumes its framebuffer; screen-bearing work boots without the host app (a supported boot path).
 - **macOS only, Xcode required** — the helper links Apple's private CoreSimulator/SimulatorKit from the selected Xcode; a host without Xcode cannot run this provider (the simctl fallback degrades loudly for its own verbs).

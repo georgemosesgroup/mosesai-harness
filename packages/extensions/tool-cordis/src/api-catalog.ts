@@ -896,7 +896,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'iosSimulator',
     summary: 'Abstract iOS-simulator service.',
-    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe` and `input` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, and the gesture\'s landing point; unadvertised verbs reject through the capability gate like every other verb.',
+    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe`, `input`, and `stream` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, the gesture\'s landing point, and a live encoded-video handle; unadvertised verbs reject through the capability gate like every other verb.',
     methods: [
       {
         signature: 'async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice[]>',
@@ -957,6 +957,12 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Structured input — one gesture (tap, swipe, key, text entry) against one device, served by providers that declare the `input` capability (today the native provider over the FBSimulatorControl helper\'s HID and accessibility surfaces). The level-0 text forbade coordinate targets because level 0 could not attest the coordinate space; the helper attests geometry, so both target forms exist — an element reference from a preceding `describe`, or a point in device coordinates. A provider that does not declare the capability rejects through the gate like every other verb.',
         parameters: [{ name: 'request', description: 'the gesture: its action discriminator, its target, and the action\'s payload.' }],
         returns: 'the resolved target plus the point the gesture landed on, when one exists.',
+      },
+      {
+        signature: 'async startStream(request: SimulatorStreamRequest = {}): Promise<SimulatorStreamHandle>',
+        description: 'Live video stream — encoded frames straight from the substrate\'s framebuffer, served by providers that declare the `stream` capability (today the native provider over the helper\'s VideoToolbox path). Frame rate, scale, and codec come from the request and the provider\'s configuration, with the substrate clamping what it cannot honor exactly. A provider that does not declare the capability rejects through the gate.',
+        parameters: [{ name: 'request', description: 'the stream knobs (codec, frame rate, scale); omissions take the provider\'s configuration.' }],
+        returns: 'a handle whose `frames` iterable yields encoded chunks until `stop`.',
       },
     ],
   },
@@ -4545,7 +4551,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'SimulatorInputAction',
-    declaration: 'export type SimulatorInputAction = {\n    readonly kind: \'tap\';\n    target: SimulatorInputTarget;\n} | {\n    readonly kind: \'swipe\';\n    start: SimulatorPoint;\n    end: SimulatorPoint;\n    durationMs?: number | undefined;\n} | {\n    readonly kind: \'key\';\n    usage: number;\n} | {\n    readonly kind: \'text\';\n    target: SimulatorInputTarget;\n    text: string;\n};',
+    declaration: 'export type SimulatorInputAction = {\n    readonly kind: \'tap\';\n    target: SimulatorInputTarget;\n} | SimulatorInputSwipe | {\n    readonly kind: \'key\';\n    usage: number;\n} | {\n    readonly kind: \'text\';\n    target: SimulatorInputTarget;\n    text: string;\n};',
   },
   {
     name: 'SimulatorInputRequest',
@@ -4554,6 +4560,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SimulatorInputResult',
     declaration: 'export interface SimulatorInputResult {\n    simulatorId: SimulatorId;\n    actedAt?: SimulatorPoint | undefined;\n}',
+  },
+  {
+    name: 'SimulatorInputSwipe',
+    declaration: 'export interface SimulatorInputSwipe {\n    readonly kind: \'swipe\';\n    start: SimulatorPoint;\n    end: SimulatorPoint;\n    durationMs?: number | undefined;\n}',
   },
   {
     name: 'SimulatorInputTarget',
@@ -4606,6 +4616,18 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SimulatorState',
     declaration: 'export type SimulatorState = \'booted\' | \'shutdown\';',
+  },
+  {
+    name: 'SimulatorStreamCodec',
+    declaration: 'export type SimulatorStreamCodec = \'h264\' | \'hevc\' | \'mjpeg\';',
+  },
+  {
+    name: 'SimulatorStreamHandle',
+    declaration: 'export interface SimulatorStreamHandle {\n    codec: SimulatorStreamCodec;\n    frames: AsyncIterable<Uint8Array>;\n    stop(): Promise<void>;\n}',
+  },
+  {
+    name: 'SimulatorStreamRequest',
+    declaration: 'export interface SimulatorStreamRequest extends SimulatorTargetedRequest {\n    codec?: SimulatorStreamCodec | undefined;\n    frameRate?: number | undefined;\n    scale?: number | undefined;\n}',
   },
   {
     name: 'SimulatorTargetedRequest',

@@ -8,11 +8,11 @@
  * provider over the public `simctl` substrate can ever implement them —
  * `simctl` has no touch injection and no availability-tree read — so they
  * belong to the native provider linking FBSimulatorControl and FBControlCore
- * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)):
- * `describe` carries its typed availability-tree result from phase 2, and
- * `input` carries its typed gesture result (both target forms) from phase 3,
- * while `'stream'` stays a reserved capability name for the future video
- * surface.
+ * ([Agent Note](../../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)):
+ * `describe` carries its typed availability-tree result from phase 2, `input`
+ * its typed gesture result (both target forms) from phase 3, and `stream` its
+ * live encoded-video handle (frame rate, scale, and codec as real
+ * configuration) from phase 4.
  *
  * Providers that cannot attest a fact leave the result field unset and explain
  * why in the documented note field; they never answer with invented zeros
@@ -32,6 +32,8 @@ import type {
   SimulatorDevice,
   SimulatorInputRequest,
   SimulatorInputResult,
+  SimulatorStreamHandle,
+  SimulatorStreamRequest,
   SimulatorInstallRequest,
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
@@ -62,6 +64,9 @@ export type {
   SimulatorInputResult,
   SimulatorInputTarget,
   SimulatorPoint,
+  SimulatorStreamCodec,
+  SimulatorStreamHandle,
+  SimulatorStreamRequest,
   SimulatorInstallRequest,
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
@@ -111,11 +116,11 @@ export const GEOMETRY_UNAVAILABLE_NOTE
  *   equally loud instead of returning a fake result.
  * - `boot` and `shutdown` are idempotent power-state flips; a provider treats
  *   an already-settled target as success.
- * - `describe` and `input` are served only by providers that declare them —
- *   today the native provider over the FBSimulatorControl helper — and return
- *   typed results: the availability tree, and the gesture's landing point;
- *   unadvertised verbs reject through the capability gate like every other
- *   verb.
+ * - `describe`, `input`, and `stream` are served only by providers that
+ *   declare them — today the native provider over the FBSimulatorControl
+ *   helper — and return typed results: the availability tree, the gesture's
+ *   landing point, and a live encoded-video handle; unadvertised verbs reject
+ *   through the capability gate like every other verb.
  */
 export abstract class IosSimulator extends Service {
   constructor(ctx: Context) {
@@ -279,6 +284,25 @@ export abstract class IosSimulator extends Service {
 
   protected doInput(_request: SimulatorInputRequest): Promise<SimulatorInputResult> {
     return this.unimplemented('input')
+  }
+
+  /**
+   * Live video stream — encoded frames straight from the substrate's
+   * framebuffer, served by providers that declare the `stream` capability
+   * (today the native provider over the helper's VideoToolbox path). Frame
+   * rate, scale, and codec come from the request and the provider's
+   * configuration, with the substrate clamping what it cannot honor exactly.
+   * A provider that does not declare the capability rejects through the gate.
+   * @param request - the stream knobs (codec, frame rate, scale); omissions take the provider's configuration.
+   * @returns a handle whose `frames` iterable yields encoded chunks until `stop`.
+   */
+  async startStream(request: SimulatorStreamRequest = {}): Promise<SimulatorStreamHandle> {
+    this.require('stream')
+    return this.doStreamStart(request)
+  }
+
+  protected doStreamStart(_request: SimulatorStreamRequest): Promise<SimulatorStreamHandle> {
+    return this.unimplemented('stream')
   }
 
   /** Reject unless the provider declared the verb's gating capability. */

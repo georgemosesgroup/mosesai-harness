@@ -913,10 +913,16 @@ export interface Config {
   maxRestarts?: number
   /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
   graceMs?: number
+  /** Video codec of live streams (`stream`): `h264`, `hevc`, or `mjpeg`. Default: `h264`. */
+  streamCodec?: string
+  /** Encode at most this many frames per second (`stream`). Default: 30. */
+  streamFrameRate?: number
+  /** Resolution scale of the encoded output, `1` = native (`stream`). Default: 1. */
+  streamScale?: number
 }
 ```
 
-Source: [`packages/iossim/ios-sim-native/src/index.ts:61`](../packages/iossim/ios-sim-native/src/index.ts)
+Source: [`packages/iossim/ios-sim-native/src/index.ts:73`](../packages/iossim/ios-sim-native/src/index.ts)
 
 <a id="deepseek-aidsh-ios-sim-simctl"></a>
 

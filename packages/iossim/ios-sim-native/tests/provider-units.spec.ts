@@ -17,11 +17,13 @@ import { SimulatorError, SimulatorId, unadvertisedCapabilities } from '@deepseek
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import { NativeSimulatorProvider } from '../src/index.ts'
+import { IosSimulator } from '@deepseek-ai/dsh-ios-sim'
 import { describeResultFromHelper } from '../src/describe.ts'
-import { encodeFrame, frames, MAX_FRAME_BYTES } from '../src/protocol.ts'
+import { encodeFrame, encodeTyped, FRAME_JSON, FRAME_VIDEO, MAX_FRAME_BYTES, rawFrames } from '../src/protocol.ts'
 import { PassThrough, Readable } from 'node:stream'
 import { SubprocessRuntime } from '@deepseek-ai/dsh-subprocess'
 import type { SubprocessHandle, SubprocessTerminalHandle } from '@deepseek-ai/dsh-subprocess'
+import type { SimulatorCapability } from '@deepseek-ai/dsh-ios-sim'
 
 /**
  * A subprocess service whose spawn throws synchronously (the launch-failure
@@ -204,26 +206,37 @@ describe('describe result mapping', () => {
 })
 
 describe('frame protocol', () => {
-  it('round-trips frames through encode and the stream reader', async () => {
+  it('round-trips frames through encode and the stream reader, demultiplexing by type', async () => {
     const payload = { id: 3, ok: true, result: { a: 1 } }
-    const stream = Readable.from([encodeFrame(payload), encodeFrame({ id: 4, ok: false })])
-    const seen: unknown[] = []
-    for await (const frame of frames(stream)) seen.push(frame)
-    expect(seen).toEqual([payload, { id: 4, ok: false }])
+    const video = Buffer.from([1, 2, 3, 4])
+    const stream = Readable.from([
+      encodeFrame(payload),
+      encodeTyped(FRAME_VIDEO, video),
+      encodeFrame({ id: 4, ok: false }),
+    ])
+    const seen: Array<{ type: number; payload: Buffer }> = []
+    for await (const frame of rawFrames(stream)) seen.push(frame)
+    expect(seen).toHaveLength(3)
+    expect(seen[0]?.type).toBe(FRAME_JSON)
+    expect(JSON.parse(seen[0]?.payload.toString('utf8') as string)).toEqual(payload)
+    expect(seen[1]?.type).toBe(FRAME_VIDEO)
+    const videoPayload = seen[1]?.payload
+    expect(videoPayload ? [...videoPayload.values()] : []).toEqual([1, 2, 3, 4])
+    expect(seen[2]?.type).toBe(FRAME_JSON)
   })
 
   it('refuses oversized lengths and trailing bytes as framing breaches', async () => {
     const oversized = Buffer.alloc(4)
     oversized.writeUInt32BE(MAX_FRAME_BYTES + 1, 0)
     await expect(async () => {
-      for await (const _ of frames(Readable.from([oversized]))) {
+      for await (const _ of rawFrames(Readable.from([oversized]))) {
         // The generator throws on the length check before yielding.
       }
     }).rejects.toThrow(/byte bound/)
 
     const trailing = Buffer.concat([encodeFrame({ id: 1 }), Buffer.from('ab')])
     await expect(async () => {
-      for await (const _ of frames(Readable.from([trailing]))) {
+      for await (const _ of rawFrames(Readable.from([trailing]))) {
         // Trailing bytes shorter than a length prefix throw at clean EOF.
       }
     }).rejects.toThrow(/trailing bytes/)
@@ -232,11 +245,11 @@ describe('frame protocol', () => {
     // more body than the stream carries is the trailing-bytes breach.
     const zero = Buffer.alloc(4)
     await expect(async () => {
-      for await (const _ of frames(Readable.from([zero]))) {}
+      for await (const _ of rawFrames(Readable.from([zero]))) {}
     }).rejects.toThrow(/byte bound/)
     const short = Buffer.concat([Buffer.from([0, 0, 0, 10]), Buffer.from('abc')])
     await expect(async () => {
-      for await (const _ of frames(Readable.from([short]))) {}
+      for await (const _ of rawFrames(Readable.from([short]))) {}
     }).rejects.toThrow(/trailing bytes/)
   })
 })
@@ -256,7 +269,7 @@ describe('the native provider over real stub helpers', () => {
   it('declares describe and input, proves advertisement↔hook consistency, and gates the rest loud', async () => {
     const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
     mounted.push(suite)
-    expect([...suite.provider.capabilities]).toEqual(['describe', 'input'])
+    expect([...suite.provider.capabilities]).toEqual(['describe', 'input', 'stream'])
     expect(unadvertisedCapabilities(suite.provider)).toEqual([])
     for (const verb of [
       suite.provider.list(),
@@ -379,6 +392,50 @@ describe('the native provider over real stub helpers', () => {
     expect(entry.actedAt).toEqual({ xPoints: 30, yPoints: 40 })
   }, 30_000)
 
+  it('streams encoded video chunks until stopped', async () => {
+    const suite = await mountedProvider({ helperPath: fixture('stream-helper.mjs') })
+    mounted.push(suite)
+    const stream = await suite.provider.startStream({ codec: 'h264', frameRate: 24 })
+    expect(stream.codec).toBe('h264')
+    const seen: number[] = []
+    for await (const chunk of stream.frames) {
+      seen.push([...chunk.values()][0] as number)
+      if (seen.length === 3) break
+    }
+    expect(seen).toEqual([11, 22, 33])
+    await stream.stop()
+  }, 30_000)
+
+  it('accepts provider-configured stream knobs and validates them loud', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LocalSubprocessRuntime)
+    for (const config of [
+      { helperPath: fixture('stream-helper.mjs'), streamCodec: 'vp9' },
+      { helperPath: fixture('stream-helper.mjs'), streamFrameRate: 0 },
+      { helperPath: fixture('stream-helper.mjs'), streamScale: 1.5 },
+    ]) {
+      await expect(ctx.plugin(NativeSimulatorProvider, config)).rejects.toThrow()
+    }
+  })
+
+  it('rejects a stream on a provider that advertises nothing, with the unavailable-code identity', async () => {
+    const ctx = new Context()
+    await ctx.plugin(LocalSubprocessRuntime)
+    class BareProvider extends IosSimulator {
+      override get capabilities(): ReadonlySet<SimulatorCapability> {
+        return new Set()
+      }
+
+      override get providerName(): string {
+        return '@deepseek-ai/dsh-ios-sim-native/bare'
+      }
+    }
+    await ctx.plugin(BareProvider)
+    const error = await ctx.iosSimulator.startStream({}).catch((cause: unknown) => cause)
+    expect(error).toBeInstanceOf(SimulatorError)
+    expect((error as SimulatorError).code).toBe('SIMULATOR_CAPABILITY_UNAVAILABLE')
+  })
+
   it('wraps a synchronously throwing spawn as an unavailable helper', async () => {
     const ctx = new Context()
     await ctx.plugin(ThrowingSubprocess)
@@ -396,7 +453,7 @@ describe('the native provider over real stub helpers', () => {
     const error = await (ctx.iosSimulator as NativeSimulatorProvider).describe({}).catch((cause: unknown) => cause)
     expect(error).toBeInstanceOf(SimulatorError)
     expect((error as SimulatorError).code).toBe('SIMULATOR_HELPER_UNAVAILABLE')
-    expect((error as SimulatorError).message).toContain('spawn failure')
+    expect((error as SimulatorError).message).toContain('failed to spawn')
   })
 
   it('reads a stdout close with a live child as a framing breach, not an exit', async () => {
@@ -448,7 +505,7 @@ describe('the native provider over real stub helpers', () => {
     const error = await suite.provider.describe({}).catch((cause: unknown) => cause)
     expect(error).toBeInstanceOf(SimulatorError)
     expect((error as SimulatorError).code).toBe('SIMULATOR_HELPER_PROTOCOL_BROKEN')
-    expect((error as SimulatorError).message).toContain('while request 1 was in flight')
+    expect((error as SimulatorError).message).toContain('no matching in-flight request')
   })
 
   it('ends the helper on ITS OWN disposal and waits for it to reach EOF (the HMR-safety proof)', async () => {

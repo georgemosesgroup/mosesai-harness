@@ -9,7 +9,7 @@
  * and `input` (one gesture against either an element reference or a device
  * point) — growing the end-to-end proof of the licence, build, launch, and
  * supervision path capability by capability
- * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+ * ([Agent Note](../../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)).
  * Unadvertised verbs reject loudly in the Service Definition gate.
  *
  * The helper resolves request targets itself (it owns the CoreSimulator
@@ -36,6 +36,9 @@ import type {
   SimulatorInputRequest,
   SimulatorInputResult,
   SimulatorPoint,
+  SimulatorStreamCodec,
+  SimulatorStreamHandle,
+  SimulatorStreamRequest,
 } from '@deepseek-ai/dsh-ios-sim'
 import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS, clampTimeout, deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
@@ -57,6 +60,15 @@ const DEFAULT_MAX_RESTARTS = 3
 /** SIGTERM→SIGKILL escalation grace for helper teardown. */
 const DEFAULT_GRACE_MS = 3_000
 
+/** Default live-stream frame rate cap. */
+const DEFAULT_STREAM_FRAME_RATE = 30
+
+/** Default live-stream resolution scale. */
+const DEFAULT_STREAM_SCALE = 1
+
+/** The codecs the helper's VideoToolbox path encodes. */
+const STREAM_CODECS: readonly string[] = ['h264', 'hevc', 'mjpeg']
+
 /** Plugin config (all optional — `static Config` supplies the defaults). */
 export interface Config {
   /**
@@ -74,6 +86,12 @@ export interface Config {
   maxRestarts?: number
   /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
   graceMs?: number
+  /** Video codec of live streams (`stream`): `h264`, `hevc`, or `mjpeg`. Default: `h264`. */
+  streamCodec?: string
+  /** Encode at most this many frames per second (`stream`). Default: 30. */
+  streamFrameRate?: number
+  /** Resolution scale of the encoded output, `1` = native (`stream`). Default: 1. */
+  streamScale?: number
 }
 
 /** Shape after schemastery applied the defaults: every knob is filled except
@@ -106,6 +124,7 @@ function assertPositiveFinite(name: string, value: number): void {
 const PROVIDER_CAPABILITIES: ReadonlySet<SimulatorCapability> = new Set<SimulatorCapability>([
   'describe',
   'input',
+  'stream',
 ])
 
 /** The native provider over the helper: describe from phase 2, input from phase 3. */
@@ -118,6 +137,9 @@ export class NativeSimulatorProvider extends IosSimulator {
     maxTimeoutMs: z.number().default(DEFAULT_MAX_TIMEOUT_MS),
     maxRestarts: z.number().default(DEFAULT_MAX_RESTARTS),
     graceMs: z.number().default(DEFAULT_GRACE_MS),
+    streamCodec: z.string().default('h264'),
+    streamFrameRate: z.number().default(DEFAULT_STREAM_FRAME_RATE),
+    streamScale: z.number().default(DEFAULT_STREAM_SCALE),
   })
 
   private readonly config: ResolvedConfig
@@ -162,6 +184,16 @@ export class NativeSimulatorProvider extends IosSimulator {
     if (resolved.maxTimeoutMs < resolved.timeoutMs) {
       throw new Error('ios-sim-native: maxTimeoutMs must be no less than timeoutMs')
     }
+    if (!STREAM_CODECS.includes(resolved.streamCodec)) {
+      throw new Error(`ios-sim-native: streamCodec must be one of ${STREAM_CODECS.join(', ')}`)
+    }
+    assertPositiveFinite('streamFrameRate', resolved.streamFrameRate)
+    if (resolved.streamFrameRate > 240) {
+      throw new Error('ios-sim-native: streamFrameRate must be no greater than 240')
+    }
+    if (!(Number.isFinite(resolved.streamScale) && resolved.streamScale > 0 && resolved.streamScale <= 1)) {
+      throw new Error('ios-sim-native: streamScale must be a finite number in (0, 1]')
+    }
     this.config = resolved
     // Helper teardown reaches quiescence on unload: terminate the child and
     // wait for its process tree before the composition tears down.
@@ -198,7 +230,7 @@ export class NativeSimulatorProvider extends IosSimulator {
     }
   }
 
-  override async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult> {
+  protected override async doDescribe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult> {
     const spec = this.resolve(request)
     const result = await this.withHelper(
       helper => helper.request('describe', {
@@ -211,7 +243,7 @@ export class NativeSimulatorProvider extends IosSimulator {
     return describeResult
   }
 
-  override async input(request: SimulatorInputRequest): Promise<SimulatorInputResult> {
+  protected override async doInput(request: SimulatorInputRequest): Promise<SimulatorInputResult> {
     const spec = this.resolve(request)
     const action = request.action
     // Element targets resolve against the references this provider minted in
@@ -240,6 +272,28 @@ export class NativeSimulatorProvider extends IosSimulator {
     }
     const result = await this.withHelper(helper => helper.request('input', params), spec)
     return inputResultFromHelper(result, point)
+  }
+
+  protected override async doStreamStart(request: SimulatorStreamRequest): Promise<SimulatorStreamHandle> {
+    const spec = this.resolve(request)
+    const codec = request.codec ?? this.config.streamCodec
+    const frameRate = request.frameRate ?? this.config.streamFrameRate
+    const scale = request.scale ?? this.config.streamScale
+    const stream = await this.withHelper(
+      helper => helper.startVideoStream({
+        codec,
+        frameRate,
+        scale,
+        simulatorId: request.simulator === undefined ? null : String(request.simulator),
+      }),
+      spec,
+    )
+    const negotiated = stream.codec as SimulatorStreamCodec
+    return {
+      codec: negotiated,
+      frames: stream.chunks,
+      stop: () => stream.stop(),
+    }
   }
 
   /**
@@ -275,11 +329,11 @@ export class NativeSimulatorProvider extends IosSimulator {
    * the bound fails with its own named code — a dead helper surfaces as a
    * simulator failure, never as an agent crash.
    */
-  private async withHelper(
-    op: (helper: LiveHelper) => Promise<Record<string, unknown>>,
+  private async withHelper<T>(
+    op: (helper: LiveHelper) => Promise<T>,
     spec: NativeInvocationSpec,
-  ): Promise<Record<string, unknown>> {
-    const run = async (): Promise<Record<string, unknown>> => {
+  ): Promise<T> {
+    const run = async (): Promise<T> => {
       for (;;) {
         const helper = await this.ensureSession(spec)
         try {
@@ -309,11 +363,11 @@ export class NativeSimulatorProvider extends IosSimulator {
   }
 
   /** Bound one helper request by the spec's deadline; a breach kills the stuck child. */
-  private async withDeadline(
-    pending: Promise<Record<string, unknown>>,
+  private async withDeadline<T>(
+    pending: Promise<T>,
     timeoutMs: number,
     onTimeout: () => Promise<void>,
-  ): Promise<Record<string, unknown>> {
+  ): Promise<T> {
     using fused = deadline(undefined, timeoutMs, TIMEOUT_CODE)
     const breached = new Promise<never>((_, reject) => {
       fused.signal.addEventListener('abort', () => {

@@ -10,7 +10,7 @@
  * `input`, or `stream` capability: the public `simctl` substrate offers no
  * availability-tree read, no touch injection, and no video encoding, so no
  * provider over it can ever implement those verbs — they need the native
- * provider ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)) —
+ * provider ([Agent Note](../../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)) —
  * and unadvertised verbs reject loudly in the Service Definition gate.
  *
  * Device geometry in points is deliberately not reported: the public simctl

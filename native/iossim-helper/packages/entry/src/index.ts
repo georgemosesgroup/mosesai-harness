@@ -25,7 +25,7 @@ export const HELPER_BIN = 'iossim-helper'
  * it in its unsolicited hello frame, and a provider that reads a different
  * version must refuse the helper rather than guess at frame semantics.
  */
-export const HELPER_PROTOCOL_VERSION = 1
+export const HELPER_PROTOCOL_VERSION = 2
 
 /**
  * The exit status of every helper-level fatal failure (bad argv, unwritable

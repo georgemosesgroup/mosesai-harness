@@ -1,6 +1,0 @@
-# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
-# side as of the last confirmed-consistent state. Both languages carry equal authority;
-# after editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write .agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md
-2026-08-27-ios-simulator-native-provider.md: 09a62899d27252a0850991e21c0d7b2698c7410b
-2026-08-27-ios-simulator-native-provider.zh.md: fbe7c882c28d565b8fb926598eaf71e58f13eab2

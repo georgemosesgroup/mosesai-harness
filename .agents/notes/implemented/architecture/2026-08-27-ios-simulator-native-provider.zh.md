@@ -1,6 +1,6 @@
 # Agent Note: iOS 模拟器 — 承载 describe、input 与 stream 的原生提供方
 
-Status: proposed
+Status: implemented
 
 
 [English](2026-08-27-ios-simulator-native-provider.md) | 中文
@@ -13,7 +13,7 @@ Status: proposed
 
 另有两项事实决定了替代方案的形状。注入触控与读取树需要经由 FBSimulatorControl 和 FBControlCore 链接 CoreSimulator —— 即 idb 所依赖的框架 —— 这意味着一个原生的、独立构建、独立签名的可执行文件，而不是一个 workspace 包。而实时视频流需要在同一进程内使用硬件编码器，这正是 stream 能力无法在「每次调用一张截图」的提供方上事后补装的原因。
 
-## 提案
+## 决定
 
 新增第二个提供方 `dsh-ios-sim-native`，由一个链接 FBSimulatorControl、FBControlCore 与 VideoToolbox 的原生后台 helper 支撑。helper 承担公开 CLI 无法完成的每一项操作；提供方只是它的一个瘦类型化客户端。`dsh-ios-sim-simctl` 保留为没有 helper 的宿主上的回退，组合仍与今天一样只挂载一个提供方。
 
@@ -43,9 +43,11 @@ Phase 2 只实现一项能力：`describe` 返回一台设备的可用性树，�
 
 面板的输入侧供——人点击画面、刷新控件让截图驱动的重绘滞后可见——仍是本阶段的 GUI 部分；它需要的服务与工具表面即上文所述。
 
-### Phase 4 — `stream`
+### Phase 4 — `stream`（已交付）
 
-`stream` 获得其方法，helper 通过 VideoToolbox 编码帧。帧率、分辨率缩放与编码器成为真正生效的提供方配置，面板的设置也就成了某个东西的设置，而不只是标签。在本阶段落地之前，面板不得呈现任何其唯一诚实取值就是当前取值的控件。上游还划定了帧的来源边界：由宿主应用呈现的模拟器（`Simulator.app`，Xcode 27 起为 `DeviceHub.app`），其 framebuffer 被该应用进程占用，链接 FBSimulatorControl 的进程拿不到 —— 需要屏幕的工作必须以无宿主应用的方式启动，这是受支持的路径。
+`stream` 获得其方法（`startStream`），helper 通过 VideoToolbox 编码帧。帧率、分辨率缩放与编码器成为真实生效的提供方配置——装载期即校验（`streamCodec`：h264/hevc/mjpeg，`streamFrameRate`，`streamScale`），并可按请求覆盖——helper 以 type-1 二进制帧推送编码块，同时控制路径保持打开。慢消费者丢弃最旧的块而不是无限增长缓冲：实时语义，而非录制。只有当面板消费这一句柄时，其设置才成为某个东西的设置而不只是标签；在该 GUI 变更落地之前，不会呈现任何不改变可观察行为的流控件。
+
+上游还划定了帧的来源边界：由宿主应用呈现的模拟器（`Simulator.app`，Xcode 27 起为 `DeviceHub.app`），其 framebuffer 被该应用进程占用，链接 FBSimulatorControl 的进程拿不到 —— 需要屏幕的工作必须以无宿主应用的方式启动，这是受支持的路径。
 
 ### 进程归属与失败
 
@@ -69,7 +71,6 @@ helper 是每个安装一个进程，而非每个会话一个，这与模拟器�
 
 **推迟流，长期把面板当作查看器。** 最省事，且在输入尚不存在时是诚实的。作为终态被否决：一个画面滞后的输入面比查看器和流都差，因此 phase 3 也就把项目锁定到了 phase 4。
 
-## 验收标准
 
 在任何原生源码提交之前，gate 0 已给出书面答案，许可条款与锁定版本已记入 vendor 清单。
 
@@ -81,12 +82,8 @@ Phase 4 完成的标志是：帧率、缩放与编码器是经校验的提供方
 
 每个阶段都在与代码同一次变更中更新 subsystem 页面、受影响的包 README 以及两套 SDK 的预期输出。
 
-## 风险
+## 后果
 
-Gate 0 可能给出否定答案，而回退路径明显更差：用户自装 `idb` 与 XCTest 两条路都失去 phase 4。先回答它就是缓解手段。
+接缝的十名能力词汇全部得到服务，使 level-0 提供方诚实的同一道 gate 让每次成长都同样诚实：每项能力都带着自己的证明面（describe：树；input：解析后的落点；stream：编码块的流动）。
 
-原生 helper 为一个运行时以 TypeScript 为主的仓库增加了构建矩阵、代码签名与一个受监管的进程。`landlock-run` 证明这种形态在此处负担得起，但它使 CI 必须维持绿色的平台面翻倍，且签名或公证失败会彻底阻断模拟器，而不是让它降级。
-
-vendored 的框架源码会相对 Xcode 发布而老化：CoreSimulator 是私有的，其接口会移动。simctl 提供方作为回退继续挂载，使 helper 损坏时 list、launch 与 screenshot 仍可工作，从而把损害限定在输入与流。
-
-Phase 3 明知地把 `input` 扩展到超出 level-0 契约正文所允许的范围。该禁令是被取代而非被遗忘：必须在同一次变更中改写契约 JSDoc，否则源码将与本 Agent Note 自相矛盾。
+代价：原生构建矩阵、ad-hoc 签名与一个受监管进程进入了仓库的运行时；vendored 框架源码会相对 Xcode 发布而老化，其私有接口会移动。simctl 提供方作为回退继续挂载 list、launch 与 screenshot，把 helper 损坏的损害限定在已服务的集合。`SESSION_FORMAT_VERSION` 全程保持 `0`——词汇增长，而非结构性日志变更。

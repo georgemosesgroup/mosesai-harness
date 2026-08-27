@@ -2,7 +2,7 @@
 
 English | [中文](ios-sim.zh.md)
 
-The iOS-simulator seam of [`dsh-ios-sim`](../../packages/iossim/ios-sim): a typed `ctx.iosSimulator` contract with one mounted provider, a closed ten-name capability vocabulary, and per-verb gating that rejects unadvertised verbs with `SIMULATOR_CAPABILITY_UNAVAILABLE`. The level-0 provider is [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl) over the public `xcrun simctl` surface through `ctx.subprocess`; model-facing consumers project it as the [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) tools and the log-only `iosSim/action` event. No provider over the public `simctl` substrate can ever implement `describe` or `input` — `simctl` has no touch injection and no availability-tree read — so they belong to the native provider [`dsh-ios-sim-native`](../../packages/iossim/ios-sim-native): a thin client over the [iossim-helper](../../native/iossim-helper/README.md) executable linking FBSimulatorControl and FBControlCore (pinned per [the vendoring policy](../../vendor/README.md)). `describe` is served from phase 2 and returns the availability tree typed below; `input` is served from phase 3 and performs one gesture — tap, swipe, key, text entry — whose target is either an element reference a preceding `describe` minted or a point in device coordinates (the level-0 prohibition on coordinate targets was written when no provider could attest the coordinate space; it is superseded, not forgotten). `'stream'` is the reserved video-seam name for the same helper ([Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+The iOS-simulator seam of [`dsh-ios-sim`](../../packages/iossim/ios-sim): a typed `ctx.iosSimulator` contract with one mounted provider, a closed ten-name capability vocabulary, and per-verb gating that rejects unadvertised verbs with `SIMULATOR_CAPABILITY_UNAVAILABLE`. The level-0 provider is [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl) over the public `xcrun simctl` surface through `ctx.subprocess`; model-facing consumers project it as the [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) tools and the log-only `iosSim/action` event. No provider over the public `simctl` substrate can ever implement `describe` or `input` — `simctl` has no touch injection and no availability-tree read — so they belong to the native provider [`dsh-ios-sim-native`](../../packages/iossim/ios-sim-native): a thin client over the [iossim-helper](../../native/iossim-helper/README.md) executable linking FBSimulatorControl and FBControlCore (pinned per [the vendoring policy](../../vendor/README.md)). `describe` is served from phase 2 and returns the availability tree typed below; `input` is served from phase 3 and performs one gesture — tap, swipe, key, text entry — whose target is either an element reference a preceding `describe` minted or a point in device coordinates (the level-0 prohibition on coordinate targets was written when no provider could attest the coordinate space; it is superseded, not forgotten). `stream` is served from phase 4: `startStream` returns a live handle whose `frames` iterable yields encoded video (codec, frame rate, and scale as real provider configuration; a slow consumer loses the oldest chunks — live semantics) until stopped ([Agent Note](../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)).
 
 The availability-tree vocabulary: a `SimulatorDescribeResult` carries the frontmost application's root `SimulatorAccessibilityElement` — role, label, substrate identifier, frame in points, enabled state, and the provider-minted index-path `reference` that the input verb's element-target form will name — plus the attested screen size in points when the read provides it. References are valid within one result; a re-describe repaginates a live UI, and an element-target input against a stale reference rejects with `SIMULATOR_ELEMENT_REFERENCE_STALE` naming the repair. An `SimulatorInputResult` reports the device point the gesture landed on: an element reference resolves to its frame's centre, a point target passes through, a swipe reports its start, and a key press reports no point at all.
 
@@ -28,7 +28,7 @@ Enforced semantics:
 - Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.
 - The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.
 - `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.
-- `describe` and `input` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, and the gesture's landing point; unadvertised verbs reject through the capability gate like every other verb.
+- `describe`, `input`, and `stream` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, the gesture's landing point, and a live encoded-video handle; unadvertised verbs reject through the capability gate like every other verb.
 
 ```ts cordis-catalog
 /**
@@ -113,6 +113,18 @@ async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResu
  * @returns the resolved target plus the point the gesture landed on, when one exists.
  */
 async input(request: SimulatorInputRequest): Promise<SimulatorInputResult>
+
+/**
+ * Live video stream — encoded frames straight from the substrate's
+ * framebuffer, served by providers that declare the `stream` capability
+ * (today the native provider over the helper's VideoToolbox path). Frame
+ * rate, scale, and codec come from the request and the provider's
+ * configuration, with the substrate clamping what it cannot honor exactly.
+ * A provider that does not declare the capability rejects through the gate.
+ * @param request - the stream knobs (codec, frame rate, scale); omissions take the provider's configuration.
+ * @returns a handle whose `frames` iterable yields encoded chunks until `stop`.
+ */
+async startStream(request: SimulatorStreamRequest = {}): Promise<SimulatorStreamHandle>
 ```
 
 Source: [`packages/iossim/ios-sim/src/index.ts`](../../packages/iossim/ios-sim/src/index.ts)

@@ -13,8 +13,9 @@ const mark = (text) => {
 
 const frame = (body) => {
   const payload = Buffer.from(JSON.stringify(body), 'utf8')
-  const head = Buffer.alloc(4)
-  head.writeUInt32BE(payload.length, 0)
+  const head = Buffer.alloc(5)
+  head.writeUInt32BE(payload.length + 1, 0)
+  head.writeUInt8(0, 4)
   process.stdout.write(Buffer.concat([head, payload]))
 }
 
@@ -26,7 +27,7 @@ process.stdin.on('data', (chunk) => {
     if (stdin.length < 4) return
     const length = Buffer.from(stdin.slice(0, 4), 'binary').readUInt32BE(0)
     if (stdin.length < 4 + length) return
-    const body = stdin.slice(4, 4 + length)
+    const body = stdin.slice(5, 4 + length)
     stdin = stdin.slice(4 + length)
     const request = JSON.parse(body)
     if (request.op === 'input') {
@@ -72,5 +73,5 @@ process.on('SIGTERM', () => {
   mark('terminated\n')
   process.exit(0)
 })
-frame({ helper: 'iossim-helper', protocol: 1, ops: ['describe'] })
+frame({ helper: 'iossim-helper', protocol: 2, ops: ['describe', 'input', 'stream'] })
 mark('started\n')

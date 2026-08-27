@@ -2,12 +2,10 @@
  * Capability vocabulary of the iOS-simulator seam: what a provider declares
  * about itself and which declared capability gates each contract verb.
  *
- * Method names and capability names deliberately differ in two places, both
- * logged here:
+ * Method names and capability names deliberately differ in one place, logged
+ * here:
  * - `shutdown` rides the `'boot'` capability — power-state flip in both
- *   directions is one substrate lifecycle ability;
- * - `'stream'` is reserved for the future video-surface seam and has no method
- *   on the Service Definition yet.
+ *   directions is one substrate lifecycle ability.
  *
  * @module @deepseek-ai/dsh-ios-sim/capabilities
  */
@@ -55,6 +53,7 @@ export type SimulatorVerb =
   | 'openUrl'
   | 'describe'
   | 'input'
+  | 'stream'
 
 /**
  * Verb → gate capability. Exhaustive over {@link SimulatorVerb}: adding a verb
@@ -71,6 +70,7 @@ export const VERB_CAPABILITY: Readonly<Record<SimulatorVerb, SimulatorCapability
   openUrl: 'openUrl',
   describe: 'describe',
   input: 'input',
+  stream: 'stream',
 }
 
 /**
@@ -88,5 +88,5 @@ export const CAPABILITY_IMPL_HOOKS: Readonly<Record<SimulatorCapability, readonl
   openUrl: ['doOpenUrl'],
   describe: ['doDescribe'],
   input: ['doInput'],
-  stream: [],
+  stream: ['doStreamStart'],
 }

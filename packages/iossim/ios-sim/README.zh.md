@@ -7,7 +7,7 @@ iOS 模拟能力接缝的 Service Definition（`ctx.iosSimulator`）。它拥有
 三项契约决定是有意为之且持久的：
 
 - **门禁位于操作本身。** 每个动词先查询 provider 声明的能力集合。未声明的能力以 `SimulatorError` 代码 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝，消息同时点名缺失能力、动词与 provider 名称——绝无静默 no-op，也绝无空答案式成功。`do*` 钩子保持默认拒绝，使"声明了却没实现"同样响亮（[不变量](../../../packages/AGENTS.md)）。
-- **`describe` 与 `input` 从第一天起就在契约中。**公开 `simctl` substrate 上的任何提供方都不可能实现它们——`simctl` 既无触控注入也无可用性树读取——它们属于原生提供方（[Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）：`describe` 自 phase 2 起携带类型化的可用性树结果，而 `input` 在 phase 3 之前仍返回 `Promise<never>`，`'stream'` 在词汇表中保留（尚无方法）给未来的视频接缝。
+- **`describe` 与 `input` 从第一天起就在契约中。**公开 `simctl` substrate 上的任何提供方都不可能实现它们——`simctl` 既无触控注入也无可用性树读取——它们属于原生提供方（[Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）：`describe` 自 phase 2 起携带类型化的可用性树结果，而 `input` 在 phase 3 之前仍返回 `Promise<never>`，`'stream'` 在词汇表中保留（尚无方法）给未来的视频接缝。
 - **几何信息要么是点，要么是显式缺席。** `SimulatorPointsSize` 是逻辑点（points），原点在左上角。仅当 provider 能为 `launch` 结果背书时才携带几何值；否则填充 `geometryNote`（`GEOMETRY_UNAVAILABLE_NOTE`）并指名未来来源。任何地方都不做编造的像素→点换算。
 
 ## Config
