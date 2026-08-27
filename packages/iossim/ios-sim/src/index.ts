@@ -9,9 +9,10 @@
  * `simctl` has no touch injection and no availability-tree read — so they
  * belong to the native provider linking FBSimulatorControl and FBControlCore
  * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)):
- * `describe` carries its typed result from phase 2, while `input` stays a
- * rejecting `Promise<never>` until phase 3 and `'stream'` stays a reserved
- * capability name for the future video surface.
+ * `describe` carries its typed availability-tree result from phase 2, and
+ * `input` carries its typed gesture result (both target forms) from phase 3,
+ * while `'stream'` stays a reserved capability name for the future video
+ * surface.
  *
  * Providers that cannot attest a fact leave the result field unset and explain
  * why in the documented note field; they never answer with invented zeros
@@ -30,6 +31,7 @@ import type {
   SimulatorDescribeResult,
   SimulatorDevice,
   SimulatorInputRequest,
+  SimulatorInputResult,
   SimulatorInstallRequest,
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
@@ -55,7 +57,11 @@ export type {
   SimulatorDescribeResult,
   SimulatorDevice,
   SimulatorElementFrame,
+  SimulatorInputAction,
   SimulatorInputRequest,
+  SimulatorInputResult,
+  SimulatorInputTarget,
+  SimulatorPoint,
   SimulatorInstallRequest,
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
@@ -105,12 +111,11 @@ export const GEOMETRY_UNAVAILABLE_NOTE
  *   equally loud instead of returning a fake result.
  * - `boot` and `shutdown` are idempotent power-state flips; a provider treats
  *   an already-settled target as success.
- * - `describe` is served only by providers that declare it — today the native
- *   provider over the FBSimulatorControl helper — and returns the device
- *   availability tree with stable element references; `input` returns
- *   `Promise<never>` deliberately, because nothing legitimate can come back
- *   until a provider implements it; unadvertised verbs reject through the
- *   capability gate like every other verb.
+ * - `describe` and `input` are served only by providers that declare them —
+ *   today the native provider over the FBSimulatorControl helper — and return
+ *   typed results: the availability tree, and the gesture's landing point;
+ *   unadvertised verbs reject through the capability gate like every other
+ *   verb.
  */
 export abstract class IosSimulator extends Service {
   constructor(ctx: Context) {
@@ -219,15 +224,19 @@ export abstract class IosSimulator extends Service {
   }
 
   /**
-   * Structured input — declared for the phase-3 seam (element references from
-   * the availability tree, not screenshot-coordinate taps). Unreachable from
-   * any provider over the public `simctl` substrate, which has no touch
-   * injection; the native provider implements it in phase 3. Rejects on every
-   * provider today; see {@link describe}.
-   * @param request - the target reference; no coordinate vocabulary by design.
-   * @returns never resolves today — rejects until a provider implements it.
+   * Structured input — one gesture (tap, swipe, key, text entry) against one
+   * device, served by providers that declare the `input` capability (today
+   * the native provider over the FBSimulatorControl helper's HID and
+   * accessibility surfaces). The level-0 text forbade coordinate targets
+   * because level 0 could not attest the coordinate space; the helper attests
+   * geometry, so both target forms exist — an element reference from a
+   * preceding `describe`, or a point in device coordinates. A provider that
+   * does not declare the capability rejects through the gate like every other
+   * verb.
+   * @param request - the gesture: its action discriminator, its target, and the action's payload.
+   * @returns the resolved target plus the point the gesture landed on, when one exists.
    */
-  async input(request: SimulatorInputRequest): Promise<never> {
+  async input(request: SimulatorInputRequest): Promise<SimulatorInputResult> {
     this.require('input')
     return this.doInput(request)
   }
@@ -268,7 +277,7 @@ export abstract class IosSimulator extends Service {
     return this.unimplemented('describe')
   }
 
-  protected doInput(_request: SimulatorInputRequest): Promise<never> {
+  protected doInput(_request: SimulatorInputRequest): Promise<SimulatorInputResult> {
     return this.unimplemented('input')
   }
 

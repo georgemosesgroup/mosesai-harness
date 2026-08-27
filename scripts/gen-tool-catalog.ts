@@ -614,7 +614,7 @@ const TOOL_PACKAGES: ToolPackage[] = [
       await ctx.plugin(ToolIosSim)
     },
     note:
-      '`sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `describe`/`input`/`stream` stay reserved phase seams — calling them rejects with SIMULATOR_CAPABILITY_UNAVAILABLE.',
+      '`sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `stream` stays a reserved capability name — calling an unadvertised verb rejects with SIMULATOR_CAPABILITY_UNAVAILABLE.',
   },
   {
     pkg: '@deepseek-ai/dsh-tool-todo',

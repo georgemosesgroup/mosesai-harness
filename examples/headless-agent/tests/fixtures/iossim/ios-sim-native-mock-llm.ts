@@ -9,6 +9,8 @@ import {
 
 const LIST_CALL = CallId('ios-sim-native-list-call')
 const SHOT_CALL = CallId('ios-sim-native-shot-call')
+const DESCRIBE_CALL = CallId('ios-sim-native-describe-call')
+const INPUT_CALL = CallId('ios-sim-native-input-call')
 
 function sawMarker(options: GenerateOptions, marker: string): boolean {
   return options.messages.some(message => message.content.some(
@@ -18,12 +20,12 @@ function sawMarker(options: GenerateOptions, marker: string): boolean {
 }
 
 /**
- * Keyless native-provider snapshot adapter: one scripted turn that calls
- * `sim_list` and `sim_screenshot` against a provider that declares only
- * `describe`, so both tools answer with the capability gate's named refusal,
- * and the final answer quotes that deterministic code. Proves the
- * unadvertised-verb rejection through the assembled composition; the
- * `describe` happy path is exercised by the driver's direct service probe.
+ * Keyless native-provider snapshot adapter: one scripted turn proving the
+ * capability gate (sim_list and sim_screenshot refuse loudly on a provider
+ * that does not advertise them), then the served verbs — sim_describe mints
+ * element references and sim_input taps one of them. The final answer quotes
+ * the deterministic markers the stub produced. The route declares image input
+ * so the screenshot tool's image-capability gate passes keylessly.
  */
 class IosSimNativeMockAdapter extends LlmAdapter {
   override async resolveModel(provider: string, model: string): Promise<LlmResolvedModelInfo> {
@@ -31,8 +33,6 @@ class IosSimNativeMockAdapter extends LlmAdapter {
       provider,
       id: model,
       name: model,
-      // Image input declared so `sim_screenshot` passes its model-capability
-      // gate and reaches the capability gate whose refusal this snapshot pins.
       inputModalities: ['text', 'image'],
     }
   }
@@ -58,11 +58,37 @@ class IosSimNativeMockAdapter extends LlmAdapter {
       yield { type: 'finish', reason: { kind: 'tool-calls' } }
       return
     }
-    const reply = 'IOSIM_NATIVE_SNAPSHOT_OK: the native provider answered both unadvertised tools with the capability gate.'
+    if (!sawMarker(options, '<availability')) {
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield { type: 'tool-call-delta', index: 0, id: DESCRIBE_CALL, name: 'sim_describe', argumentsDelta: '{}' }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: DESCRIBE_CALL, name: 'sim_describe', arguments: '{}' } }
+      yield { type: 'usage', usage: { inputTokens: 15, outputTokens: 2 } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+      return
+    }
+    if (!sawMarker(options, '<input simulator="STUB-A"')) {
+      yield { type: 'block-start', index: 0, blockType: 'tool-call' }
+      yield {
+        type: 'tool-call-delta',
+        index: 0,
+        id: INPUT_CALL,
+        name: 'sim_input',
+        argumentsDelta: '{"action":"tap","reference":"0.0"}',
+      }
+      yield {
+        type: 'block-end',
+        index: 0,
+        block: { type: 'tool-call', id: INPUT_CALL, name: 'sim_input', arguments: '{"action":"tap","reference":"0.0"}' },
+      }
+      yield { type: 'usage', usage: { inputTokens: 18, outputTokens: 2 } }
+      yield { type: 'finish', reason: { kind: 'tool-calls' } }
+      return
+    }
+    const reply = 'IOSIM_NATIVE_SNAPSHOT_OK: the gate refused the unadvertised tools, describe minted references, and input tapped one.'
     yield { type: 'block-start', index: 0, blockType: 'text' }
     yield { type: 'text-delta', index: 0, text: reply }
     yield { type: 'block-end', index: 0, block: { type: 'text', text: reply } }
-    yield { type: 'usage', usage: { inputTokens: 17, outputTokens: 6 } }
+    yield { type: 'usage', usage: { inputTokens: 21, outputTokens: 6 } }
     yield { type: 'finish', reason: { kind: 'stop' } }
   }
 }

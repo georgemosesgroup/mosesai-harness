@@ -42,7 +42,7 @@ function mounted(subset: SimulatorCapability[], label?: string): { ctx: Context;
 describe('capability gating', () => {
   it('rejects an unadvertised verb with code, missing capability, and provider name', async () => {
     const { provider } = mounted(['list'])
-    await expect(provider.input({})).rejects.toMatchObject({ code: 'SIMULATOR_CAPABILITY_UNAVAILABLE' })
+    await expect(provider.input({ action: { kind: 'tap', target: { kind: 'point', at: { xPoints: 1, yPoints: 2 } } } })).rejects.toMatchObject({ code: 'SIMULATOR_CAPABILITY_UNAVAILABLE' })
     await expect(provider.describe({})).rejects.toMatchObject({ code: 'SIMULATOR_CAPABILITY_UNAVAILABLE' })
     // The message names both pieces the task's contract requires:
     await expect(provider.boot({})).rejects.toThrow(/does not declare the "boot" capability/)

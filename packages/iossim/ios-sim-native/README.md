@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-Native Service Provider for the iOS-simulator seam over the [`iossim-helper`](../../../native/iossim-helper/README.md) background helper, which links Meta's FBSimulatorControl and FBControlCore (MIT, pinned and source-vendored per [the vendoring policy](../../../vendor/README.md)) and serves what the public `xcrun simctl` surface structurally cannot. It declares exactly **one capability — `describe`**, the device availability tree with stable element references — because one capability is the end-to-end proof of the licence, build, launch, and supervision path before any of them carries more ([the owning Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)). Every other public verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE`, and `input` stays a reserved `Promise<never>` until phase 3.
+Native Service Provider for the iOS-simulator seam over the [`iossim-helper`](../../../native/iossim-helper/README.md) background helper, which links Meta's FBSimulatorControl and FBControlCore (MIT, pinned and source-vendored per [the vendoring policy](../../../vendor/README.md)) and serves what the public `xcrun simctl` surface structurally cannot. Phase 2 shipped **exactly one capability — `describe`**, the device availability tree with stable element references, as the end-to-end proof of the licence, build, and launch path; phase 3 grew the set with **`input`** — tap, swipe, key, and text entry, against either an element reference or a device point ([the owning Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)). Every other public verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE`.
 
 Distinct failures, distinct repairs:
 
@@ -47,7 +47,7 @@ Nothing on its own: the provider appends no session events, so it never grows a 
 
 ## Known Limitations and Deferred Work
 
-- **One capability by design** — `list`, `boot`, and the rest stay with [`dsh-ios-sim-simctl`](../ios-sim-simctl/README.md); compositions needing both mount the simctl provider and wait for the helper's capability set to grow (phase 3 adds `input`).
-- **No describe tool yet** — the four model-facing tools keep their phase-1 schemas; a `describe` projection is its own change ([the note's plan](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+- **Still no list/boot surface** — `list`, `boot`, and the rest stay with [`dsh-ios-sim-simctl`](../ios-sim-simctl/README.md); compositions mount the simctl provider for those and the native provider for input-class work until the helper's capability set grows further.
+- **Element references are per-read** — the framework names no stable cross-read identity, so references are index paths valid within one describe result; a re-describe repaginates a live UI, and a reference that no longer resolves rejects with `SIMULATOR_ELEMENT_REFERENCE_STALE`.
 - **Element references are per-read** — the framework names no stable cross-read identity, so references are index paths valid within one describe result; a re-describe repaginates a live UI.
 - **macOS only, Xcode required** — the helper links Apple's private CoreSimulator/SimulatorKit from the selected Xcode; a host without Xcode cannot run this provider (the simctl fallback degrades loudly for its own verbs).

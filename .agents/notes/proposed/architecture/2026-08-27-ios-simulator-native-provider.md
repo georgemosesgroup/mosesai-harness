@@ -31,13 +31,17 @@ Phase 2 implements exactly one capability: `describe` returns the availability t
 
 Geometry's attestation arrives with the tree. Describe results carry the screen size in points when the read attests it — the availability-tree fact the level-0 note named as geometry's future source — while `SimulatorLaunchResult.geometry` keeps its points-or-absence rule and still fills only when a provider that can attest launch geometry serves the call, which arrives when the helper's capability set grows; under the simctl provider the `geometryNote` remains the answer.
 
-### Phase 3 — `input` and the interactive panel
+### Phase 3 — `input` and the logging decision (input shipped; the panel surface remains)
 
-`input` performs tap, swipe, key, and text entry, and the request accepts two target forms: an element reference from a preceding `describe`, and a point in device coordinates. The level-0 contract text forbids coordinate tapping because level 0 could not attest the coordinate space; once the helper attests geometry, that prohibition no longer describes a real limit, and a panel where a person clicks the picture has no element reference to offer. Both forms must exist in the request type from the first commit of the verb, because adding the second later would reshape a published tool schema.
+`input` performs tap, swipe, key, and text entry, and the request accepts two target forms: an element reference from a preceding `describe`, and a point in device coordinates. The level-0 contract text forbids coordinate tapping because level 0 could not attest the coordinate space; the helper attests geometry, so the prohibition is rewritten in the contract JSDoc in the same change that serves the verb, and both forms exist in the request type from the first commit.
 
-Model-issued input is a model-visible action and therefore logs an `iosSim/action` record like every other verb. Panel-issued input from a person is not a model action and must not be logged as one; whether it is logged at all under a distinct type is the one decision phase 3 must settle before its first commit, because it touches the durable log.
+The gesture vocabulary rides two substrate surfaces: tap and swipe go through the helper's HID transports, a key press is an HID usage code, and text entry sets an element's value through the accessibility surface at the resolved point. An element reference resolves against the references the provider minted in its most recent describe (a single-entry cache per provider); a reference that does not resolve rejects with `SIMULATOR_ELEMENT_REFERENCE_STALE`, naming the repair — describe again.
 
-The panel becomes an input surface in this phase. Without a stream it repaints from screenshots, so its refresh control stops being cosmetic: a person clicking a stale frame needs the frame to catch up, and the panel must make the lag visible rather than hide it.
+**The panel-input logging decision, settled before the verb's first commit: panel-issued input is not logged.** `iosSim/action` is the model-action vocabulary: its records are emitted by the tool consumer when the model drives a verb, and a person's panel gesture never traverses that consumer, so no action record arises by construction. A panel gesture is not model-visible either — a person did it, not the agent — so the model-visible-implies-logged rule does not reach it. If the GUI panel later wants an audit trail of human gestures, that is a new, distinct event type owned by the panel's own change; `iosSim/action` never carries them.
+
+Model-issued input is a model-visible action and therefore logs an `iosSim/action` record like every other verb: the record carries the gesture family and the target as the audit names it — an element reference or a device point — and never the text a text entry set.
+
+The panel's input affordance — a person clicking the picture, the refresh control making screenshot-driven repaint lag visible — remains the GUI-side piece of this phase; the service and tool surfaces it needs are the ones above.
 
 ### Phase 4 — `stream`
 

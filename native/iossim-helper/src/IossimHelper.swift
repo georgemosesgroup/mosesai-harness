@@ -140,7 +140,7 @@ final class HelperLoop {
     guard writeFrame([
       "helper": "iossim-helper",
       "protocol": PROTOCOL_VERSION,
-      "ops": ["describe"],
+      "ops": ["describe", "input"],
     ]) else {
       exit(HELPER_FAILURE_EXIT)
     }
@@ -171,6 +171,13 @@ final class HelperLoop {
       case "describe":
         do {
           let result = try await describe(params)
+          writeFrame(["id": id, "ok": true, "result": result])
+        } catch {
+          writeFailure(id: id, error: error)
+        }
+      case "input":
+        do {
+          let result = try await input(params)
           writeFrame(["id": id, "ok": true, "result": result])
         } catch {
           writeFailure(id: id, error: error)
@@ -216,6 +223,95 @@ final class HelperLoop {
       return element.legacyFoundationObject
     case .empty:
       return nil
+    }
+  }
+
+  // MARK: - Input
+
+  /// `input`: one gesture against one device. Tap and swipe ride the HID
+  /// transports (Indigo or DTUHID, negotiated per Simulator); a key press is
+  /// an HID keyboard usage code; text entry sets an element's value through
+  /// the accessibility surface at the point the provider resolved. Every
+  /// coordinate is device POINTS with the top-left origin.
+  private func input(_ params: [String: Any]) async throws -> [String: Any] {
+    let simulator = try resolveSimulator(requestedUdid: params["simulatorId"] as? String)
+    let action = params["action"] as? String ?? "<missing>"
+    var result: [String: Any] = ["simulatorId": simulator.udid]
+    switch action {
+    case "tap":
+      let point = try devicePoint(params)
+      let hid = try self.hid(for: simulator)
+      try await hid.send(event: .tapAt(x: point.x, y: point.y), logger: FBControlCoreGlobalConfiguration.defaultLogger)
+      result["actedAt"] = ["x": point.x, "y": point.y]
+    case "swipe":
+      guard let xStart = double(params["xStart"]), let yStart = double(params["yStart"]),
+        let xEnd = double(params["xEnd"]), let yEnd = double(params["yEnd"])
+      else {
+        throw RequestFailure(
+          code: "SIMULATOR_HELPER_REQUEST_FAILED",
+          message: "a swipe needs numeric xStart/yStart/xEnd/yEnd in device points")
+      }
+      let hid = try self.hid(for: simulator)
+      let durationSeconds = (double(params["durationMs"]) ?? 0) / 1_000
+      let event = FBSimulatorHIDEvent.swipe(
+        xStart, yStart: yStart, xEnd: xEnd, yEnd: yEnd,
+        delta: FBSimulatorHIDEvent.defaultSwipeDelta, duration: durationSeconds)
+      try await hid.send(event: event, logger: FBControlCoreGlobalConfiguration.defaultLogger)
+      result["actedAt"] = ["x": xStart, "y": yStart]
+    case "key":
+      guard let usage = double(params["usage"]) else {
+        throw RequestFailure(
+          code: "SIMULATOR_HELPER_REQUEST_FAILED",
+          message: "a key press needs a numeric HID usage code")
+      }
+      let hid = try self.hid(for: simulator)
+      try await hid.send(event: .shortKeyPress(UInt32(usage)), logger: FBControlCoreGlobalConfiguration.defaultLogger)
+    case "text":
+      let point = try devicePoint(params)
+      guard let text = params["text"] as? String else {
+        throw RequestFailure(
+          code: "SIMULATOR_HELPER_REQUEST_FAILED",
+          message: "a text entry needs the text to set")
+      }
+      let ui = try simulator.uiAutomation(backend: .accessibility)
+      try await ui.setValue(
+        text, for: .point(CGPoint(x: point.x, y: point.y)))
+      result["actedAt"] = ["x": point.x, "y": point.y]
+    default:
+      throw RequestFailure(
+        code: "SIMULATOR_HELPER_REQUEST_FAILED",
+        message: "unknown input action \(action)")
+    }
+    return result
+  }
+
+  /// One device point from a frame's `x`/`y` entries; either missing or
+  /// non-numeric is a request failure, not a guessed origin.
+  private func devicePoint(_ params: [String: Any]) throws -> CGPoint {
+    guard let x = double(params["x"]), let y = double(params["y"]) else {
+      throw RequestFailure(
+        code: "SIMULATOR_HELPER_REQUEST_FAILED",
+        message: "the gesture needs numeric x/y in device points")
+    }
+    return CGPoint(x: x, y: y)
+  }
+
+  private func double(_ value: Any?) -> Double? {
+    guard let number = value as? NSNumber else {
+      return nil
+    }
+    return number.isEqual(NSNull()) ? nil : number.doubleValue
+  }
+
+  /// One negotiated HID connection per simulator; `FBSimulatorHID` is
+  /// `@unchecked Sendable` and caches its transport.
+  private func hid(for simulator: FBSimulator) throws -> FBSimulatorHID {
+    do {
+      return try FBSimulatorHID(for: simulator)
+    } catch {
+      throw RequestFailure(
+        code: "SIMULATOR_HELPER_REQUEST_FAILED",
+        message: "the HID transport could not be established: \(describe(error))")
     }
   }
 

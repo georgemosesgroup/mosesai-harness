@@ -37,8 +37,13 @@ try {
   // serves the availability tree and the reserved verb still rejects. The
   // payload persists into the run cwd, which the test's inspect receives.
   const describeResult = await ctx.iosSimulator.describe({})
-  const input = await ctx.iosSimulator.input({}).then(
-    () => 'accepted',
+  const reference = describeResult.root === null ? undefined : describeResult.root.children[0]?.reference
+  const input = await ctx.iosSimulator.input({
+    action: reference === undefined
+      ? { kind: 'tap', target: { kind: 'point', at: { xPoints: 10, yPoints: 10 } } }
+      : { kind: 'tap', target: { kind: 'element', reference } },
+  }).then(
+    result => ({ actedAt: result.actedAt }),
     (error: unknown) => ({ code: error instanceof Error ? (error as { code?: string }).code : 'unknown' }),
   )
   const payload = {

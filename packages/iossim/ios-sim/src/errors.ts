@@ -31,6 +31,8 @@ export type SimulatorErrorCode =
   | 'SIMULATOR_HELPER_REQUEST_FAILED'
   /** The helper did not answer within the configured deadline. */
   | 'SIMULATOR_HELPER_TIMEOUT'
+  /** An element reference is not in the provider's cached describe for this device. */
+  | 'SIMULATOR_ELEMENT_REFERENCE_STALE'
 
 /**
  * The one failure class every simulator verb throws. Route on
@@ -61,4 +63,5 @@ export const SIMULATOR_ERROR_CODES: ReadonlySet<SimulatorErrorCode> = new Set<Si
   'SIMULATOR_HELPER_SUPERVISION_EXHAUSTED',
   'SIMULATOR_HELPER_REQUEST_FAILED',
   'SIMULATOR_HELPER_TIMEOUT',
+  'SIMULATOR_ELEMENT_REFERENCE_STALE',
 ])

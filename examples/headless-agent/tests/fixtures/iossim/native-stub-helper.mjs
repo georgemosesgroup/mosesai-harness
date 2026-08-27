@@ -18,7 +18,7 @@ const frame = (body) => {
   process.stdout.write(Buffer.concat([head, payload]))
 }
 
-frame({ helper: 'iossim-helper', protocol: 1, ops: ['describe'] })
+frame({ helper: 'iossim-helper', protocol: 1, ops: ['describe', 'input'] })
 
 let stdin = ''
 process.stdin.setEncoding('utf8')
@@ -31,7 +31,18 @@ process.stdin.on('data', (chunk) => {
     const body = stdin.slice(4, 4 + length)
     stdin = stdin.slice(4 + length)
     const request = JSON.parse(body)
-    if (request.op === 'describe') {
+    if (request.op === 'input') {
+      frame({
+        id: request.id,
+        ok: true,
+        result: {
+          simulatorId: request.params.simulatorId ?? 'STUB-A',
+          actedAt: request.params.action === 'tap' || request.params.action === 'text'
+            ? { x: request.params.x, y: request.params.y }
+            : undefined,
+        },
+      })
+    } else if (request.op === 'describe') {
       frame({
         id: request.id,
         ok: true,

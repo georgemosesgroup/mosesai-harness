@@ -26,8 +26,8 @@ export interface SimulatorImageFacts {
 
 /** Payload of one recorded {@link SessionEventMap iosSim/action} event. */
 export interface IosSimActionEventData {
-  /** Which phase-1 verb produced this record. */
-  action: 'list' | 'launch' | 'openurl' | 'screenshot'
+  /** Which verb produced this record. */
+  action: 'list' | 'launch' | 'openurl' | 'screenshot' | 'describe' | 'input'
   /** Resolved target device reference (a UDID today), absent for `list`. */
   simulatorId?: string
   /** Substrate display name of the target, when the listing provided one. */
@@ -42,6 +42,16 @@ export interface IosSimActionEventData {
   url?: string
   /** Committed screenshot facts (`action: 'screenshot'`; bytes stay in the attachment store). */
   image?: SimulatorImageFacts
+  /** Element count the availability tree read reported (`action: 'describe'`). */
+  elements?: number
+  /** The input gesture family (`action: 'input'`). */
+  inputAction?: 'tap' | 'swipe' | 'key' | 'text'
+  /**
+   * The target an `input` gesture acted on, as the audit record names it: an
+   * element reference or a device point. The TEXT a text entry set never
+   * rides here — it is user content, not a reference fact.
+   */
+  target?: string
 }
 
 /** Canonical structured result of `sim_list`. */
@@ -74,4 +84,29 @@ export interface SimulatorOpenUrlValue {
 export interface SimulatorScreenshotValue {
   device: { id: string; name?: string }
   image: SimulatorImageFacts
+}
+
+/** One availability-tree element as the `sim_describe` value reports it. */
+export interface SimulatorDescribeElement {
+  reference: string
+  role: string
+  label?: string
+  identifier?: string
+  frame?: { x: number; y: number; width: number; height: number }
+  enabled: boolean
+}
+
+/** Canonical value of a `sim_describe` call. */
+export interface SimulatorDescribeValue {
+  simulatorId: string
+  truncated: boolean
+  screen?: { widthPoints: number; heightPoints: number }
+  elements: SimulatorDescribeElement[]
+}
+
+/** Canonical value of a `sim_input` call. */
+export interface SimulatorInputValue {
+  simulatorId: string
+  inputAction: 'tap' | 'swipe' | 'key' | 'text'
+  actedAt?: { xPoints: number; yPoints: number }
 }

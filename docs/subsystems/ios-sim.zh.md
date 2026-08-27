@@ -2,9 +2,9 @@
 
 [English](ios-sim.md) | 中文
 
-[`dsh-ios-sim`](../../packages/iossim/ios-sim) 的 iOS 模拟器接缝：一个类型化的 `ctx.iosSimulator` 契约，每次组合只挂载一个提供方，能力词汇表封闭为十项，逐动词 gating 对未声明的动词以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。level-0 提供方是 [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl)，经由 `ctx.subprocess` 驱动公开的 `xcrun simctl` 表面；面向模型的消费方将其投影为 [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) 的工具与 log-only 的 `iosSim/action` 事件。公开 `simctl` substrate 上的任何提供方都不可能实现 `describe` 或 `input`——`simctl` 既无触控注入也无可用性树读取——它们属于原生提供方 [`dsh-ios-sim-native`](../../packages/iossim/ios-sim-native)：它是 [iossim-helper](../../native/iossim-helper/README.zh.md) 可执行文件的瘦客户端，后者链接 FBSimulatorControl 与 FBControlCore（按 [vendoring 政策](../../vendor/README.md) 锁定）。`describe` 自 phase 2 起被服务，返回下方类型化的可用性树；`input` 在 phase 3 之前仍是保留的 `Promise<never>`，`'stream'` 是同一 helper 的视频接缝保留名（[Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
+[`dsh-ios-sim`](../../packages/iossim/ios-sim) 的 iOS 模拟器接缝：一个类型化的 `ctx.iosSimulator` 契约，每次组合只挂载一个提供方，能力词汇表封闭为十项，逐动词 gating 对未声明的动词以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。level-0 提供方是 [`dsh-ios-sim-simctl`](../../packages/iossim/ios-sim-simctl)，经由 `ctx.subprocess` 驱动公开的 `xcrun simctl` 表面；面向模型的消费方将其投影为 [`dsh-tool-ios-sim`](../../packages/iossim/tool-ios-sim) 的工具与 log-only 的 `iosSim/action` 事件。公开 `simctl` substrate 上的任何提供方都不可能实现 `describe` 或 `input`——`simctl` 既无触控注入也无可用性树读取——它们属于原生提供方 [`dsh-ios-sim-native`](../../packages/iossim/ios-sim-native)：它是 [iossim-helper](../../native/iossim-helper/README.zh.md) 可执行文件的瘦客户端，后者链接 FBSimulatorControl 与 FBControlCore（按 [vendoring 政策](../../vendor/README.md) 锁定）。`describe` 自 phase 2 起被服务，返回下方类型化的可用性树；`input` 自 phase 3 起被服务，执行一次手势——点按、滑动、按键、文本输入——其目标要么是前一次 `describe` 铸造的元素引用，要么是设备坐标中的一个点（level-0 对坐标目标的禁令写在没有任何提供方能实证坐标系之时；它是被取代而非被遗忘）。`'stream'` 是同一 helper 的视频接缝保留名（[Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
 
-可用性树词汇：`SimulatorDescribeResult` 携带最前台应用的根 `SimulatorAccessibilityElement`——role、label、substrate 标识、以点为单位的 frame、enabled 状态，以及提供方铸造的索引路径 `reference`（input 动词的元素目标形式将点名它）——再加读取实证的、以点为单位的屏幕尺寸。引用在一次结果内有效；重新 describe 会对活 UI 重新分页。
+可用性树词汇：`SimulatorDescribeResult` 携带最前台应用的根 `SimulatorAccessibilityElement`——role、label、substrate 标识、以点为单位的 frame、enabled 状态，以及提供方铸造的索引路径 `reference`（input 动词的元素目标形式将点名它）——再加读取实证的、以点为单位的屏幕尺寸。引用在一次结果内有效；重新 describe 会对活 UI 重新分页，而针对过期引用的 input 会以 `SIMULATOR_ELEMENT_REFERENCE_STALE` 拒绝并指名修复方式。`SimulatorInputResult` 报告手势落点：元素引用解析到其 frame 中心，点目标原样落地，滑动报告起点，按键不报告落点。
 
 Source: [`packages/iossim/ios-sim/src/index.ts`](../../packages/iossim/ios-sim/src/index.ts)
 
@@ -28,7 +28,7 @@ Enforced semantics:
 - Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.
 - The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.
 - `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.
-- `describe` is served only by providers that declare it — today the native provider over the FBSimulatorControl helper — and returns the device availability tree with stable element references; `input` returns `Promise<never>` deliberately, because nothing legitimate can come back until a provider implements it; unadvertised verbs reject through the capability gate like every other verb.
+- `describe` and `input` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, and the gesture's landing point; unadvertised verbs reject through the capability gate like every other verb.
 
 ```ts cordis-catalog
 /**
@@ -100,15 +100,19 @@ async openUrl(request: SimulatorOpenUrlRequest): Promise<SimulatorResolvedTarget
 async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult>
 
 /**
- * Structured input — declared for the phase-3 seam (element references from
- * the availability tree, not screenshot-coordinate taps). Unreachable from
- * any provider over the public `simctl` substrate, which has no touch
- * injection; the native provider implements it in phase 3. Rejects on every
- * provider today; see {@link describe}.
- * @param request - the target reference; no coordinate vocabulary by design.
- * @returns never resolves today — rejects until a provider implements it.
+ * Structured input — one gesture (tap, swipe, key, text entry) against one
+ * device, served by providers that declare the `input` capability (today
+ * the native provider over the FBSimulatorControl helper's HID and
+ * accessibility surfaces). The level-0 text forbade coordinate targets
+ * because level 0 could not attest the coordinate space; the helper attests
+ * geometry, so both target forms exist — an element reference from a
+ * preceding `describe`, or a point in device coordinates. A provider that
+ * does not declare the capability rejects through the gate like every other
+ * verb.
+ * @param request - the gesture: its action discriminator, its target, and the action's payload.
+ * @returns the resolved target plus the point the gesture landed on, when one exists.
  */
-async input(request: SimulatorInputRequest): Promise<never>
+async input(request: SimulatorInputRequest): Promise<SimulatorInputResult>
 ```
 
 Source: [`packages/iossim/ios-sim/src/index.ts`](../../packages/iossim/ios-sim/src/index.ts)

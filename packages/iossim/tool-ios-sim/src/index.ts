@@ -1,7 +1,7 @@
 /**
  * Model-facing iOS-simulator tools over the `ctx.iosSimulator` capability
- * seam. Phase 1 registers exactly four verbs — `sim_list`, `sim_launch`,
- * `sim_open_url`, `sim_screenshot` — and every successful call appends one
+ * seam. The registered tools — `sim_list`, `sim_launch`, `sim_open_url`,
+ * `sim_screenshot`, `sim_describe`, `sim_input` — and every successful call appends one
  * `iosSim/action` record to the calling agent's session log, so replay shows
  * who drove which device even when tool-result text alone would not tell.
  *
@@ -21,6 +21,8 @@ import { registerSimListTool } from './list.ts'
 import { registerSimLaunchTool } from './launch.ts'
 import { registerSimOpenUrlTool } from './open-url.ts'
 import { registerSimScreenshotTool } from './screenshot.ts'
+import { registerSimDescribeTool } from './describe.ts'
+import { registerSimInputTool } from './input.ts'
 
 export const name = 'tool-ios-sim'
 export const inject = ['tools', 'iosSimulator']
@@ -44,4 +46,6 @@ export function apply(ctx: Context): void {
   registerSimLaunchTool(ctx, simulators)
   registerSimOpenUrlTool(ctx, simulators)
   registerSimScreenshotTool(ctx, simulators)
+  registerSimDescribeTool(ctx, simulators)
+  registerSimInputTool(ctx, simulators)
 }

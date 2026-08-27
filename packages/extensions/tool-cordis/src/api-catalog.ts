@@ -896,7 +896,7 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
   {
     key: 'iosSimulator',
     summary: 'Abstract iOS-simulator service.',
-    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe` is served only by providers that declare it — today the native provider over the FBSimulatorControl helper — and returns the device availability tree with stable element references; `input` returns `Promise<never>` deliberately, because nothing legitimate can come back until a provider implements it; unadvertised verbs reject through the capability gate like every other verb.',
+    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe` and `input` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, and the gesture\'s landing point; unadvertised verbs reject through the capability gate like every other verb.',
     methods: [
       {
         signature: 'async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice[]>',
@@ -953,10 +953,10 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the availability tree of the resolved device, with the facts the read observed.',
       },
       {
-        signature: 'async input(request: SimulatorInputRequest): Promise<never>',
-        description: 'Structured input — declared for the phase-3 seam (element references from the availability tree, not screenshot-coordinate taps). Unreachable from any provider over the public `simctl` substrate, which has no touch injection; the native provider implements it in phase 3. Rejects on every provider today; see describe.',
-        parameters: [{ name: 'request', description: 'the target reference; no coordinate vocabulary by design.' }],
-        returns: 'never resolves today — rejects until a provider implements it.',
+        signature: 'async input(request: SimulatorInputRequest): Promise<SimulatorInputResult>',
+        description: 'Structured input — one gesture (tap, swipe, key, text entry) against one device, served by providers that declare the `input` capability (today the native provider over the FBSimulatorControl helper\'s HID and accessibility surfaces). The level-0 text forbade coordinate targets because level 0 could not attest the coordinate space; the helper attests geometry, so both target forms exist — an element reference from a preceding `describe`, or a point in device coordinates. A provider that does not declare the capability rejects through the gate like every other verb.',
+        parameters: [{ name: 'request', description: 'the gesture: its action discriminator, its target, and the action\'s payload.' }],
+        returns: 'the resolved target plus the point the gesture landed on, when one exists.',
       },
     ],
   },
@@ -4544,8 +4544,20 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export type SimulatorId = Branded<\'SimulatorId\'>;',
   },
   {
+    name: 'SimulatorInputAction',
+    declaration: 'export type SimulatorInputAction = {\n    readonly kind: \'tap\';\n    target: SimulatorInputTarget;\n} | {\n    readonly kind: \'swipe\';\n    start: SimulatorPoint;\n    end: SimulatorPoint;\n    durationMs?: number | undefined;\n} | {\n    readonly kind: \'key\';\n    usage: number;\n} | {\n    readonly kind: \'text\';\n    target: SimulatorInputTarget;\n    text: string;\n};',
+  },
+  {
     name: 'SimulatorInputRequest',
-    declaration: 'export interface SimulatorInputRequest extends SimulatorTargetedRequest {\n}',
+    declaration: 'export interface SimulatorInputRequest extends SimulatorTargetedRequest {\n    action: SimulatorInputAction;\n}',
+  },
+  {
+    name: 'SimulatorInputResult',
+    declaration: 'export interface SimulatorInputResult {\n    simulatorId: SimulatorId;\n    actedAt?: SimulatorPoint | undefined;\n}',
+  },
+  {
+    name: 'SimulatorInputTarget',
+    declaration: 'export type SimulatorInputTarget = {\n    readonly kind: \'element\';\n    reference: string;\n} | {\n    readonly kind: \'point\';\n    at: SimulatorPoint;\n};',
   },
   {
     name: 'SimulatorInstallRequest',
@@ -4566,6 +4578,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SimulatorOpenUrlRequest',
     declaration: 'export interface SimulatorOpenUrlRequest extends SimulatorTargetedRequest {\n    url: string;\n}',
+  },
+  {
+    name: 'SimulatorPoint',
+    declaration: 'export interface SimulatorPoint {\n    xPoints: number;\n    yPoints: number;\n}',
   },
   {
     name: 'SimulatorPointsSize',

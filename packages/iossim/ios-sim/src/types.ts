@@ -196,8 +196,57 @@ export interface SimulatorDescribeResult {
 }
 
 /**
- * `input` request — payload surface reserved for the input seam. Deliberately
- * carries no coordinate vocabulary yet: the planned input path reads element
- * references from the availability tree, not screenshot-coordinate taps.
+ * One device-coordinate point, in POINTS with the origin at the top-left
+ * corner — the coordinate space the availability tree's frames and the
+ * helper's gestures share.
  */
-export interface SimulatorInputRequest extends SimulatorTargetedRequest {}
+export interface SimulatorPoint {
+  xPoints: number
+  yPoints: number
+}
+
+/**
+ * The target one input gesture acts on. Both forms exist from the input
+ * verb's first commit: an element reference issued by a preceding `describe`
+ * (resolved by the provider against its cached result), or a point in device
+ * coordinates — the form a person clicking a picture has, and the form the
+ * level-0 contract text forbade until geometry became attested
+ * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+ */
+export type SimulatorInputTarget =
+  | { readonly kind: 'element'; reference: string }
+  | { readonly kind: 'point'; at: SimulatorPoint }
+
+/**
+ * One input gesture. `tap` and `text` act on a target; `swipe` drags between
+ * two points; `key` presses one hardware key by its HID usage code — the
+ * framework's own currency for keyboard events.
+ */
+export type SimulatorInputAction =
+  | { readonly kind: 'tap'; target: SimulatorInputTarget }
+  | { readonly kind: 'swipe'; start: SimulatorPoint; end: SimulatorPoint; durationMs?: number | undefined }
+  | { readonly kind: 'key'; usage: number }
+  | { readonly kind: 'text'; target: SimulatorInputTarget; text: string }
+
+/**
+ * `input` request — one gesture against one device. A gesture is
+ * model-visible when it reaches the model-facing tool, which appends the
+ * `iosSim/action` record; a person driving the panel calls the same verb and
+ * never produces that record ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+ */
+export interface SimulatorInputRequest extends SimulatorTargetedRequest {
+  action: SimulatorInputAction
+}
+
+/** Result of `input`: the resolved target plus where the gesture actually landed. */
+export interface SimulatorInputResult {
+  /** The target the provider actually resolved and used — required on every result. */
+  simulatorId: SimulatorId
+  /**
+   * The device point the gesture landed on, when the gesture has one point of
+   * contact: an element reference resolves to its frame's centre, a point
+   * target passes through. A swipe reports its start; a key press reports no
+   * point at all.
+   */
+  actedAt?: SimulatorPoint | undefined
+}

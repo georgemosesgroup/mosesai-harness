@@ -253,15 +253,14 @@ describe('the native provider over real stub helpers', () => {
     expect(named.simulatorId).toBe(SimulatorId('STUB-EXPLICIT'))
   })
 
-  it('declares only describe, proves advertisement↔hook consistency, and gates the rest loud', async () => {
+  it('declares describe and input, proves advertisement↔hook consistency, and gates the rest loud', async () => {
     const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
     mounted.push(suite)
-    expect([...suite.provider.capabilities]).toEqual(['describe'])
+    expect([...suite.provider.capabilities]).toEqual(['describe', 'input'])
     expect(unadvertisedCapabilities(suite.provider)).toEqual([])
     for (const verb of [
       suite.provider.list(),
       suite.provider.boot({ simulator: SimulatorId('X') }),
-      suite.provider.input({}),
     ]) {
       const error = await verb.catch((cause: unknown) => cause)
       expect(error).toBeInstanceOf(SimulatorError)
@@ -319,6 +318,65 @@ describe('the native provider over real stub helpers', () => {
     ])
     expect(first.simulatorId).toBe(SimulatorId('STUB-A'))
     expect(second.simulatorId).toBe(SimulatorId('STUB-B'))
+  }, 30_000)
+
+  it('serves input: an element reference resolves to its cached frame centre', async () => {
+    const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
+    mounted.push(suite)
+    await suite.provider.describe({})
+    const result = await suite.provider.input({
+      action: { kind: 'tap', target: { kind: 'element', reference: '0.0' } },
+    })
+    // The Continue button's frame is x20 y100 200x44: its centre is 120,122.
+    expect(result.simulatorId).toBe(SimulatorId('STUB-A'))
+    expect(result.actedAt).toEqual({ xPoints: 120, yPoints: 122 })
+  }, 30_000)
+
+  it('serves input by coordinate point without consulting the reference cache', async () => {
+    const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
+    mounted.push(suite)
+    const result = await suite.provider.input({
+      action: { kind: 'tap', target: { kind: 'point', at: { xPoints: 55, yPoints: 66 } } },
+    })
+    expect(result.actedAt).toEqual({ xPoints: 55, yPoints: 66 })
+  }, 30_000)
+
+  it('rejects an element reference with no cached describe as stale, naming the repair', async () => {
+    const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
+    mounted.push(suite)
+    const error = await suite.provider.input({
+      action: { kind: 'tap', target: { kind: 'element', reference: '0.0' } },
+    }).catch((cause: unknown) => cause)
+    expect(error).toBeInstanceOf(SimulatorError)
+    expect((error as SimulatorError).code).toBe('SIMULATOR_ELEMENT_REFERENCE_STALE')
+    expect((error as SimulatorError).message).toContain('no describe has been served yet')
+  }, 30_000)
+
+  it('rejects a reference minted for another device as stale', async () => {
+    const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
+    mounted.push(suite)
+    await suite.provider.describe({})
+    const error = await suite.provider.input({
+      simulator: SimulatorId('OTHER-DEVICE'),
+      action: { kind: 'tap', target: { kind: 'element', reference: '0.0' } },
+    }).catch((cause: unknown) => cause)
+    expect((error as SimulatorError).code).toBe('SIMULATOR_ELEMENT_REFERENCE_STALE')
+    expect((error as SimulatorError).message).toContain('the cached describe served device "STUB-A"')
+  }, 30_000)
+
+  it('serves swipe, key, and text gestures and reports the landing point', async () => {
+    const suite = await mountedProvider({ helperPath: fixture('good-helper.mjs') })
+    mounted.push(suite)
+    const swipe = await suite.provider.input({
+      action: { kind: 'swipe', start: { xPoints: 1, yPoints: 2 }, end: { xPoints: 3, yPoints: 4 }, durationMs: 250 },
+    })
+    expect(swipe.actedAt).toEqual({ xPoints: 1, yPoints: 2 })
+    const key = await suite.provider.input({ action: { kind: 'key', usage: 40 } })
+    expect(key.actedAt).toBeUndefined()
+    const entry = await suite.provider.input({
+      action: { kind: 'text', target: { kind: 'point', at: { xPoints: 30, yPoints: 40 } }, text: 'ignored by the stub' },
+    })
+    expect(entry.actedAt).toEqual({ xPoints: 30, yPoints: 40 })
   }, 30_000)
 
   it('wraps a synchronously throwing spawn as an unavailable helper', async () => {

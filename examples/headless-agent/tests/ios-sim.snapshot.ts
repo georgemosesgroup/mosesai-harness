@@ -137,27 +137,29 @@ describe('ios-sim keyless snapshot (scripted model, stub substrate)', () => {
         if (logPath === undefined) throw new Error('the scenario did not persist a session')
         const raw = readFileSync(logPath, 'utf8')
 
-        // Rejected tool calls are gating facts, not actions: no iosSim/action
-        // record exists, and the transcript names the capability + provider.
-        expect(raw).not.toContain('"type":"iosSim/action"')
-        // The JSONL escapes the message's quotes, so the capability names
-        // match in their escaped spelling.
+        // Rejected tool calls are gating facts, not actions: the two
+        // unadvertised tools name the capability + provider. The served verbs
+        // append one action record each: describe logs its element count,
+        // input logs which gesture ran against which named target.
         expect(raw).toContain('does not declare the \\"list\\" capability')
         expect(raw).toContain('does not declare the \\"screenshot\\" capability')
         expect(raw).toContain('@deepseek-ai/dsh-ios-sim-native')
+        const records = raw.split('\n').filter(line => line.includes('"type":"iosSim/action"'))
+        expect(records.some(line => line.includes('"action":"describe"') && line.includes('"elements":3'))).toBe(true)
+        expect(records.some(line => line.includes('"action":"input"') && line.includes('"inputAction":"tap"'))).toBe(true)
+        expect(records.some(line => line.includes('"target":"element 0.0"'))).toBe(true)
 
-        // The direct service probe: describe served (references issued),
-        // input still the reserved rejecting member. The driver persisted the
-        // probe payload into the run cwd, which inspect receives.
+        // The direct service probe: describe served (references issued) and
+        // input tapping the first element reference lands on its frame centre.
         const probePayload = JSON.parse(readFileSync(join(runCwd, 'native-probe.json'), 'utf8')) as {
           describe: { simulatorId: string; screen: { widthPoints: number; heightPoints: number }; truncated: boolean; references: string[] }
-          input: { code: string }
+          input: { actedAt: { xPoints: number; yPoints: number } }
         }
         expect(probePayload.describe.simulatorId).toBe('STUB-A')
         expect(probePayload.describe.screen).toEqual({ widthPoints: 393, heightPoints: 852 })
         expect(probePayload.describe.truncated).toBe(false)
         expect(probePayload.describe.references).toEqual(['0', '0.0', '0.1'])
-        expect(probePayload.input).toEqual({ code: 'SIMULATOR_CAPABILITY_UNAVAILABLE' })
+        expect(probePayload.input).toEqual({ actedAt: { xPoints: 120, yPoints: 122 } })
 
         const context = contextFromLogs([raw])
         const normalized = normalizeSessionSnapshot(raw, context)

@@ -11,6 +11,8 @@ import type {
   SimulatorAccessibilityElement,
   SimulatorDescribeResult,
   SimulatorElementFrame,
+  SimulatorInputResult,
+  SimulatorPoint,
 } from '@deepseek-ai/dsh-ios-sim'
 
 /**
@@ -95,4 +97,33 @@ function optionalString(value: unknown): string | undefined {
 
 function protocolBroken(message: string): SimulatorError {
   return new SimulatorError(`iossim-helper describe result is not the documented protocol shape: ${message}`, 'SIMULATOR_HELPER_PROTOCOL_BROKEN')
+}
+
+/** Map one helper input result to the seam's type; the landing point comes from the resolved target. */
+export function inputResultFromHelper(raw: Record<string, unknown>, point: SimulatorPoint | undefined): SimulatorInputResult {
+  const simulatorId = raw.simulatorId
+  if (typeof simulatorId !== 'string' || simulatorId.length === 0) {
+    throw protocolBroken(`input result carries no usable simulatorId: ${JSON.stringify(simulatorId)}`)
+  }
+  return { simulatorId: SimulatorId(simulatorId), actedAt: point }
+}
+
+/**
+ * Index one describe result's references to the device point each element's
+ * frame centre sits at — the lookup an element-target input resolves against.
+ * An element without a frame has no centre and indexes nothing.
+ */
+export function referenceIndexFor(result: SimulatorDescribeResult): { device: string; centres: Map<string, SimulatorPoint> } {
+  const centres = new Map<string, SimulatorPoint>()
+  const walk = (element: SimulatorAccessibilityElement): void => {
+    if (element.frame !== undefined) {
+      centres.set(element.reference, {
+        xPoints: element.frame.xPoints + element.frame.widthPoints / 2,
+        yPoints: element.frame.yPoints + element.frame.heightPoints / 2,
+      })
+    }
+    for (const child of element.children) walk(child)
+  }
+  if (result.root !== null) walk(result.root)
+  return { device: String(result.simulatorId), centres }
 }

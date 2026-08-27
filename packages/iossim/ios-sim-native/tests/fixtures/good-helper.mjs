@@ -29,7 +29,16 @@ process.stdin.on('data', (chunk) => {
     const body = stdin.slice(4, 4 + length)
     stdin = stdin.slice(4 + length)
     const request = JSON.parse(body)
-    if (request.op === 'describe') {
+    if (request.op === 'input') {
+      const actedAt = request.params.action === 'tap' || request.params.action === 'text'
+        ? { x: request.params.x, y: request.params.y }
+        : undefined
+      frame({
+        id: request.id,
+        ok: true,
+        result: { simulatorId: request.params.simulatorId ?? 'STUB-A', ...(actedAt === undefined ? {} : { actedAt }) },
+      })
+    } else if (request.op === 'describe') {
       frame({
         id: request.id,
         ok: true,

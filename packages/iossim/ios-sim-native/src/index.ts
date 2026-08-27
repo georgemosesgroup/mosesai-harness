@@ -5,12 +5,12 @@
  * provider is a thin typed client: it launches one helper per installation,
  * supervises it, and maps its framed answers onto the seam's vocabulary.
  *
- * It declares exactly one capability — `describe`, the device availability
- * tree — because one capability is the end-to-end proof of the licence,
- * build, and launch path before any of them carries more
+ * It declares two capabilities — `describe` (the device availability tree)
+ * and `input` (one gesture against either an element reference or a device
+ * point) — growing the end-to-end proof of the licence, build, launch, and
+ * supervision path capability by capability
  * ([Agent Note](../../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
- * Unadvertised verbs reject loudly in the Service Definition gate, and
- * `input` stays a rejecting `Promise<never>` until phase 3.
+ * Unadvertised verbs reject loudly in the Service Definition gate.
  *
  * The helper resolves request targets itself (it owns the CoreSimulator
  * device-set binding): an omitted reference requires exactly ONE booted
@@ -27,16 +27,20 @@ import z from '@deepseek-ai/schemastery'
 import {
   IosSimulator,
   SimulatorError,
+  SimulatorId,
 } from '@deepseek-ai/dsh-ios-sim'
 import type {
   SimulatorCapability,
   SimulatorDescribeRequest,
   SimulatorDescribeResult,
+  SimulatorInputRequest,
+  SimulatorInputResult,
+  SimulatorPoint,
 } from '@deepseek-ai/dsh-ios-sim'
 import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS, clampTimeout, deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { helperPath } from '@deepseek-ai/iossim-helper'
-import { describeResultFromHelper } from './describe.ts'
+import { describeResultFromHelper, inputResultFromHelper, referenceIndexFor } from './describe.ts'
 import { startHelper, type LiveHelper } from './helper.ts'
 
 const TIMEOUT_CODE = 'SIMULATOR_HELPER_TIMEOUT'
@@ -101,9 +105,10 @@ function assertPositiveFinite(name: string, value: number): void {
 /** The native provider's declaration set: one capability, on purpose. */
 const PROVIDER_CAPABILITIES: ReadonlySet<SimulatorCapability> = new Set<SimulatorCapability>([
   'describe',
+  'input',
 ])
 
-/** The phase-2 provider over the native helper. */
+/** The native provider over the helper: describe from phase 2, input from phase 3. */
 export class NativeSimulatorProvider extends IosSimulator {
   static inject = ['subprocess']
 
@@ -122,6 +127,14 @@ export class NativeSimulatorProvider extends IosSimulator {
   private queue: Promise<unknown> = Promise.resolve()
   /** Cumulative supervised restarts consumed by this provider instance. */
   private restartsUsed = 0
+  /**
+   * The references the provider minted in its most recent describe, keyed by
+   * device: an element-target input resolves against THIS cache, because the
+   * references are meaningful only within the result that issued them. One
+   * entry — the most recent describe — keeps the cache bounded without
+   * pretending stale trees stay authoritative.
+   */
+  private referenceIndex: { device: string; centres: Map<string, SimulatorPoint> } | undefined
 
   /**
    * Validate config and refuse non-macOS hosts at LOAD time — a misconfigured
@@ -193,7 +206,66 @@ export class NativeSimulatorProvider extends IosSimulator {
       }),
       spec,
     )
-    return describeResultFromHelper(result)
+    const describeResult = describeResultFromHelper(result)
+    this.referenceIndex = referenceIndexFor(describeResult)
+    return describeResult
+  }
+
+  override async input(request: SimulatorInputRequest): Promise<SimulatorInputResult> {
+    const spec = this.resolve(request)
+    const action = request.action
+    // Element targets resolve against the references this provider minted in
+    // its most recent describe; a point target lands where it says. Both
+    // forms reduce to one device point before the helper sees the gesture.
+    let point: SimulatorPoint | undefined
+    let params: Record<string, unknown>
+    if (action.kind === 'tap' || action.kind === 'text') {
+      const target = action.target
+      point = target.kind === 'point' ? target.at : this.resolveReference(request.simulator, target.reference)
+      params = action.kind === 'tap'
+        ? { action: 'tap', x: point.xPoints, y: point.yPoints }
+        : { action: 'text', x: point.xPoints, y: point.yPoints, text: action.text }
+    } else if (action.kind === 'swipe') {
+      point = action.start
+      params = {
+        action: 'swipe',
+        xStart: action.start.xPoints,
+        yStart: action.start.yPoints,
+        xEnd: action.end.xPoints,
+        yEnd: action.end.yPoints,
+        ...(action.durationMs === undefined ? {} : { durationMs: action.durationMs }),
+      }
+    } else {
+      params = { action: 'key', usage: action.usage }
+    }
+    const result = await this.withHelper(helper => helper.request('input', params), spec)
+    return inputResultFromHelper(result, point)
+  }
+
+  /**
+   * Resolve one element reference against the cached describe. The device the
+   * describe served anchors the lookup: naming a DIFFERENT device with an
+   * element reference is the same staleness as referencing a tree that was
+   * never described.
+   * @param requestDevice - the request's device reference, or undefined when the helper resolves.
+   * @param reference - the element reference from the request.
+   * @returns the device point the reference's frame centre sits at.
+   * @throws {SimulatorError} code `SIMULATOR_ELEMENT_REFERENCE_STALE` when no
+   *   cached describe anchors the reference.
+   */
+  private resolveReference(requestDevice: SimulatorId | undefined, reference: string): SimulatorPoint {
+    const cache = this.referenceIndex
+    if (cache === undefined || (requestDevice !== undefined && String(requestDevice) !== cache.device) || !cache.centres.has(reference)) {
+      const context = cache === undefined
+        ? 'no describe has been served yet'
+        : `the cached describe served device "${cache.device}"`
+      throw new SimulatorError(
+        `the element reference "${reference}" does not resolve against the cached describe (${context}); `
+          + 'call describe again to mint fresh references',
+        'SIMULATOR_ELEMENT_REFERENCE_STALE',
+      )
+    }
+    return cache.centres.get(reference) as SimulatorPoint
   }
 
   /**

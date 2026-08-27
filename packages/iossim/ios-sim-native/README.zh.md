@@ -2,7 +2,7 @@
 
 [English](README.md) | 中文
 
-iOS 模拟器接缝的原生 Service Provider，架在 [`iossim-helper`](../../../native/iossim-helper/README.zh.md) 后台 helper 之上——helper 链接 Meta 的 FBSimulatorControl 与 FBControlCore（MIT，按 [vendoring 政策](../../../vendor/README.md)锁定并源码 vendored），承载公开 `xcrun simctl` 表面在结构上无法完成的工作。它只声明**一项能力——`describe`**，即带稳定元素引用的设备可用性树——因为在它们承载更多之前，一项能力就是对许可、构建、拉起与监管路径的端到端证明（[所属 Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。其余每个公开动词都以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝，`input` 在 phase 3 之前仍是保留的 `Promise<never>`。
+iOS 模拟器接缝的原生 Service Provider，架在 [`iossim-helper`](../../../native/iossim-helper/README.zh.md) 后台 helper 之上——helper 链接 Meta 的 FBSimulatorControl 与 FBControlCore（MIT，按 [vendoring 政策](../../../vendor/README.md)锁定并源码 vendored），承载公开 `xcrun simctl` 表面在结构上无法完成的工作。Phase 2 只承载**一项能力——`describe`**，即带稳定元素引用的设备可用性树，作为对许可、构建与拉起路径的端到端证明；phase 3 将能力集成长出 **`input`**——点按、滑动、按键、文本输入，目标要么是元素引用，要么是设备坐标中的点（[所属 Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。其余每个公开动词都以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝。
 
 不同的失败对应不同的修复：
 
@@ -47,7 +47,7 @@ describe 结果随最前台应用的元素数伸缩；大树需要消费侧剪�
 
 ## Known Limitations and Deferred Work
 
-- **一项能力是设计使然**——`list`、`boot` 及其余仍留在 [`dsh-ios-sim-simctl`](../ios-sim-simctl/README.zh.md)；需要两者的组合挂载 simctl 提供方，等待 helper 的能力集成长（phase 3 增加 `input`）。
-- **尚无 describe 工具**——四个模型可见工具保持 phase-1 schema；describe 投影是独立的变更（[note 的规划](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
+- **仍无 list/boot 表面**——`list`、`boot` 及其余仍留在 [`dsh-ios-sim-simctl`](../ios-sim-simctl/README.zh.md)；组合为其挂载 simctl 提供方、为输入类工作挂载本提供方，直至 helper 的能力集进一步成长。
+- **元素引用按次读取有效**——框架不提供跨读取的稳定标识，因此引用是在一次 describe 结果内有效的索引路径；重新 describe 会对活 UI 重新分页，而无法再解析的引用会以 `SIMULATOR_ELEMENT_REFERENCE_STALE` 拒绝。
 - **元素引用按次读取有效**——框架不提供跨读取的稳定标识，因此引用是在一次 describe 结果内有效的索引路径；重新 describe 会对活 UI 重新分页。
 - **仅限 macOS 且需要 Xcode**——helper 链接所选 Xcode 的 Apple 私有 CoreSimulator/SimulatorKit；没有 Xcode 的宿主无法运行本提供方（simctl 回退对其自身动词响亮降级）。

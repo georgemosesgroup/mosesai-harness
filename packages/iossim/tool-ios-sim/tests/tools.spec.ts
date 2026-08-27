@@ -29,7 +29,7 @@ const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADEl
 const testToolSignal = new AbortController().signal
 
 const ALL: ReadonlySet<SimulatorCapability> = new Set([
-  'list', 'boot', 'install', 'launch', 'terminate', 'screenshot', 'openUrl',
+  'list', 'boot', 'install', 'launch', 'terminate', 'screenshot', 'openUrl', 'describe', 'input',
 ])
 
 /**
@@ -109,6 +109,45 @@ class FakeSimProvider extends IosSimulator {
   override async doOpenUrl(request: Parameters<IosSimulator['openUrl']>[0]): Promise<{ simulatorId: ReturnType<typeof SimulatorId> }> {
     FakeSimProvider.calls.push(`openurl:${request.url}`)
     return { simulatorId: request.simulator ?? SimulatorId('UDID-A') }
+  }
+
+  override async doDescribe(_request: Parameters<IosSimulator['describe']>[0]): Promise<Awaited<ReturnType<IosSimulator['describe']>>> {
+    FakeSimProvider.calls.push('describe')
+    return {
+      simulatorId: SimulatorId('UDID-A'),
+      truncated: false,
+      screen: { widthPoints: 393, heightPoints: 852 },
+      root: {
+        reference: '0',
+        role: 'Application',
+        label: 'Settings',
+        enabled: true,
+        children: [
+          {
+            reference: '0.0',
+            role: 'Button',
+            label: 'Continue',
+            frame: { xPoints: 20, yPoints: 100, widthPoints: 200, heightPoints: 44 },
+            enabled: true,
+            children: [],
+          },
+        ],
+      },
+    }
+  }
+
+  override async doInput(request: Parameters<IosSimulator['input']>[0]): Promise<Awaited<ReturnType<IosSimulator['input']>>> {
+    const action = request.action
+    FakeSimProvider.calls.push(`input:${action.kind}`)
+    const actedAt = action.kind === 'swipe'
+      ? action.start
+      : (action.kind === 'tap' || action.kind === 'text') && action.target.kind === 'point'
+        ? action.target.at
+        : undefined
+    return {
+      simulatorId: request.simulator ?? SimulatorId('UDID-A'),
+      ...(actedAt === undefined ? {} : { actedAt }),
+    }
   }
 }
 
@@ -374,5 +413,103 @@ describe('sim_screenshot', () => {
     expect(ToolIosSim.imageViewFromMeta({ card: 'chart' })).toBeUndefined()
     expect(ToolIosSim.imageViewFromMeta({ device: 'd', image: { attachmentId: '', mediaType: '', bytes: -1, width: 0, height: 0 } }))
       .toBeUndefined()
+  })
+})
+
+describe('sim_describe', () => {
+  it('returns the availability tree with references and appends an elements-count record', async () => {
+    const ctx = await setup()
+    const agent = agentOn('vision-model')
+    const result = await call(ctx, 'sim_describe', {}, agent)
+    expect(result.isError).toBe(false)
+    if (result.isError) throw new Error('expected success')
+    expect(result.value).toMatchObject({
+      simulatorId: 'UDID-A',
+      truncated: false,
+      screen: { widthPoints: 393, heightPoints: 852 },
+      elements: [
+        expect.objectContaining({ reference: '0', role: 'Application', label: 'Settings' }),
+        expect.objectContaining({ reference: '0.0', role: 'Button', frame: { x: 20, y: 100, width: 200, height: 44 } }),
+      ],
+    })
+    expect(oneEvent(agent.session, 'describe')).toEqual({ action: 'describe', simulatorId: 'UDID-A', elements: 2 })
+    const rendered = JSON.stringify(result.content)
+    expect(rendered).toContain('- [0.0] Button')
+  })
+
+  it('rejects on a provider that advertises nothing, with the unavailable-code identity', async () => {
+    const ctx = await setup({}, EmptyAdvertisedProvider)
+    const result = await call(ctx, 'sim_describe', {})
+    expect(result.isError).toBe(true)
+    expect(result.error?.info?.code).toBe('SIMULATOR_CAPABILITY_UNAVAILABLE')
+  })
+})
+
+describe('sim_input', () => {
+  it('taps a point target, echoes the landing point, and records the gesture', async () => {
+    const ctx = await setup()
+    const agent = agentOn('vision-model')
+    const result = await call(ctx, 'sim_input', { action: 'tap', x: 55, y: 66 }, agent)
+    expect(result.isError).toBe(false)
+    if (result.isError) throw new Error('expected success')
+    expect(result.value).toEqual({ simulatorId: 'UDID-A', inputAction: 'tap', actedAt: { xPoints: 55, yPoints: 66 } })
+    expect(oneEvent(agent.session, 'input')).toEqual({
+      action: 'input',
+      simulatorId: 'UDID-A',
+      inputAction: 'tap',
+      target: 'point 55,66',
+    })
+    const rendered = JSON.stringify(result.content)
+    expect(rendered).toContain('55,66')
+  })
+
+  it('acts on an element reference and names the reference in the audit record', async () => {
+    const ctx = await setup()
+    const agent = agentOn('vision-model')
+    const result = await call(ctx, 'sim_input', { action: 'tap', reference: '0.0' }, agent)
+    expect(result.isError).toBe(false)
+    expect(oneEvent(agent.session, 'input')).toEqual({
+      action: 'input',
+      simulatorId: 'UDID-A',
+      inputAction: 'tap',
+      target: 'element 0.0',
+    })
+  })
+
+  it('never records the text a text entry set', async () => {
+    const ctx = await setup()
+    const agent = agentOn('vision-model')
+    const result = await call(ctx, 'sim_input', { action: 'text', reference: '0.0', text: 'hunter2-secret' }, agent)
+    expect(result.isError).toBe(false)
+    const dumped = JSON.stringify(eventsOf(agent.session))
+    expect(dumped).not.toContain('hunter2-secret')
+    expect(oneEvent(agent.session, 'input')).toEqual({
+      action: 'input',
+      simulatorId: 'UDID-A',
+      inputAction: 'text',
+      target: 'element 0.0',
+    })
+  })
+
+  it('presses a key by HID usage code with no landing point', async () => {
+    const ctx = await setup()
+    const agent = agentOn('vision-model')
+    const result = await call(ctx, 'sim_input', { action: 'key', usage: 40 }, agent)
+    expect(result.value).toEqual({ simulatorId: 'UDID-A', inputAction: 'key' })
+    expect(oneEvent(agent.session, 'input').target).toBe('device')
+  })
+
+  it('rejects a half-filled gesture with the repair in the message', async () => {
+    const ctx = await setup()
+    const result = await call(ctx, 'sim_input', { action: 'tap' })
+    expect(result.isError).toBe(true)
+    expect(result.error?.message ?? '').toContain('needs a target')
+  })
+
+  it('rejects on a provider that advertises nothing, with the unavailable-code identity', async () => {
+    const ctx = await setup({}, EmptyAdvertisedProvider)
+    const result = await call(ctx, 'sim_input', { action: 'tap', x: 1, y: 2 })
+    expect(result.isError).toBe(true)
+    expect(result.error?.info?.code).toBe('SIMULATOR_CAPABILITY_UNAVAILABLE')
   })
 })

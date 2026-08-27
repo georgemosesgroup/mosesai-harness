@@ -32,6 +32,8 @@ export const IOS_SIM_ACTIONS: ReadonlySet<IosSimActionEventData['action']> = new
   'launch',
   'openurl',
   'screenshot',
+  'describe',
+  'input',
 ])
 
 /**
@@ -71,6 +73,19 @@ export function validateActionEvent(data: unknown, fail: (message: string) => vo
       break
     case 'screenshot':
       validateImageFacts(record.image, fail)
+      break
+    case 'describe':
+      if (typeof record.elements !== 'number' || !Number.isInteger(record.elements) || record.elements < 0) {
+        fail('iosSim/action describe needs a non-negative integer elements count')
+      }
+      break
+    case 'input':
+      if (record.inputAction !== undefined && !['tap', 'swipe', 'key', 'text'].includes(record.inputAction as string)) {
+        fail(`iosSim/action input carries unknown inputAction ${JSON.stringify(record.inputAction)}`)
+      }
+      if (typeof record.target !== 'string' || record.target.length === 0) {
+        fail('iosSim/action input needs the target descriptor it acted on')
+      }
       break
     default:
       fail('unreachable') // closed by IOS_SIM_ACTIONS above

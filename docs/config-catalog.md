@@ -916,7 +916,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/iossim/ios-sim-native/src/index.ts:57`](../packages/iossim/ios-sim-native/src/index.ts)
+Source: [`packages/iossim/ios-sim-native/src/index.ts:61`](../packages/iossim/ios-sim-native/src/index.ts)
 
 <a id="deepseek-aidsh-ios-sim-simctl"></a>
 

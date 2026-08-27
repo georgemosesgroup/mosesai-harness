@@ -2,9 +2,9 @@
 
 [English](README.md) | 中文
 
-面向模型的 iOS 模拟器工具，架在[能力接缝](../ios-sim/README.zh.md)（`ctx.iosSimulator`）上。Phase 1 注册且仅注册四个动词——`sim_list`、`sim_launch`、`sim_open_url`、`sim_screenshot`——每次成功调用都会向调用 agent 的会话日志追加一条 **`iosSim/action`** 记录，回放时即可还原"哪台设备被做了什么"。Schema 自动汇入生成的 [tool catalog](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-ios-sim)；本文件只写增量。
+面向模型的 iOS 模拟器工具，架在[能力接缝](../ios-sim/README.zh.md)（`ctx.iosSimulator`）上。本包注册六个工具——`sim_list`、`sim_launch`、`sim_open_url`、`sim_screenshot`（phase 1）与 `sim_describe`、`sim_input`（phase 3，由[原生提供方](../ios-sim-native/README.zh.md)承载）——每次成功调用都会向调用 agent 的会话日志追加一条 **`iosSim/action`** 记录，回放时即可还原"哪台设备被做了什么"。Schema 自动汇入生成的 [tool catalog](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-ios-sim)；本文件只写增量。
 
-没有输入动词、没有面板：`describe` 与 `input` 依赖 [Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md) 中规划的原生提供方——公开的 `simctl` substrate 既无触控注入也无可用性树读取，任何构建其上的提供方都不可能实现它们；针对截图的坐标点击在设计上不可达，工具描述已用模型可见文本说明这一点。
+`sim_describe` 读取最前台应用的可用性树并铸造稳定的元素引用；`sim_input` 执行一次手势——点按、滑动、按键、文本输入——目标要么是元素引用，要么是设备坐标中的点。两个动词都需要[原生提供方](../ios-sim-native/README.zh.md)：公开的 `simctl` substrate 既无触控注入也无可用性树读取，任何构建其上的提供方都不可能实现它们（[Agent Note](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。`input` 的审计记录点明其目标——元素引用或设备点——而永不携带文本输入设置的文本。
 
 ## 渲染意图——先决定后实现
 
@@ -22,11 +22,11 @@
 
 ## Model Experience
 
-### 四个 phase-1 工具
+### 工具
 
 #### What the model sees
 
-`sim_list(device?)` 返回 id/名称/状态/runtime；`sim_launch(bundle_id, device?)`、`sim_open_url(url, device?)`、`sim_screenshot(device?)` 回显解析后的目标，后续调用得以显式指名设备。launch 报告 substrate 打印的 pid；provider 无法背书点几何时给出 geometry note；截图返回一小段信封（`<device>`、像素尺寸、原生栅格警示）加一个已提交的 image block。
+`sim_list(device?)` 返回 id/名称/状态/runtime；`sim_launch(bundle_id, device?)`、`sim_open_url(url, device?)`、`sim_screenshot(device?)` 回显解析后的目标，后续调用得以显式指名设备。launch 报告 substrate 打印的 pid；provider 无法背书点几何时给出 geometry note；截图返回一小段信封（`<device>`、像素尺寸、原生栅格警示）加一个已提交的 image block。`sim_describe(device?)` 返回最前台应用的可用性树——元素引用、role、label、以点为单位的 frame、enabled 状态——`sim_input(action, target, …)` 对元素引用或设备点执行一次手势并回显落点。
 
 #### Token effect
 
@@ -34,10 +34,10 @@
 
 #### KV Cache effect
 
-在工具目录本身稳定的前提下 append-only：schema 加入稳定的前缀；结果延展上下文；image block 跨轮驻留直至淘汰策略移除旧图——届时以元素引用（phase 2）为主的交互仍可修正，而不必重读过期栅格。失败→重试环不会失效缓存但确实增长后缀；为此才有修复型提示词。
+在工具目录本身稳定的前提下 append-only：schema 加入稳定的前缀；结果延展上下文；image block 跨轮驻留直至淘汰策略移除旧图——元素引用让交互可修正而不必重读过期栅格——但重新 describe 会对活 UI 重新分页，过期的引用会响亮失败。失败→重试环不会失效缓存但确实增长后缀；为此才有修复型提示词。
 
 ## Known Limitations and Deferred Work
 
 - **GUI 中截图卡片暂显示元数据而非栅格**——工具面板尚无会话授权的加载器；`card: 'image'` 的数据通路与回退行为已完成。
-- **没有 describe/input/stream 工具**——契约动词以 `SIMULATOR_CAPABILITY_UNAVAILABLE` 拒绝；公开 `simctl` 表面上的提供方无法实现这些动词，工具将随规划中的原生提供方到来。
+- **没有 stream 工具**——`'stream'` 仍是保留的能力名（尚无方法）留给未来的视频表面（[note 的阶梯](../../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
 - **无部署/构建助手**——应用部署不在 phase 1；接缝已带 `install` 供实现的 provider 使用。
