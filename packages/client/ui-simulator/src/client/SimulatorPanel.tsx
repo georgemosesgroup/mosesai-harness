@@ -6,6 +6,8 @@
  */
 
 import { useEffect, useRef, useState } from 'react'
+import clsx from 'clsx'
+import styles from './SimulatorPanel.module.css'
 
 interface DeviceRow {
   id: string
@@ -21,6 +23,9 @@ type ServerMessage =
 
 type StreamCodec = 'h264' | 'hevc' | 'mjpeg'
 
+/** Cap the pre-open chunk queue: the init segment plus a few frames at most. */
+const PRE_OPEN_QUEUE_CAP = 16
+
 /**
  * The panel view. Renders the device picker, the connect/start controls, and
  * the live surface; all substrate facts arrive over the socket.
@@ -30,7 +35,7 @@ export function SimulatorPanel(): React.JSX.Element {
   const [device, setDevice] = useState<string | undefined>(undefined)
   const [status, setStatus] = useState('连接中…')
   const [error, setError] = useState<string | undefined>(undefined)
-  const [inventoryNote, setInventoryNote] = useState<string | undefined>(undefined)
+  const [autoTargetHint, setAutoTargetHint] = useState(false)
   const [codec, setCodec] = useState<StreamCodec | undefined>(undefined)
   const socketRef = useRef<WebSocket | undefined>(undefined)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -38,6 +43,7 @@ export function SimulatorPanel(): React.JSX.Element {
   const mediaSourceRef = useRef<MediaSource | null>(null)
   const codecRef = useRef<StreamCodec | undefined>(undefined)
   const queueRef = useRef<ArrayBuffer[]>([])
+  const sourceOpenRef = useRef(false)
 
   useEffect(() => {
     const protocol = location.protocol === 'https:' ? 'wss' : 'ws'
@@ -52,7 +58,7 @@ export function SimulatorPanel(): React.JSX.Element {
       setStatus('连接已断开')
     }
     socket.onerror = () => {
-      setError('socket error')
+      setError('连接错误')
     }
 
     socket.onmessage = (event: MessageEvent) => {
@@ -65,10 +71,14 @@ export function SimulatorPanel(): React.JSX.Element {
       switch (message.type) {
         case 'devices':
           setDevices(message.devices)
-          setInventoryNote(message.note)
-          setStatus(message.devices.length === 0
-            ? (message.note ?? '没有已启动的模拟器')
-            : (message.devices.some(d => d.state === 'booted') ? '已就绪' : '没有已启动的模拟器'))
+          // A provider without the list verb still streams: starting without
+          // a device lets the helper resolve the single booted one. The raw
+          // diagnostic stays in the console; the panel speaks product copy.
+          if (message.note !== undefined) {
+            setAutoTargetHint(true)
+            console.warn('device inventory unavailable:', message.note)
+          }
+          setStatus(message.devices.length === 0 ? '就绪 — 点击启动' : '已就绪')
           break
         case 'meta':
           setCodec(message.codec as StreamCodec)
@@ -80,6 +90,7 @@ export function SimulatorPanel(): React.JSX.Element {
           setStatus('直播已停止')
           setCodec(undefined)
           codecRef.current = undefined
+          releaseMediaSource()
           break
         case 'error':
           setError(message.message)
@@ -90,6 +101,7 @@ export function SimulatorPanel(): React.JSX.Element {
     return () => {
       socket.close()
       socketRef.current = undefined
+      releaseMediaSource()
     }
   }, [])
 
@@ -97,10 +109,20 @@ export function SimulatorPanel(): React.JSX.Element {
   function appendEncoded(chunk: ArrayBuffer): void {
     const mediaSource = mediaSourceRef.current
     const video = videoRef.current
-    if (mediaSource === null || video === null) return
-    if (mediaSource.readyState !== 'open' || mediaSource.sourceBuffers.length === 0) return
-    const sourceBuffer = mediaSource.sourceBuffers[0]
-    if (sourceBuffer === undefined || sourceBuffer.updating) {
+    // Chunks that arrive before the source buffer exists — the fMP4 init
+    // segment among them — are queued, never dropped: without the init
+    // segment the decode pipeline renders nothing.
+    if (mediaSource === null || video === null || mediaSource.readyState !== 'open' || mediaSource.sourceBuffers.length === 0) {
+      if (queueRef.current.length < PRE_OPEN_QUEUE_CAP) queueRef.current.push(chunk)
+      return
+    }
+    const buffer = mediaSource.sourceBuffers[0]
+    if (buffer === undefined) return
+    enqueueToSourceBuffer(buffer, chunk)
+  }
+
+  function enqueueToSourceBuffer(sourceBuffer: SourceBuffer, chunk: ArrayBuffer): void {
+    if (sourceBuffer.updating) {
       queueRef.current.push(chunk)
       return
     }
@@ -113,26 +135,51 @@ export function SimulatorPanel(): React.JSX.Element {
 
   function prepareMediaSource(codec: string): void {
     const mimeType = codec === 'hevc' ? 'video/mp4; codecs="hvc1.1.6.L93.B0"' : 'video/mp4; codecs="avc1.640028"'
+    queueRef.current = []
+    sourceOpenRef.current = false
     const mediaSource = new MediaSource()
     mediaSourceRef.current = mediaSource
     const video = videoRef.current
     if (video === null) return
-    video.src = URL.createObjectURL(mediaSource)
     mediaSource.addEventListener('sourceopen', () => {
       try {
-        const sourceBuffer = mediaSource.addSourceBuffer(mimeType)
-        sourceBuffer.mode = 'segments'
-        sourceBuffer.addEventListener('updateend', () => {
+        const buffer = mediaSource.addSourceBuffer(mimeType)
+        buffer.mode = 'segments'
+        buffer.addEventListener('updateend', () => {
           const next = queueRef.current.shift()
-          if (next !== undefined && !sourceBuffer.updating) sourceBuffer.appendBuffer(next)
+          if (next !== undefined && !buffer.updating) enqueueToSourceBuffer(buffer, next)
         })
-        sourceBuffer.addEventListener('error', () => {
+        buffer.addEventListener('error', () => {
           setError('解码管线报告错误')
         })
+        sourceOpenRef.current = true
+        // Flush whatever arrived before the buffer existed (the init segment).
+        while (queueRef.current.length > 0 && !buffer.updating) {
+          const next = queueRef.current.shift()
+          if (next !== undefined) enqueueToSourceBuffer(buffer, next)
+        }
       } catch (cause) {
-        setError(`MSE 拒绝了 "${mimeType}": ${String(cause)} — 可在设置中切换为 mjpeg`)
+        setError(`MSE 拒绝了 "${mimeType}": ${String(cause)} — 可切换为 mjpeg`)
       }
     })
+    video.src = URL.createObjectURL(mediaSource)
+    void video.play().catch(() => {
+      // Autoplay rejection is benign: the user presses play on the muted element.
+    })
+  }
+
+  function releaseMediaSource(): void {
+    const mediaSource = mediaSourceRef.current
+    if (mediaSource !== null && mediaSource.readyState === 'open') {
+      try {
+        mediaSource.endOfStream()
+      } catch {
+        // A teardown race (source already ended) is safe to ignore.
+      }
+    }
+    mediaSourceRef.current = null
+    queueRef.current = []
+    sourceOpenRef.current = false
   }
 
   /** Render one mjpeg frame onto the canvas. */
@@ -166,9 +213,10 @@ export function SimulatorPanel(): React.JSX.Element {
   const streaming = codec !== undefined
 
   return (
-    <div className="simulator-panel">
-      <div className="simulator-panel-controls">
+    <div className={styles.panel}>
+      <div className={styles.controls}>
         <select
+          className={styles.picker}
           value={device ?? ''}
           onChange={(event) => {
             setDevice(event.target.value === '' ? undefined : event.target.value)
@@ -179,16 +227,20 @@ export function SimulatorPanel(): React.JSX.Element {
             <option key={d.id} value={d.id}>{d.name} [{d.state}]</option>
           ))}
         </select>
-        <button type="button" onClick={start} disabled={streaming}>启动</button>
-        <button type="button" onClick={stop} disabled={!streaming}>停止</button>
-        <span>{status}</span>
-        {codec !== undefined && <span>codec: {codec}</span>}
+        <button type="button" className={styles.button} onClick={start} disabled={streaming}>启动</button>
+        <button type="button" className={styles.button} onClick={stop} disabled={!streaming}>停止</button>
+        <span className={clsx(styles.status, streaming && styles.live)}>{status}</span>
       </div>
-      {inventoryNote !== undefined && <div className="simulator-panel-note">{inventoryNote}</div>}
-      {error !== undefined && <div className="simulator-panel-error">{error}</div>}
-      {codec !== undefined && codec !== 'mjpeg'
-        ? <video ref={videoRef} autoPlay muted playsInline />
-        : <canvas ref={canvasRef} />}
+      {autoTargetHint && !streaming && (
+        <div className={styles.note}>未提供设备清单 — 启动时自动选择唯一已启动的模拟器</div>
+      )}
+      {error !== undefined && <div className={styles.error}>{error}</div>}
+      <div className={styles.surface}>
+        {codec !== undefined && codec !== 'mjpeg'
+          ? <video ref={videoRef} autoPlay muted playsInline className={styles.video} />
+          : <canvas ref={canvasRef} className={clsx(styles.canvas, !streaming && styles.hidden)} />}
+        {!streaming && <div className={styles.placeholder}>选择设备后点击「启动」观看实时画面</div>}
+      </div>
     </div>
   )
 }
