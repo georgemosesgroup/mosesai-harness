@@ -7,7 +7,7 @@ English | [中文](2026-08-27-ios-simulator-native-provider.zh.md)
 
 ## Problem
 
-The [level-0 seam](../../implemented/architecture/2026-08-27-ios-simulator-seam.md) declares `describe`, `input`, and `stream` as contract members that reject until a provider implements them, and names an idb-class provider as their future home. That note is correct about the destination and silent about what reaching it costs, and the surrounding prose has been read as if the remaining work were another TypeScript package over the same substrate. It is not, and the difference decides whether phase-2 work can start at all.
+The [level-0 seam](./2026-08-27-ios-simulator-seam.md) declares `describe`, `input`, and `stream` as contract members that reject until a provider implements them, and names an idb-class provider as their future home. That note is correct about the destination and silent about what reaching it costs, and the surrounding prose has been read as if the remaining work were another TypeScript package over the same substrate. It is not, and the difference decides whether phase-2 work can start at all.
 
 `xcrun simctl` on a current Xcode exposes no touch injection and no availability-tree read; its `ui` subcommand sets appearance and content size only. No argument, timeout, or parsing effort makes `doDescribe` or `doInput` reachable from `dsh-ios-sim-simctl`: the operations are absent from the substrate, not merely awkward. Any phase-2 branch built on that provider is dead before review, so the plan must say so in the repository rather than in a reviewer's head.
 
@@ -87,3 +87,7 @@ Every phase updates the subsystem page, the affected package READMEs, and both S
 The seam's ten-name vocabulary is fully served, and the gate that made the level-0 provider honest makes every growth honest the same way: each capability arrived with its own proof surface (describe: the tree; input: the resolved landing point; stream: the encoded chunk flow).
 
 The cost: a native build matrix, ad-hoc code signing, and a supervised process now ride in the repository's runtime; vendored framework sources age against Xcode releases, whose private interfaces move. The simctl provider stays mounted as the fallback for list, launch, and screenshot, bounding the damage of a helper break to the served set. `SESSION_FORMAT_VERSION` stayed at `0` throughout — vocabulary growth, never a structural log change.
+
+## Related
+
+The GUI panel consuming `stream` and `input` is proposed separately: [the simulator-panel note](../../proposed/architecture/2026-08-27-ios-simulator-panel.md).

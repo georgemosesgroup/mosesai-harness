@@ -87,3 +87,7 @@ Phase 4 完成的标志是：帧率、缩放与编码器是经校验的提供方
 接缝的十名能力词汇全部得到服务，使 level-0 提供方诚实的同一道 gate 让每次成长都同样诚实：每项能力都带着自己的证明面（describe：树；input：解析后的落点；stream：编码块的流动）。
 
 代价：原生构建矩阵、ad-hoc 签名与一个受监管进程进入了仓库的运行时；vendored 框架源码会相对 Xcode 发布而老化，其私有接口会移动。simctl 提供方作为回退继续挂载 list、launch 与 screenshot，把 helper 损坏的损害限定在已服务的集合。`SESSION_FORMAT_VERSION` 全程保持 `0`——词汇增长，而非结构性日志变更。
+
+## 相关
+
+消费 `stream` 与 `input` 的 GUI 面板另行提案：[模拟器面板 note](../../proposed/architecture/2026-08-27-ios-simulator-panel.zh.md)。
