@@ -84,7 +84,6 @@ export function SimulatorPanel(): React.JSX.Element {
           setCodec(message.codec as StreamCodec)
           codecRef.current = message.codec as StreamCodec
           setStatus(`直播中（${message.codec}）`)
-          if (message.codec !== 'mjpeg') prepareMediaSource(message.codec)
           break
         case 'end':
           setStatus('直播已停止')
@@ -132,6 +131,17 @@ export function SimulatorPanel(): React.JSX.Element {
       setError(`解码管线拒绝了一个数据块: ${String(cause)}`)
     }
   }
+
+  // The MediaSource lifecycle runs in an effect: the `<video>` element is
+  // mounted by the same codec state, and the element must exist before the
+  // blob URL can be assigned (sourceopen never fires otherwise).
+  useEffect(() => {
+    if (codec === undefined || codec === 'mjpeg') return
+    prepareMediaSource(codec)
+    return () => {
+      releaseMediaSource()
+    }
+  }, [codec])
 
   function prepareMediaSource(codec: string): void {
     const mimeType = codec === 'hevc' ? 'video/mp4; codecs="hvc1.1.6.L93.B0"' : 'video/mp4; codecs="avc1.640028"'
