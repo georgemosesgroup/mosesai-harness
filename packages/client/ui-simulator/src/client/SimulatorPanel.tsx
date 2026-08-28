@@ -14,7 +14,7 @@ interface DeviceRow {
 }
 
 type ServerMessage =
-  | { type: 'devices'; devices: DeviceRow[] }
+  | { type: 'devices'; devices: DeviceRow[]; note?: string }
   | { type: 'meta'; codec: string }
   | { type: 'end' }
   | { type: 'error'; message: string }
@@ -30,6 +30,7 @@ export function SimulatorPanel(): React.JSX.Element {
   const [device, setDevice] = useState<string | undefined>(undefined)
   const [status, setStatus] = useState('连接中…')
   const [error, setError] = useState<string | undefined>(undefined)
+  const [inventoryNote, setInventoryNote] = useState<string | undefined>(undefined)
   const [codec, setCodec] = useState<StreamCodec | undefined>(undefined)
   const socketRef = useRef<WebSocket | undefined>(undefined)
   const videoRef = useRef<HTMLVideoElement | null>(null)
@@ -64,7 +65,10 @@ export function SimulatorPanel(): React.JSX.Element {
       switch (message.type) {
         case 'devices':
           setDevices(message.devices)
-          setStatus(message.devices.some(d => d.state === 'booted') ? 'ready' : 'no booted device')
+          setInventoryNote(message.note)
+          setStatus(message.devices.length === 0
+            ? (message.note ?? '没有已启动的模拟器')
+            : (message.devices.some(d => d.state === 'booted') ? '已就绪' : '没有已启动的模拟器'))
           break
         case 'meta':
           setCodec(message.codec as StreamCodec)
@@ -103,7 +107,7 @@ export function SimulatorPanel(): React.JSX.Element {
     try {
       sourceBuffer.appendBuffer(chunk)
     } catch (cause) {
-      setError(`decode pipeline rejected a chunk: ${String(cause)}`)
+      setError(`解码管线拒绝了一个数据块: ${String(cause)}`)
     }
   }
 
@@ -123,10 +127,10 @@ export function SimulatorPanel(): React.JSX.Element {
           if (next !== undefined && !sourceBuffer.updating) sourceBuffer.appendBuffer(next)
         })
         sourceBuffer.addEventListener('error', () => {
-          setError('the decode pipeline reported an error')
+          setError('解码管线报告错误')
         })
       } catch (cause) {
-        setError(`MSE refused "${mimeType}": ${String(cause)} — falling back to mjpeg is a panel setting`)
+        setError(`MSE 拒绝了 "${mimeType}": ${String(cause)} — 可在设置中切换为 mjpeg`)
       }
     })
   }
@@ -143,7 +147,7 @@ export function SimulatorPanel(): React.JSX.Element {
       context.drawImage(bitmap, 0, 0)
       bitmap.close()
     }).catch((cause: unknown) => {
-      setError(`an mjpeg frame failed to decode: ${String(cause)}`)
+      setError(`mjpeg 帧解码失败: ${String(cause)}`)
     })
   }
 
@@ -152,13 +156,14 @@ export function SimulatorPanel(): React.JSX.Element {
     socketRef.current?.send(JSON.stringify({
       action: 'start',
       ...(device === undefined ? {} : { device }),
-      codec: 'h264',
     }))
   }
 
   function stop(): void {
     socketRef.current?.send(JSON.stringify({ action: 'stop' }))
   }
+
+  const streaming = codec !== undefined
 
   return (
     <div className="simulator-panel">
@@ -174,14 +179,16 @@ export function SimulatorPanel(): React.JSX.Element {
             <option key={d.id} value={d.id}>{d.name} [{d.state}]</option>
           ))}
         </select>
-        <button type="button" onClick={start} disabled={status.startsWith('streaming')}>启动</button>
-        <button type="button" onClick={stop} disabled={!status.startsWith('streaming')}>停止</button>
+        <button type="button" onClick={start} disabled={streaming}>启动</button>
+        <button type="button" onClick={stop} disabled={!streaming}>停止</button>
         <span>{status}</span>
         {codec !== undefined && <span>codec: {codec}</span>}
       </div>
+      {inventoryNote !== undefined && <div className="simulator-panel-note">{inventoryNote}</div>}
       {error !== undefined && <div className="simulator-panel-error">{error}</div>}
-      <video ref={videoRef} autoPlay muted playsInline className={codec === undefined || codec === 'mjpeg' ? 'hidden' : ''} />
-      <canvas ref={canvasRef} className={codec === 'mjpeg' ? '' : 'hidden'} />
+      {codec !== undefined && codec !== 'mjpeg'
+        ? <video ref={videoRef} autoPlay muted playsInline />
+        : <canvas ref={canvasRef} />}
     </div>
   )
 }

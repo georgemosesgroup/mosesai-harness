@@ -195,9 +195,14 @@ export async function startHelper(options: HelperStartOptions): Promise<LiveHelp
     )
   }
 
+  // ONE shared stdout iterator: the hello read consumes the first frame from
+  // it, and the dispatch loop continues from the same buffered position. A
+  // second iterator would race this one for stream chunks and split frames.
+  const incoming = rawFrames(handle.stdout)
+
   async function dispatchLoop(): Promise<void> {
     try {
-      for await (const frame of rawFrames(handle.stdout as NonNullable<typeof handle.stdout>)) {
+      for await (const frame of incoming) {
         if (frame.type === FRAME_VIDEO) {
           videoSink?.(frame.payload)
           continue
@@ -207,9 +212,6 @@ export async function startHelper(options: HelperStartOptions): Promise<LiveHelp
         if (typeof json.id !== 'number') continue
         const waiter = waiters.get(json.id)
         if (waiter === undefined) {
-          // An answer whose id matches no pending request is a pairing
-          // breach: every pending request rejects rather than waiting on a
-          // response that will never come.
           const breach = new SimulatorError(
             `the helper answered frame ${String(json.id)} with no matching in-flight request; framing is broken`,
             'SIMULATOR_HELPER_PROTOCOL_BROKEN',
@@ -237,7 +239,6 @@ export async function startHelper(options: HelperStartOptions): Promise<LiveHelp
 
   // The hello is the launch proof: read it synchronously before any request
   // can be written.
-  const incoming = rawFrames(handle.stdout)
   let hello: ProtocolFrame | undefined
   try {
     const first = await incoming.next()

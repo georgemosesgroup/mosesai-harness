@@ -302,8 +302,13 @@
     - id: ui-dif-explorer
       name: '@deepseek-ai/dsh-client-ui-dif-explorer'
 
-    # The iOS-simulator panel: a live framebuffer view over the panel bridge;
-    # streaming requires a stream-capable provider (dsh-ios-sim-native).
+    # The iOS-simulator stack: the native provider (live framebuffer stream +
+    # availability tree + input over the vendored idb frameworks), the sim_*
+    # tools for the agent, and the panel tab over its WebSocket bridge.
+    - id: ios-sim-native
+      name: '@deepseek-ai/dsh-ios-sim-native'
+    - id: tool-ios-sim
+      name: '@deepseek-ai/dsh-tool-ios-sim'
     - id: ios-sim-panel
       name: '@deepseek-ai/dsh-ios-sim-panel'
     - id: ui-simulator

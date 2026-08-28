@@ -145,18 +145,21 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
 
   void Promise.resolve()
     .then(async () => {
-      const devices = await simulator.list()
-      send(ws, {
-        type: 'devices',
-        devices: devices.map(d => ({
-          id: String(d.id),
-          name: d.name,
-          state: d.state,
-        })),
-      })
-    })
-    .catch((cause: unknown) => {
-      send(ws, errorBody(cause))
+      try {
+        const devices = await simulator.list()
+        send(ws, {
+          type: 'devices',
+          devices: devices.map(d => ({
+            id: String(d.id),
+            name: d.name,
+            state: d.state,
+          })),
+        })
+      } catch (cause) {
+        // A provider without the list verb still streams: starting without a
+        // device lets the helper resolve the single booted one.
+        send(ws, { type: 'devices', devices: [], note: errorBody(cause).message })
+      }
     })
 
   ws.on('message', (data: Buffer) => {

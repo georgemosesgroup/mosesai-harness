@@ -80,7 +80,9 @@ final class FrameReader: @unchecked Sendable {
     return Data(head)
   }
 
-  /// One framed JSON body, or `nil` at clean EOF. A frame past
+  /// One framed request payload, or `nil` at clean EOF. stdin carries type-0
+  /// (JSON) frames only: the leading type byte is validated and stripped, so
+  /// the returned body is the bare JSON payload. A frame past
   /// `MAX_FRAME_BYTES` poisons the stream framing and reports as protocol
   /// broken.
   func readFrame() throws -> Data? {
@@ -93,7 +95,10 @@ final class FrameReader: @unchecked Sendable {
     guard length > 0, length <= MAX_FRAME_BYTES else {
       throw ProtocolBroken(message: "frame length \(length) is outside the 1...\(MAX_FRAME_BYTES) byte bound")
     }
-    return try readExact(length)
+    guard let body = try readExact(length), let type = body.first, type == 0 else {
+      throw ProtocolBroken(message: "stdin frames must be type-0 (JSON)")
+    }
+    return Data(body.dropFirst())
   }
 
   /// `readFrame()` lifted onto a background queue so the blocking read never

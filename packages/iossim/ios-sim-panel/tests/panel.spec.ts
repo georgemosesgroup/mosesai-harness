@@ -210,14 +210,22 @@ describe('the panel bridge', () => {
     })).resolves.toBeUndefined()
   })
 
-  it('gates the route on a provider that advertises nothing', async () => {
+  it('gates a start on a provider that advertises nothing, after a noted empty inventory', async () => {
     const { url, close } = await mounted(BareProvider)
     closes.push(close)
     const socket = new WebSocket(url)
     sockets.push(socket)
+    // The inventory degrades to a noted empty list: a provider without the
+    // list verb still streams via the helper's own booted-device resolution.
+    const inventory = await collect(socket, frame => frame.type === 'devices')
+    const devicesFrame = inventory[0] as { devices: unknown[]; note?: string }
+    expect(devicesFrame.devices).toEqual([])
+    expect(devicesFrame.note).toContain('does not declare the "list" capability')
+    // The verb gate then refuses the start itself.
+    socket.send(JSON.stringify({ action: 'start' }))
     const seen = await collect(socket, frame => frame.type === 'error')
     const last = seen[seen.length - 1] as { message: string; code?: string }
-    expect(last.message).toContain('does not declare the "list" capability')
+    expect(last.message).toContain('does not declare the "stream" capability')
     expect(last.code).toBe('SIMULATOR_CAPABILITY_UNAVAILABLE')
   })
 })
