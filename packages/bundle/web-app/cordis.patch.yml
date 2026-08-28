@@ -302,6 +302,13 @@
     - id: ui-dif-explorer
       name: '@deepseek-ai/dsh-client-ui-dif-explorer'
 
+    # The iOS-simulator panel: a live framebuffer view over the panel bridge;
+    # streaming requires a stream-capable provider (dsh-ios-sim-native).
+    - id: ios-sim-panel
+      name: '@deepseek-ai/dsh-ios-sim-panel'
+    - id: ui-simulator
+      name: '@deepseek-ai/dsh-client-ui-simulator'
+
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
 # Every row below composes what ONE agent contributes to the host registries:

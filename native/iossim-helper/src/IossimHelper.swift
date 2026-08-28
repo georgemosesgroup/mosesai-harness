@@ -344,8 +344,9 @@ final class HelperLoop {
     let codecRaw = params["codec"] as? String ?? "h264"
     let format: FBVideoStreamFormat
     switch codecRaw {
-    case "h264": format = .compressedVideo(withCodec: .h264, transport: .annexB)
-    case "hevc": format = .compressedVideo(withCodec: .hevc, transport: .annexB)
+    // fmp4 transport: the chunks feed MediaSource Extensions in the browser directly.
+    case "h264": format = .compressedVideo(withCodec: .h264, transport: .fmp4)
+    case "hevc": format = .compressedVideo(withCodec: .hevc, transport: .fmp4)
     case "mjpeg": format = .mjpeg(encoder: .requireHardware)
     default:
       throw RequestFailure(

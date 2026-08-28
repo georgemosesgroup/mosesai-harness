@@ -926,6 +926,24 @@ export interface Config {
 
 Source: [`packages/iossim/ios-sim-native/src/index.ts:73`](../packages/iossim/ios-sim-native/src/index.ts)
 
+<a id="deepseek-aidsh-ios-sim-panel"></a>
+
+## `@deepseek-ai/dsh-ios-sim-panel`
+
+Requires: `webServer` · `iosSimulator`
+
+```ts config-catalog
+/** Plugin config (all optional). */
+export interface Config {
+  /** Absolute pathname of the upgrade route. Default: /ios-simulator/stream. */
+  path?: string
+  /** Extra trusted Host authorities beyond loopback (DNS-rebinding fence). */
+  trustedHosts?: string[]
+}
+```
+
+Source: [`packages/iossim/ios-sim-panel/src/index.ts:31`](../packages/iossim/ios-sim-panel/src/index.ts)
+
 <a id="deepseek-aidsh-ios-sim-simctl"></a>
 
 ## `@deepseek-ai/dsh-ios-sim-simctl`
@@ -1793,7 +1811,7 @@ export interface Config {
 }
 ```
 
-Source: [`packages/security/security-scan-local-moses/src/index.ts:101`](../packages/security/security-scan-local-moses/src/index.ts)
+Source: [`packages/security/security-scan-local-moses/src/index.ts:104`](../packages/security/security-scan-local-moses/src/index.ts)
 
 <a id="deepseek-aidsh-security-scan-moses"></a>
 
@@ -3436,6 +3454,7 @@ These load from a `cordis.yml` entry with no `config:` block; they declare no co
 - `@deepseek-ai/dsh-client-ui-settings-plugin-inventory` ([`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-settings-plugins` ([`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-sidebar` ([`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts))
+- `@deepseek-ai/dsh-client-ui-simulator` ([`packages/client/ui-simulator/src/index.ts`](../packages/client/ui-simulator/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-skill` ([`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-subagent` ([`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts))
 - `@deepseek-ai/dsh-client-ui-theme` ([`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts))

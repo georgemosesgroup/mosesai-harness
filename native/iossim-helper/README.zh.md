@@ -16,7 +16,7 @@
 - **响应。** 成功：`{"id": N, "ok": true, "result": …}`。失败：`{"id": N, "ok": false, "error": {"code": …, "message": …}}`——`code` 来自模拟器接缝的失败词汇（`SIMULATOR_DEVICE_NOT_FOUND`、`SIMULATOR_TARGET_AMBIGUOUS`……），每次失败跨进程边界仍保有各自的修复路径。
 - **describe 结果。** `{simulatorId, root?, screen?, truncated}`——`root` 是最前台应用可用性树的框架自有序列化形态（role、label、identifier、以点为单位的 frame、enabled、children），读取无可报告之物时缺席，`screen` 是已实证的显示尺寸（点），`truncated` 表示读取是否被截断。
 - **input 结果。** `{simulatorId, actedAt?}`——`actedAt` 是手势落点（tap/text/滑动起点）；按键不报告落点。
-- **stream。** `stream-start` 应答（`{simulatorId, codec}`）之后，type-1 帧承载 VideoToolbox 产出的编码视频——h264/hevc 为 Annex-B，mjpeg 为 MJPEG 帧——按配置的帧率与缩放。它们在控制路径保持打开的同时流动；慢消费者丢弃最旧的块而不是无限增长缓冲（实时语义）。`stream-stop` 释放 framebuffer 流；第二次 stop 也成功应答。
+- **stream。** `stream-start` 应答（`{simulatorId, codec}`）之后，type-1 帧承载 VideoToolbox 产出的编码视频——h264/hevc 为 fMP4 段（可直接喂 MSE），mjpeg 为 JPEG 帧——按配置的帧率与缩放。它们在控制路径保持打开的同时流动；慢消费者丢弃最旧的块而不是无限增长缓冲（实时语义）。`stream-stop` 释放 framebuffer 流；第二次 stop 也成功应答。
 - **诊断。** stderr 承载自由文本，永远不是协议。stdout 只是协议，别无其他。
 - **生命周期。** stdin 上的 EOF 意味着结束：helper 排干并以 `0` 退出。helper 级致命失败（错误 argv、不可写 stdout）以 `70` 退出；非零退出对提供方的监管而言就是死掉的 helper。helper 不读环境变量、不接受参数——哪个二进制服务模拟器操作，绝不由环境状态决定。
 

@@ -302,6 +302,7 @@
     { "path": "./packages/iossim/ios-sim" },
     { "path": "./packages/iossim/ios-sim-simctl" },
     { "path": "./packages/iossim/ios-sim-native" },
+    { "path": "./packages/iossim/ios-sim-panel" },
     { "path": "./packages/iossim/tool-ios-sim" },
     { "path": "./packages/host/apiproxy" },
     { "path": "./packages/host/directory-picker" },

@@ -1,6 +1,6 @@
 # Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
-#   pnpm run verify-translation-pairing --write native/iossim-helper/README.md
-README.md: 6f596d3da77dcbb2eec70d9a6af784ad5eb5aa9d
-README.zh.md: f4f7a0a73188cb191b0cff14f6163a05140e3d00
+#   pnpm run verify-translation-pairing --write packages/client/ui-simulator/README.md
+README.md: 16d5448c587e1bbd3c813aa15f1ba7ea385d7275
+README.zh.md: 1a93403ac89cfe1ec3acb74bfe4c4ca3e917e918
