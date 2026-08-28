@@ -44,4 +44,10 @@ Web GUI 中的模拟器面板：经 WebSocket 桥接、对设备 framebuffer 的
 
 ## 风险
 
-浏览器对 Annex-B H264 的解码支持不一（Chrome 与 Safari 都自带；面板加载时以 `isConfigSupported` 验证并回退 MJPEG）。framebuffer 是单消费者：Simulator.app 呈现设备时流会饿死——面板写明并链接无宿主应用启动路径。停滞的 WebSocket 消费者必须在服务端丢块，而不是缓冲。
+**Framebuffer 单消费者。** 由宿主应用（`Simulator.app`，Xcode 27 起为 `DeviceHub.app`）呈现的模拟器占用 framebuffer；helper 的流会饿死。缓解：面板提供一键**脱离**操作（退出宿主应用——已启动的设备继续运行）并以响亮的诊断信息指名当前呈现的应用；若 framebuffer 已被占用，面板降级为标注清楚的低保真截图轮询，而不强迫用户在 Simulator.app 与面板之间二选一。值得做一次实验：验证当前 Xcode 的 CoreSimulator 是否接受宿主应用之外的第二个媒体客户端（`xcrun simctl io screenshot` 可并发工作，说明媒体捕获有并发路径；只有 IOSurface 订阅看起来是独占的）。
+
+**浏览器对 Annex-B H264 的解码支持不一。** 面板加载时以 `VideoDecoder.isConfigSupported` 探测。路径阶梯，全部是框架原生：Annex-B 上的 WebCodecs（Chromium 与 Safari 均自带）→ `fmp4` 传输 + MSE（框架自带的第三种传输；普遍支持的硬件解码）→ MJPEG（任何浏览器，画质较低）。没有浏览器被落下，选择只是一个 `FBVideoStreamTransport` 值。
+
+**实时语义在消费者缓慢时丢块。** 对实时视图这是正确的——有界延迟胜过缓冲的过期。对不允许丢数据的用例，helper 提供录制（`startRecording(toFile:configuration:)` 写出真实视频文件），且编码器的码率控制（`quality` 0–1 或目标 bitrate）在链路缓慢时自适应缩小块，让丢块在发生之前就变稀有。
+
+**面板手势仅限 GUI 且不记录。** 对 agent transcript 这是有意的——但人类手势的审计痕迹确有需求。面板变更将新增一个独立的**仅记录 `iosSim/panel-action` 事件**（事件词汇增长；`SESSION_FORMAT_VERSION` 保持 `0`，依 level-0 先例）：它记录手势家族与目标，绝不携带模型上下文，派生历史忽略它。已实施 note 的面板输入决定预见到的正是这个类型。
