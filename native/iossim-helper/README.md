@@ -2,7 +2,7 @@
 
 English | [中文](README.zh.md)
 
-The native background helper behind the [`dsh-ios-sim-native` provider](../../packages/iossim/ios-sim-native/README.md): a macOS executable with no user interface that links the idb frameworks (FBSimulatorControl, FBControlCore, and their dependency closure, vendored at a pinned commit under `vendor/idb/` per [the vendoring policy](../../vendor/README.md)) and serves what the public `xcrun simctl` surface cannot. It ships exactly one operation today — `describe`, the device availability tree — because one capability is the end-to-end proof of the licence, build, and launch path before any of them carries more ([the owning Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
+The native background helper behind the `dsh-ios-sim-native` provider: a macOS executable with no user interface that links the idb frameworks (FBSimulatorControl, FBControlCore, and their dependency closure, vendored at a pinned commit under `vendor/idb/` per [the vendoring policy](../../vendor/README.md)) and serves what the public `xcrun simctl` surface cannot. It ships exactly one operation today — `describe`, the device availability tree — because one capability is the end-to-end proof of the licence, build, and launch path before any of them carries more ([the owning Agent Note](../../.agents/notes/proposed/architecture/2026-08-27-ios-simulator-native-provider.md)).
 
 The workspace follows the [landlock-run](../landlock-run/README.md) template: a two-layer npm family, one builder of record per architecture, and the binary resolved as a file path, never imported.
 
