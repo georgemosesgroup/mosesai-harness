@@ -42,21 +42,25 @@ export interface ImageCardModel {
  * @returns the image-card facts, or null for the generic path.
  */
 export function imageCardModel(block: ToolCallBlock): ImageCardModel | null {
-  if (!('kind' in block)) return null // running calls have no result view
-  const result = block.resultView
-  if (result?.card !== 'image') return null
-  if (typeof result.attachmentId !== 'string' || result.attachmentId.length === 0) return null
-  if (typeof result.mediaType !== 'string' || result.mediaType.length === 0) return null
-  for (const value of [result.bytes, result.width, result.height]) {
-    if (!Number.isInteger(value) || value <= 0) return null
+  // A settled result's presentation card rides block.meta now, in the same
+  // shape the other cards read (web/read/diff), not a resultView field.
+  if (!('kind' in block) || block.isError) return null
+  if (typeof block.meta !== 'object' || block.meta === null || Array.isArray(block.meta)) return null
+  const meta = block.meta as Record<string, unknown>
+  if (meta.card !== 'image') return null
+  if (typeof meta.attachmentId !== 'string' || meta.attachmentId.length === 0) return null
+  if (typeof meta.mediaType !== 'string' || meta.mediaType.length === 0) return null
+  const bytes = meta.bytes, width = meta.width, height = meta.height
+  for (const value of [bytes, width, height]) {
+    if (typeof value !== 'number' || !Number.isInteger(value) || value <= 0) return null
   }
-  const origin = typeof result.origin === 'string' && result.origin.length > 0 ? result.origin : undefined
+  const origin = typeof meta.origin === 'string' && meta.origin.length > 0 ? meta.origin : undefined
   return {
     ...(origin === undefined ? {} : { origin }),
-    attachmentId: result.attachmentId,
-    mediaType: result.mediaType,
-    bytes: result.bytes,
-    width: result.width,
-    height: result.height,
+    attachmentId: meta.attachmentId,
+    mediaType: meta.mediaType,
+    bytes: bytes as number,
+    width: width as number,
+    height: height as number,
   }
 }

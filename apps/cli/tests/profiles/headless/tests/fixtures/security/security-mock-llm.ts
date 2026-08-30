@@ -1,6 +1,6 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  CallId,
+  ToolCallId,
   LlmAdapter,
   ReasoningEffortId,
   type GenerateOptions,
@@ -32,8 +32,8 @@ class SecurityMockAdapter extends LlmAdapter {
     if (toolResult === undefined) {
       const args = JSON.stringify({ scanner: 'nuclei', targets: ['https://stub.test/'] })
       yield { type: 'block-start', index: 0, blockType: 'tool-call' }
-      yield { type: 'tool-call-delta', index: 0, id: CallId('security-mock-call'), name: 'security_scan', argumentsDelta: args }
-      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: CallId('security-mock-call'), name: 'security_scan', arguments: args } }
+      yield { type: 'tool-call-delta', index: 0, id: ToolCallId('security-mock-call'), name: 'security_scan', argumentsDelta: args }
+      yield { type: 'block-end', index: 0, block: { type: 'tool-call', id: ToolCallId('security-mock-call'), name: 'security_scan', arguments: args } }
       yield { type: 'usage', usage: { inputTokens: 13, outputTokens: 4 } }
       yield { type: 'finish', reason: { kind: 'tool-calls' } }
       return

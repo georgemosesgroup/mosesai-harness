@@ -2,7 +2,7 @@
 /** Composition driver: run one security_scan call through the mounted pipeline and print JSON. */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { CallId } from '@deepseek-ai/dsh-llm'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
 import { boot, installFailLoud, resolveConfigPath } from '@deepseek-ai/dsh-app-boot'
 
 const NAME = 'security-composition-driver'
@@ -16,7 +16,7 @@ let ctx: Context | undefined
 try {
   ctx = await boot(NAME, resolveConfigPath(configPath, undefined))
   const result = await ctx.tools.execute({
-    callId: CallId('security-composition'),
+    callId: ToolCallId('security-composition'),
     name: 'security_scan',
     arguments: { scanner, targets: [target] },
     signal: new AbortController().signal,

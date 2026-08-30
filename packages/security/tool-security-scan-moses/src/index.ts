@@ -23,7 +23,8 @@ import type {
   SecurityScannerId,
 } from '@deepseek-ai/dsh-security-scan-moses'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import type { GenericCallView, JsonValue, ToolResult, ToolResultView } from '@deepseek-ai/dsh-tools'
+import type { GenericCallView, ToolResult, ToolResultView } from '@deepseek-ai/dsh-tools'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import type {} from '@deepseek-ai/dsh-system-prompt'
 import type { SecurityScanMeta } from './types.ts'
 

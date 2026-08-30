@@ -1,16 +1,16 @@
 import type { Context } from '@deepseek-ai/cordis'
 import {
-  CallId,
+  ToolCallId,
   LlmAdapter,
   type GenerateOptions,
   type LlmResolvedModelInfo,
   type StreamChunk,
 } from '@deepseek-ai/dsh-llm'
 
-const LIST_CALL = CallId('ios-sim-native-list-call')
-const SHOT_CALL = CallId('ios-sim-native-shot-call')
-const DESCRIBE_CALL = CallId('ios-sim-native-describe-call')
-const INPUT_CALL = CallId('ios-sim-native-input-call')
+const LIST_CALL = ToolCallId('ios-sim-native-list-call')
+const SHOT_CALL = ToolCallId('ios-sim-native-shot-call')
+const DESCRIBE_CALL = ToolCallId('ios-sim-native-describe-call')
+const INPUT_CALL = ToolCallId('ios-sim-native-input-call')
 
 function sawMarker(options: GenerateOptions, marker: string): boolean {
   return options.messages.some(message => message.content.some(

@@ -5,6 +5,7 @@
  */
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pulls the conversation.view slot declaration into the SlotMap.
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { SimulatorPanel } from './SimulatorPanel.tsx'

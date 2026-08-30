@@ -12,7 +12,7 @@ import WebSocket from 'ws'
 import { SimulatorError, SimulatorId } from '@deepseek-ai/dsh-ios-sim'
 import type { SimulatorCapability, SimulatorDevice, SimulatorStreamHandle } from '@deepseek-ai/dsh-ios-sim'
 import { IosSimulator } from '@deepseek-ai/dsh-ios-sim'
-import { WebServer } from '@deepseek-ai/dsh-webserver'
+import { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import * as panel from '../src/index.ts'
 
 /** One 3-chunk canned stream; start records the request for assertions. */

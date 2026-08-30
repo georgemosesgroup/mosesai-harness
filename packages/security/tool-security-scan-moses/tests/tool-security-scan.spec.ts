@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Context } from '@deepseek-ai/cordis'
-import { CallId } from '@deepseek-ai/dsh-llm'
-import type { JsonValue } from '@deepseek-ai/dsh-session'
+import { ToolCallId } from '@deepseek-ai/dsh-llm'
+import type { JsonValue } from '@deepseek-ai/dsh-util-values'
 import { SecurityScanError, SecurityScanRuntime } from '@deepseek-ai/dsh-security-scan-moses'
 import type {
   SecurityScanRequest,
@@ -193,7 +193,7 @@ describe('apply registration', () => {
     // The registered wrapper reaches the real seam; no provider is mounted in
     // this context, so the call settles as a structured unavailable error.
     const probe = await ctx.tools.execute({
-      callId: CallId('security-registration-probe'),
+      callId: ToolCallId('security-registration-probe'),
       name: 'security_scan',
       arguments: { scanner: 'nuclei', targets: ['catalog.example'] },
       signal: new AbortController().signal,

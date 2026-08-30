@@ -8,7 +8,7 @@
 import { Context } from '@deepseek-ai/cordis'
 import WebSocket from 'ws'
 import NativeSimulatorProvider from '@deepseek-ai/dsh-ios-sim-native'
-import { WebServer } from '@deepseek-ai/dsh-webserver'
+import { WebServer } from '@deepseek-ai/dsh-host-webserver'
 import LocalSubprocessRuntime from '@deepseek-ai/dsh-subprocess-local'
 import * as panel from '../src/index.ts'
 

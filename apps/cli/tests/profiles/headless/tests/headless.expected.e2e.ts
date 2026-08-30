@@ -1,5 +1,5 @@
 import { chmodSync, copyFileSync, existsSync, mkdirSync } from 'node:fs'
-import { copyFile, mkdir, readFile, readdir, writeFile } from 'node:fs/promises'
+import { readFile, readdir, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:http'
 import type { IncomingMessage, ServerResponse } from 'node:http'
 import { join } from 'node:path'
@@ -44,7 +44,6 @@ const headlessOverlayPath = fileURLToPath(new URL('./fixtures/headless-profile.c
 const headlessSessionExpected = join(goldensDir, 'headless-profile', 'session.expected.jsonl')
 const headlessReasoningExpected = join(goldensDir, 'headless-profile', 'reasoning.stderr.expected.txt')
 const headlessFailureExpected = join(goldensDir, 'headless-profile', 'stderr.expected.txt')
-const cliMockLlmPluginPath = fileURLToPath(new URL('./fixtures/cli-mock-llm.ts', import.meta.url))
 const securityScenarioDir = join(goldensDir, 'security-scan')
 const securityStreamExpected = join(securityScenarioDir, 'stream-json.expected.jsonl')
 const securitySessionFixture = join(securityScenarioDir, 'session.jsonl')
