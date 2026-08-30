@@ -10,8 +10,11 @@ function isBuildFaceClient(value: unknown): boolean {
 }
 
 /**
- * Vendored directories that are build targets: membership is a manifest, not a
- * position under vendor/. Applied here as an uncommitted test-setup change.
+ * The vendored directories tsdown treats as build targets. `vendor/` holds
+ * pinned source copies in any language — the idb frameworks are Objective-C —
+ * so membership is the presence of a manifest, not the directory's position.
+ * tsdown resolves a manifest-less directory to the repository root instead,
+ * then fails on the root's entry glob, which the root project never emits.
  * @returns the vendored package directories, repository-relative.
  */
 function vendoredPackages(): string[] {
@@ -31,9 +34,7 @@ function vendoredPackages(): string[] {
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
   return {
-    // `vendor/idb` is a native-framework source slice (no package.json), not
-    // a tsdown-built npm package; the negative glob keeps it out of the walk.
-    workspace: ['vendor/*', '!vendor/idb', 'packages/*/*', 'apps/cli'],
+    workspace: [...vendoredPackages(), 'packages/*/*', 'apps/cli'],
     entry: client ? '' : ['lib/types/{index,invariant,startup}.js'],
     outDir: 'lib',
     format: ['esm'],

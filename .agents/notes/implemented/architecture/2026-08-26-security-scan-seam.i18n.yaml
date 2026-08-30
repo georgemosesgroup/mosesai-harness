@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-26-security-scan-seam.md
 2026-08-26-security-scan-seam.md: 955b10b23ed53bd539532f92b3cb2b1425466a2e
-2026-08-26-security-scan-seam.zh.md: 98f1dd59be01a1df928ad240fa2fbefe5a12b1ff
+2026-08-26-security-scan-seam.zh.md: 029bc2d0769a7b90ec997b06b428c00207de71a3

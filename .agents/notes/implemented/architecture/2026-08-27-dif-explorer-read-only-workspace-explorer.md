@@ -5,8 +5,6 @@ Status: implemented
 
 English | [中文](2026-08-27-dif-explorer-read-only-workspace-explorer.zh.md)
 
-English
-
 ## Problem
 
 Web had no way to see which files a workspace holds, what its sessions or git history changed, or what a change actually looked like, without leaving the harness for a terminal. Folding persisted `tool/call` events gives the before/after of edits that are not committed anywhere yet, which git alone cannot show. Any such surface must also be strictly read-only: path confinement, an argv-array git allowlist, secret-file withholding, and content masking have to live on the Host side, so no client code path can mutate a workspace or leak credential material.

@@ -100,10 +100,6 @@
     - id: plugin-inventory
       name: '@deepseek-ai/dsh-host-plugin-inventory'
 
-    # Read-only workspace explorer gateway behind the ui-dif-explorer browser tab.
-    - id: dif-explorer
-      name: '@deepseek-ai/dsh-dif-explorer'
-
     # The API gateway: the transport-agnostic dispatch face every client shape
     # shares. The base layer's agent-default-model service owns the default model.
     - id: api-gateway
@@ -297,10 +293,6 @@
 
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
-
-    # Read-only workspace explorer: Files tree, change ledger, diff viewer.
-    - id: ui-dif-explorer
-      name: '@deepseek-ai/dsh-client-ui-dif-explorer'
 
     # The iOS-simulator stack: the native provider (live framebuffer stream +
     # availability tree + input over the vendored idb frameworks), the sim_*

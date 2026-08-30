@@ -1,0 +1,14 @@
+# Enablement patch for the DIF Explorer on a dsh web profile.
+#
+# Usage A (one-off):      dsh web --patch <this-file>
+# Usage B (persistent):   copy these rows into $DSH_HOME/profiles/<name>/cordis.patch.yml
+#                         and link both packages from that profile's package.json
+#
+# Two rows, one per plane: the Host gateway answers the browser tab's Remote
+# calls, and the tab itself mounts that namespace, so neither row works alone.
+- insert:
+    - id: dif-explorer
+      name: '@deepseek-ai/dsh-dif-explorer'
+
+    - id: ui-dif-explorer
+      name: '@deepseek-ai/dsh-client-ui-dif-explorer'

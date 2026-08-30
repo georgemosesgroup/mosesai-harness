@@ -3,4 +3,4 @@
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write native/iossim-helper/packages/darwin-x64/README.md
 README.md: ad0adbd7283746b7f59185303c1c16d31b22fcf2
-README.zh.md: ffac06f4e5e3aae7ea765d4803b8443a2661a278
+README.zh.md: 55b1c99d6cf153c23ee566f3ff6b5e3ce3a31c5b

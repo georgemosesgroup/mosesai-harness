@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-30-plugins-mount-their-own-remote-namespace.md
+2026-08-30-plugins-mount-their-own-remote-namespace.md: 5963697a8ca4c5b33f495d00923181c18de45194
+2026-08-30-plugins-mount-their-own-remote-namespace.zh.md: 59b590d80f6e65ee436a6157b31c05386c01849a

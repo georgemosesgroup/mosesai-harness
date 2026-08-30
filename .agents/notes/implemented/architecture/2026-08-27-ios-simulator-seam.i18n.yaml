@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/architecture/2026-08-27-ios-simulator-seam.md
-2026-08-27-ios-simulator-seam.md: 926dc6abde1acd37f6ffc902e54dac29ceee4ca9
-2026-08-27-ios-simulator-seam.zh.md: 72d35d828859027e59bc5ab7ff5bdd19182176df
+2026-08-27-ios-simulator-seam.md: c01698f8c020c2d7a1272b879f5e5f84d4a5fa75
+2026-08-27-ios-simulator-seam.zh.md: 12bcc4da10259149561269aa9eba6039ec50095d
