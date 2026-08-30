@@ -32,9 +32,9 @@ export async function apply(ctx: ClientContext): Promise<() => Promise<void>> {
 
 client bundle 的纯净度门禁认可这次导入。[`packages/client/tsdown.client.ts`](../../../../packages/client/tsdown.client.ts) 中的 `GENERATED_REMOTE` 按模式而非按包的白名单，放行对任意 `<package>/remote` 说明符的值导入，并在注释里写明了意图：一份 wire contribution 本就该被内联。其余所有跨插件的值导入依旧禁止。
 
-`inject` 不列出插件自己挂载的那个 namespace。inject 列表里的 `remote.difExplorer` 会等待该 namespace 出现；而挂载它的插件这样写就会等待自己的 effect。真正为两者定序的，是任何注册动作之前对 `$mount` 的 await，因此那些经由 `ctx.remote.difExplorer` 发起调用的 slot 回调不可能在它落定之前运行。
+挂载与调用处在不同的层级。`remote.difExplorer` 不能写进插件自己的 `inject`：那份列表会等待该 namespace 出现，而挂载它的插件这样写就会等待自己的 effect。可这份声明也不能干脆省掉——Cordis 拒绝的是属性读取本身，报出 `cannot get property "remote.difExplorer" without inject`，与是谁挂载的无关。所有权并不授予访问权，只有声明才授予。于是插件在自己的层级完成挂载，而把 slot 注册放进 `ctx.inject(['remote.difExplorer'], scope => …)`——本仓库的 Client 包已经在用的嵌套作用域写法。这个作用域就是那份声明，而上面的挂载正是让它落定的东西。
 
-这处省略是对 [API Gateway 文档](../../../../docs/api-gateway.zh.md) 中那条规则的有意偏离：该规则把 namespace 依赖判给读取 `ctx.remote.<namespace>` 的那个包，并且不让只做挂载的 assembly 声明它。这条规则假定两者是不同的包；在这里它们是同一个包，而规则背后的理由得到了比声明本身更强的满足。一处声明出来的依赖，说的是必须有另一个插件先把该 namespace 挂上；而所有权让这件事变得无条件，因为唯一能挂载或卸载它的代码，就是调用它的那同一个 `apply`。
+这样做保住了 [API Gateway 文档](../../../../docs/api-gateway.zh.md) 中那条规则，而不是偏离它：依赖归属于读取 `ctx.remote.<namespace>` 的那段代码，并且不给只做挂载的代码。这里两种角色住在同一个包里，因此两者都出现了——一个是插件自己的 `inject`，另一个是嵌套作用域的。
 
 assembly 保留真正共享的部分：`$on` 从中选取的转发事件白名单，以及让一份 Client contribution 得以称呼另一个包所拥有类型的 wire 词汇重新导出。一个 Remote 只承载调用的插件，两者都不需要。
 
@@ -68,4 +68,4 @@ contribution 被内联进执行挂载那个包的浏览器 bundle，同时把它
 
 在 assembly 已恢复为上游版本的前提下，`tsc -b tsconfig.client.json` 在 Client 面上不报错；假如 namespace 的类型依赖的是 assembly 而不是那次 contribution 导入，正是这项检查会失败。`ui-dif-explorer` 的浏览器 bundle 能穿过纯净度门禁完成构建；假如 `/remote` 的值导入未被放行，正是这项检查会失败。`pnpm run build` 端到端跑完。
 
-本次改动没有用测试覆盖已挂载 namespace 的运行时行为；面板只经过手工验证。经由一个真实可运行示例的无密钥快照仍然欠着。
+运行时行为是在一台真实的 `dsh web` 服务器上手工验证的，其组合来自仓库之外的一个 profile：Explorer 标签页挂载成功、文件树渲染出来、worktree 账目列出未提交的改动、diff 能打开，浏览器控制台中没有 slot 崩溃。上面那条访问规则正是这次检查发现的；`tsc`、纯净度门禁和 `pnpm run build` 全都为绿，而面板在首次渲染时就崩了。经由一个真实可运行示例的无密钥快照仍然欠着，而它本可以抓住这个问题。
