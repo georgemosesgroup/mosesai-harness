@@ -235,10 +235,18 @@ export interface SimulatorInputSwipe {
  * two points; `key` presses one hardware key by its HID usage code — the
  * framework's own currency for keyboard events.
  */
+/**
+ * One hardware button, named as the substrate names them. `home` and `lock`
+ * exist on every simulated device; the rest act only where the simulated
+ * hardware carries them.
+ */
+export type SimulatorHardwareButton = 'home' | 'lock' | 'side_button' | 'siri' | 'apple_pay' | 'play_pause'
+
 export type SimulatorInputAction =
   | { readonly kind: 'tap'; target: SimulatorInputTarget }
   | SimulatorInputSwipe
-  | { readonly kind: 'key'; usage: number }
+  | { readonly kind: 'key'; usage: number; shift?: boolean | undefined }
+  | { readonly kind: 'button'; button: SimulatorHardwareButton }
   | { readonly kind: 'text'; target: SimulatorInputTarget; text: string }
 
 /**

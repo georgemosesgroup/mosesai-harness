@@ -289,7 +289,28 @@ final class HelperLoop {
           message: "a key press needs a numeric HID usage code")
       }
       let hid = try self.hid(for: simulator)
-      try await hid.send(event: .shortKeyPress(UInt32(usage)), logger: FBControlCoreGlobalConfiguration.defaultLogger)
+      // A shifted press wraps the key in a left-shift hold (usage 0xE1):
+      // shortKeyPress alone cannot produce uppercase or shifted symbols.
+      let event: FBSimulatorHIDEvent = (params["shift"] as? Bool ?? false)
+        ? .composite([
+            .keyboard(direction: .down, keyCode: 0xE1),
+            .keyboard(direction: .down, keyCode: UInt32(usage)),
+            .keyboard(direction: .up, keyCode: UInt32(usage)),
+            .keyboard(direction: .up, keyCode: 0xE1),
+          ])
+        : .shortKeyPress(UInt32(usage))
+      try await hid.send(event: event, logger: FBControlCoreGlobalConfiguration.defaultLogger)
+    case "button":
+      guard let name = params["button"] as? String,
+        let button = FBSimulatorHIDButton.allCases.first(where: { $0.name == name })
+      else {
+        let known = FBSimulatorHIDButton.allCases.map(\.name).joined(separator: ", ")
+        throw RequestFailure(
+          code: "SIMULATOR_HELPER_REQUEST_FAILED",
+          message: "a button press needs one of: \(known)")
+      }
+      let hid = try self.hid(for: simulator)
+      try await hid.send(event: .shortButtonPress(button), logger: FBControlCoreGlobalConfiguration.defaultLogger)
     case "text":
       let point = try devicePoint(params)
       guard let text = params["text"] as? String else {

@@ -1,26 +1,39 @@
 /**
  * Simulator panel browser half: contributes the live-view tab into the
- * session view ring. The component owns its WebSocket; no Remote calls and
- * no session events are involved.
+ * session view ring and registers its dictionaries. The component owns its
+ * WebSocket; no Remote calls and no session events are involved.
  */
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 // Type-only: pulls the conversation.view slot declaration into the SlotMap.
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { SimulatorPanel } from './SimulatorPanel.tsx'
+import { dicts, NS } from './locales.ts'
+import type { SimulatorKey } from './locales.ts'
 
-/** Services required for slot registration. */
-export const inject = ['slots']
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** Simulator panel copy. */
+    'simulator': SimulatorKey
+  }
+}
+
+/** Services required for slot registration and dictionaries. */
+export const inject = ['slots', 'locale']
 
 /**
- * Client plugin body: mount the simulator panel tab.
+ * Client plugin body: register dictionaries and mount the simulator panel tab.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register(NS, dicts), 'ui-simulator: dictionaries')
+  const t = ctx.locale.bind(NS)
   ctx.slots.inject('conversation.view', () => ctx.slots.register({
     name: 'conversation.view',
     id: 'simulator',
     order: 30,
-    label: () => 'Simulator',
+    locale: NS,
+    label: () => t('view.label'),
     inject: () => ({}),
   }, SimulatorPanel))
 }

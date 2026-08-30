@@ -19,7 +19,7 @@ import type { Duplex } from 'node:stream'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import { SimulatorId } from '@deepseek-ai/dsh-ios-sim'
-import type { IosSimulator, SimulatorStreamCodec, SimulatorStreamHandle } from '@deepseek-ai/dsh-ios-sim'
+import type { IosSimulator, SimulatorHardwareButton, SimulatorInputAction, SimulatorStreamCodec, SimulatorStreamHandle } from '@deepseek-ai/dsh-ios-sim'
 import { SimulatorError } from '@deepseek-ai/dsh-ios-sim'
 import type { WebUpgradeRoute } from '@deepseek-ai/dsh-host-webserver'
 import { WebSocketServer, WebSocket } from 'ws'
@@ -41,6 +41,41 @@ type SocketMessage = {
   codec?: unknown
   frameRate?: unknown
   scale?: unknown
+  gesture?: unknown
+}
+
+/**
+ * Parse one panel gesture into the seam's input action. Coordinates are
+ * device POINTS — the panel owns the pixel→point mapping, because only it
+ * sees how the surface is laid out.
+ * @param gesture - the socket message's `gesture` payload.
+ * @returns the typed action, or undefined when the payload is unusable.
+ */
+function inputActionFrom(gesture: unknown): SimulatorInputAction | undefined {
+  if (typeof gesture !== 'object' || gesture === null) return undefined
+  const g = gesture as Record<string, unknown>
+  const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
+  if (g.type === 'tap' && num(g.x) && num(g.y)) {
+    return { kind: 'tap', target: { kind: 'point', at: { xPoints: g.x, yPoints: g.y } } }
+  }
+  if (g.type === 'key' && num(g.usage)) {
+    return { kind: 'key', usage: Math.trunc(g.usage), ...(g.shift === true ? { shift: true } : {}) }
+  }
+  if (g.type === 'button' && typeof g.name === 'string') {
+    const known: readonly SimulatorHardwareButton[] = ['home', 'lock', 'side_button', 'siri', 'apple_pay', 'play_pause']
+    const button = known.find(b => b === g.name)
+    if (button !== undefined) return { kind: 'button', button }
+    return undefined
+  }
+  if (g.type === 'swipe' && num(g.xStart) && num(g.yStart) && num(g.xEnd) && num(g.yEnd)) {
+    return {
+      kind: 'swipe',
+      start: { xPoints: g.xStart, yPoints: g.yStart },
+      end: { xPoints: g.xEnd, yPoints: g.yEnd },
+      ...(num(g.durationMs) ? { durationMs: Math.min(Math.max(g.durationMs, 50), 2000) } : {}),
+    }
+  }
+  return undefined
 }
 
 export const name = 'ios-sim-panel'
@@ -102,6 +137,9 @@ function errorBody(error: unknown): { type: 'error'; message: string; code?: str
  */
 export function bridge(simulator: IosSimulator, ws: WebSocket): void {
   let stream: SimulatorStreamHandle | undefined
+  // The device the last stream started against: gestures target the screen
+  // the viewer is looking at, never a differently-resolved one.
+  let streamDevice: ReturnType<typeof SimulatorId> | undefined
 
   const stopStream = async (): Promise<void> => {
     const active = stream
@@ -139,6 +177,7 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
       ...(typeof message.scale === 'number' ? { scale: message.scale } : {}),
     }
     stream = await simulator.startStream(request)
+    streamDevice = request.simulator
     send(ws, { type: 'meta', codec: stream.codec })
     void pump(stream)
   }
@@ -174,6 +213,22 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
       startStream(message).catch((cause: unknown) => {
         send(ws, errorBody(cause))
       })
+      return
+    }
+    if (message.action === 'input') {
+      const action = inputActionFrom(message.gesture)
+      if (action === undefined) {
+        send(ws, { type: 'error', message: 'unusable input gesture' })
+        return
+      }
+      simulator.input({ action, ...(streamDevice === undefined ? {} : { simulator: streamDevice }) }).then(
+        () => {
+          send(ws, { type: 'inputResult', ok: true })
+        },
+        (cause: unknown) => {
+          send(ws, errorBody(cause))
+        },
+      )
       return
     }
     if (message.action === 'stop') {

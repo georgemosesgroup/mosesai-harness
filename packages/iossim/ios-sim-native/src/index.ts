@@ -267,8 +267,10 @@ export class NativeSimulatorProvider extends IosSimulator {
         yEnd: action.end.yPoints,
         ...(action.durationMs === undefined ? {} : { durationMs: action.durationMs }),
       }
+    } else if (action.kind === 'key') {
+      params = { action: 'key', usage: action.usage, ...(action.shift === true ? { shift: true } : {}) }
     } else {
-      params = { action: 'key', usage: action.usage }
+      params = { action: 'button', button: action.button }
     }
     const result = await this.withHelper(helper => helper.request('input', params), spec)
     return inputResultFromHelper(result, point)

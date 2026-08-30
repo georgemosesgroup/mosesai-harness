@@ -59,6 +59,7 @@ export type {
   SimulatorDescribeResult,
   SimulatorDevice,
   SimulatorElementFrame,
+  SimulatorHardwareButton,
   SimulatorInputAction,
   SimulatorInputRequest,
   SimulatorInputResult,
