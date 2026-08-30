@@ -1315,13 +1315,17 @@ private func FBFMP4CreateFragmentHeader(_ sequenceNumber: UInt32, _ baseDecodeTi
 
     // trun — single sample
     do {
-      _ = writer.beginBox("trun")
+      let off = writer.beginBox("trun")
       writer.writeFullBoxHeader(version: 0, flags: trunFlags)
       writer.write32(1) // sample_count = 1
       writer.write32(0) // placeholder for data_offset (patched below)
       writer.write32(duration)
       writer.write32(sampleSize)
       writer.write32(isKeyFrame ? 0x02000000 : 0x01010000)
+      // Without this the trun's size field stays 0 and every MSE demuxer
+      // rejects the first media segment: a zero-size box is "extends to the
+      // end of the file", which cannot occur inside a sized traf.
+      writer.endBox(off)
     }
 
     writer.endBox(trafOff)
