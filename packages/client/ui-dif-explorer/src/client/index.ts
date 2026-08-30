@@ -4,7 +4,7 @@
  * inside this apply closure; the envelope fold happens here once, so the
  * component callbacks receive plain promises of business results.
  */
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { RemoteResult } from '@deepseek-ai/dsh-typert-protocol'
 // The generated Remote contribution this plugin mounts itself: the client
 // bundle inlines it, which is what the purity gate's /remote rule exists for.
