@@ -1,6 +1,14 @@
+---
+description: "Level-0 iOS-simulator Service Provider over the public xcrun simctl surface, spawning strict allowlisted argv through the subprocess seam with no idb, accessibility trees, or video."
+kind: "package-reference"
+---
+
 # dsh-ios-sim-simctl
 
 English | [中文](README.zh.md)
+
+<a id="summary"></a>
+## Summary
 
 Level-0 Service Provider for the iOS-simulator seam over the PUBLIC `xcrun simctl` surface — no idb, no accessibility trees, no video. Everything spawns through [`ctx.subprocess`](../../subprocess/subprocess/README.md) as strict argv arrays; the subcommand word passes the fixed `SIMCTL_ALLOWLIST` (`list, boot, shutdown, install, launch, terminate, openurl, io`), and arguments beyond it come only from typed request fields, never interpolated caller text ([dif-explorer git-run precedent](../../host/dif-explorer/src/gitrun.ts)).
 
@@ -26,6 +34,14 @@ Declared capabilities: `list, boot (incl. shutdown), install, launch, terminate,
 
 Geometry honesty: screenshots are native rasters; the public surface exposes no point-size query (verified against current installs — profile plists carry no display dimensions). Launch results therefore carry `GEOMETRY_UNAVAILABLE_NOTE`, never guessed points.
 
+## Table of Contents
+
+- [Config](#config)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="config"></a>
 ## Config
 
 | field | default | meaning |
@@ -37,14 +53,19 @@ Geometry honesty: screenshots are native rasters; the public surface exposes no 
 
 ## Model Experience
 
-Indirectly, through Consumer projections such as [`dsh-tool-ios-sim`](../tool-ios-sim/README.md): device names/states/runtimes from listings, pid and bundle echoes from launches, PNG screenshots and their pixel facts.
+Indirectly, through `dsh-tool-ios-sim`, which projects the verbs this provider serves over the simulator seam.
 
 #### KV Cache effect
 
-Append-only through the Consumers' session events: successful actions add small `iosSim/action` records (tens of tokens), keeping earlier request prefixes reusable while new suffixes extend the cache rather than invalidating it.
+None; nothing here participates in request assembly or history retention.
 
 ## Known Limitations and Deferred Work
 
 - **No point geometry from any verb** — the level-0 surface cannot attest logical sizes; points arrive with the planned [native provider](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md), which reads the availability tree — the public `simctl` substrate has no availability-tree read and no touch injection, so this provider can never serve `describe` or `input`.
 - **State staleness between calls** — another actor can boot/shutdown/erase a device right after a listing; verbs resolve targets against a FRESH listing each time precisely so stale answers fail loudly with their own codes.
 - **No app deployment convenience** — `install` requires an existing .app/.ipa path; no download/build helpers here.
+
+<a id="dev-note"></a>
+### Dev Note
+
+None.

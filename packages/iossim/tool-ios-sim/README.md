@@ -1,11 +1,28 @@
+---
+description: "Model-facing iOS-simulator tools (sim_list, sim_launch, sim_open_url, sim_screenshot, sim_describe, sim_input) over the capability seam, logging one iosSim/action record per successful call."
+kind: "package-reference"
+---
+
 # dsh-tool-ios-sim
 
 English | [中文](README.zh.md)
+
+<a id="summary"></a>
+## Summary
 
 Model-facing iOS-simulator tools over the [capability seam](../ios-sim/README.md) (`ctx.iosSimulator`). The package registers six tools — `sim_list`, `sim_launch`, `sim_open_url`, `sim_screenshot` (phase 1) plus `sim_describe` and `sim_input` (phase 3, served by the [native provider](../ios-sim-native/README.md)) — and every successful call appends one **`iosSim/action`** record to the calling agent's session log, so replay shows which device did what even when result text alone would not tell. Schemas flow into the generated [tool catalog](../../../docs/tool-catalog.md#deepseek-aidsh-tool-ios-sim); this file notes only deltas.
 
 `sim_describe` reads the frontmost application's availability tree and mints stable element references; `sim_input` performs one gesture — tap, swipe, key, text entry — against either an element reference or a device point. Both verbs require the [native provider](../ios-sim-native/README.md): the public `simctl` substrate has no touch injection and no availability-tree read, so no provider over it can ever implement them ([Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)). An `input` audit record names its target — an element reference or a point — and never carries the text a text entry set.
 
+## Table of Contents
+
+- [Render intent — decided up front](#render-intent-decided-up-front)
+- [The iosSim/action event](#the-iossim-action-event)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="render-intent-decided-up-front"></a>
 ## Render intent — decided up front
 
 The completed `sim_screenshot` card is **neither `generic` nor `terminal`; it is a dedicated arm of the render-intent union**: `ImageResultView { card: 'image', origin?, attachmentId, mediaType, bytes, width, height }`, added to the closed union in [`dsh-tools/presentation`](../../core/tools/src/presentation.ts) (the same move that once introduced the web card). Reasons:
@@ -16,6 +33,7 @@ The completed `sim_screenshot` card is **neither `generic` nor `terminal`; it is
 
 The pending call stays `generic kind:'other'` — nothing about a screenshot exists before it completes.
 
+<a id="the-iossim-action-event"></a>
 ## The iosSim/action event
 
 Payload (`IosSimActionEventData`): verb discriminant + resolved target facts (+ list count / bundle+pid / URL / committed-image reference fields for screenshots). Log-only: derived history ignores it, replay reads it. Base64 never rides it.
@@ -41,3 +59,8 @@ Append-only while the tool catalog itself is static: schemas join the stable too
 - **Screenshot card shows metadata, not yet the raster, inside the GUI** — tool panes have no session-authorized loader today; the wired `card: 'image'` data path and fallback behavior are complete.
 - **No stream tool** — `'stream'` stays a reserved capability name (no method yet) for the future video surface ([the note's ladder](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)).
 - **No install/build helpers** — deploying apps stays outside phase 1; the seam already carries `install` for providers that implement it.
+
+<a id="dev-note"></a>
+### Dev Note
+
+None.

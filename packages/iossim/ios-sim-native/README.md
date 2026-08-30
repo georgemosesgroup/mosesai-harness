@@ -1,6 +1,14 @@
+---
+description: "Native iOS-simulator Service Provider over the iossim-helper background process, serving the describe, input, and stream capabilities the public simctl surface cannot."
+kind: "package-reference"
+---
+
 # dsh-ios-sim-native
 
 English | [中文](README.zh.md)
+
+<a id="summary"></a>
+## Summary
 
 Native Service Provider for the iOS-simulator seam over the [`iossim-helper`](../../../native/iossim-helper/README.md) background helper, which links Meta's FBSimulatorControl and FBControlCore (MIT, pinned and source-vendored per [the vendoring policy](../../../vendor/README.md)) and serves what the public `xcrun simctl` surface structurally cannot. Phase 2 shipped **exactly one capability — `describe`**, the device availability tree with stable element references, as the end-to-end proof of the licence, build, and launch path; phase 3 grew the set with **`input`** — tap, swipe, key, and text entry, against either an element reference or a device point — and phase 4 with **`stream`** — a live encoded-video handle with frame rate, scale, and codec as real configuration ([the owning Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md)). Every other public verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE`.
 
@@ -15,6 +23,14 @@ Distinct failures, distinct repairs:
 | Helper-request deadline | `SIMULATOR_HELPER_TIMEOUT` | configured budget |
 | Substrate refusal (target resolution, read failure) | the helper's own seam code | message carries the repair |
 
+## Table of Contents
+
+- [Config](#config)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="config"></a>
 ## Config
 
 | field | default | meaning |
@@ -54,3 +70,8 @@ Nothing on its own: the provider appends no session events, so it never grows a 
 - **Element references are per-read** — the framework names no stable cross-read identity, so references are index paths valid within one describe result; a re-describe repaginates a live UI, and a reference that no longer resolves rejects with `SIMULATOR_ELEMENT_REFERENCE_STALE`.
 - **Live stream needs the framebuffer** — a Simulator presented by the host app (`Simulator.app`, or `DeviceHub.app` from Xcode 27) consumes its framebuffer; screen-bearing work boots without the host app (a supported boot path).
 - **macOS only, Xcode required** — the helper links Apple's private CoreSimulator/SimulatorKit from the selected Xcode; a host without Xcode cannot run this provider (the simctl fallback degrades loudly for its own verbs).
+
+<a id="dev-note"></a>
+### Dev Note
+
+None.

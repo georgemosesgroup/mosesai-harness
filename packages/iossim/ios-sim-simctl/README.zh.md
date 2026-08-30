@@ -1,6 +1,14 @@
+---
+description: "基于公开 xcrun simctl 表面的 Level-0 iOS 模拟器 Service Provider，经 subprocess 接缝以严格允许列表 argv 派生，不用 idb、可用性树或视频。"
+kind: "package-reference"
+---
+
 # dsh-ios-sim-simctl
 
 [English](README.md) | 中文
+
+<a id="summary"></a>
+## 概述
 
 基于公开 `xcrun simctl` 表面的 iOS 模拟接缝 Level-0 Service Provider——不用 idb、不用可用性树、不用视频。一切通过 [`ctx.subprocess`](../../subprocess/subprocess/README.zh.md) 以严格 argv 数组派生；子命令字经过固定 `SIMCTL_ALLOWLIST`（`list, boot, shutdown, install, launch, terminate, openurl, io`），之后的参数只能来自类型化请求字段，绝不拼插调用方文本（[dif-explorer git-run 先例](../../host/dif-explorer/src/gitrun.ts)）。
 
@@ -26,6 +34,14 @@
 
 几何诚实：截图是原生栅格；公开表面不提供逻辑点尺寸查询（在当前安装上验证过——profile plist 不含显示尺寸）。因此 launch 结果携带 `GEOMETRY_UNAVAILABLE_NOTE`，绝不猜点数。
 
+## 目录
+
+- [Config](#config)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="config"></a>
 ## Config
 
 | 字段 | 默认 | 含义 |
@@ -35,16 +51,24 @@
 | `maxOutputBytes` | 64000 | stdout/stderr 每流捕获上限 |
 | `graceMs` | 3000 | SIGTERM→SIGKILL 升级宽限 |
 
+<a id="model-experience"></a>
 ## Model Experience
 
-Indirectly, through [`dsh-tool-ios-sim`](../tool-ios-sim/README.zh.md) 这样的 Consumer 投影：列表给出名称/状态/runtime，launch 给出 pid 与 bundle 回声，截图给出 PNG 及其像素事实；provider 层零直接 token 成本，Consumer 输出什么（设备表、信封文本）由它自行预算，失败消息给出具体下一步以缩短重试环。
+Indirectly, through `dsh-tool-ios-sim`, which projects the verbs this provider serves over the simulator seam.
 
 #### KV Cache effect
 
-经 Consumer 会话事件 append-only：成功动作追加很小的 `iosSim/action` 记录（数十 token），早期请求前缀继续复用，新后缀延展缓存而非使其失效。
+None; nothing here participates in request assembly or history retention.
 
 ## Known Limitations and Deferred Work
+
+<a id="known-limitations-and-deferred-work"></a>
 
 - **任何动词都不给点几何**——level-0 表面无法为逻辑尺寸背书；点几何只随[原生提供方](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)到来——它读取可用性树，而公开的 `simctl` substrate 既没有可用性树读取也没有触控注入，`describe` 与 `input` 在任何情况下都不可达于本提供方。
 - **调用之间状态可能过期**——其他角色可在列表后立刻启动/关闭/抹除设备；每个动词都针对新鲜列表重新解析目标，过期答案会带着自己的代码响亮失败。
 - **不含部署便利设施**——`install` 需要已有 .app/.ipa 路径；这里不做下载/构建助手。
+
+<a id="dev-note"></a>
+### 开发备注
+
+无。

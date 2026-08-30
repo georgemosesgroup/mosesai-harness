@@ -1,9 +1,26 @@
+---
+description: "Model-facing security_scan tool over the security-scanning seam, owning the schema, prompt guidance, budgets, and presentation while the seam owns authorization and execution."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-tool-security-scan-moses
 
 English | [中文](README.zh.md)
 
+<a id="summary"></a>
+## Summary
+
 Model-facing `security_scan` tool over [`dsh-security-scan-moses`](../security-scan-moses/README.md). This package owns the schema, prompt guidance, budgets, and presentation; the seam owns authorization, provider selection, and execution. The tool stays visible when a scanner binary is missing and fails with a structured seam error at execution time (the `tool-web` precedent).
 
+## Table of Contents
+
+- [The tool](#the-tool)
+- [Config](#config)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="the-tool"></a>
 ## The tool
 
 - `scanner` — enum of enabled scanners (config-filtered subset of nuclei/httpx/katana/ffuf/nmap/sqlmap).
@@ -12,6 +29,7 @@ Model-facing `security_scan` tool over [`dsh-security-scan-moses`](../security-s
 
 The canonical result carries the executed argv, exit facts (`exitCode`/`signal`), cause flags (`timedOut`/`aborted`), duration, and both captured streams with truncation and spill paths. Rendered output is one text section capped to `maxOutputChars` (default 20000) with a truncation footer, applied to the complete text once known.
 
+<a id="config"></a>
 ## Config
 
 `scanners` (per-id enablement), `timeoutMs` (600000) attached as `ToolDefinition.timeoutMs`, and `maxOutputChars` (20000). Scans declare `isConcurrencySafe: false`, so sibling calls serialize around them.
@@ -64,3 +82,8 @@ Append-only and prefix-stable within a session for as long as the composition is
 - **Exclusive execution** — scans never join parallel sibling groups; heavy fan-out waits.
 - **No background mode** — long scans live inside the tool's cooperative timeout; a `ctx.jobs` producer is deferred.
 - **Structured errors over silent skips** — an unavailable binary surfaces `SECURITY_PROVIDER_UNAVAILABLE` at execution rather than hiding the tool.
+
+<a id="dev-note"></a>
+### Dev Note
+
+None.

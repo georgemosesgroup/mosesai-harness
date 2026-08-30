@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/security/tool-security-scan-moses/README.md
-README.md: 04fb8faf5e23f989474404c715e733aa4a8896b4
-README.zh.md: 64d201d275129eec9a79861422a5f27efd4fdd22
+README.md: 53233850391001d22c8fbedb644895bf39197399
+README.zh.md: af3a81b073d6acbeee9462746f9a42a640330783

@@ -242,6 +242,12 @@ export interface SimulatorInputSwipe {
  */
 export type SimulatorHardwareButton = 'home' | 'lock' | 'side_button' | 'siri' | 'apple_pay' | 'play_pause'
 
+/**
+ * One input gesture, discriminated by `kind`. A tap or text entry names its
+ * target (an element reference or a device point); a swipe carries its
+ * endpoints; a key press carries an HID usage with an optional shift hold; a
+ * button press names a hardware button.
+ */
 export type SimulatorInputAction =
   | { readonly kind: 'tap'; target: SimulatorInputTarget }
   | SimulatorInputSwipe

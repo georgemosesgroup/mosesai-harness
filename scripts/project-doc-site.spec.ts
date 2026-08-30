@@ -450,7 +450,10 @@ describe('docsPages locale routes', () => {
     const translated = rootPages.filter(page => page.contentLocale === 'zh-CN')
     const fallbacks = rootPages.filter(page => page.contentLocale === 'en-US')
 
-    expect(translated).toHaveLength(46)
+    // 46 backend-neutral subsystem pages plus the folder index, every one
+    // Chinese-projected: the fork adds ios-sim, security, and session-
+    // coordination beside the upstream set.
+    expect(translated).toHaveLength(47)
     expect(translated.every(page => page.source.endsWith('.zh.md'))).toBe(true)
     expect(fallbacks).toEqual([])
   })

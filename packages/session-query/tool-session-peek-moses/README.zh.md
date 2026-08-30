@@ -1,9 +1,27 @@
+---
+description: "个人只读会话查看工具（peek_session_list、peek_session_read、peek_session_search），让一个模型会话检查同一 DSH 安装的其他会话。"
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-tool-session-peek-moses
 
 [English](README.md) | 中文
 
+<a id="summary"></a>
+## 概述
+
 基于 `ctx.sessionQuery` 的个人只读会话查看工具（`peek_session_list`、`peek_session_read`、`peek_session_search`）。让一个模型会话检查同一 DSH 安装的其他会话，而不做任何变更。
 
+## 目录
+
+- [工具](#tools)
+- [配置](#config)
+- [启用](#enablement)
+- [Model Experience](#model-experience)
+- [已知限制与暂缓事项](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="tools"></a>
 ## 工具
 
 | 工具 | 用途 |
@@ -14,14 +32,17 @@
 
 三个工具严格只读：唯一触及的能力是 `ctx.sessionQuery`。未知 id 与被禁用的搜索按普通错误抛出（模型看到 `isError` 结果）。每个渲染器都执行字符预算。
 
+<a id="config"></a>
 ## 配置
 
 `defaultLimit`（20）、`maxLimit`（100）、`eventTextMaxChars`（4000）、`maxOutputChars`（24000）、`searchTimeoutMs`（30000）、`searchStabilizationRetries`（2）。
 
+<a id="enablement"></a>
 ## 启用
 
 把 insert 行加入 `$DSH_HOME/profiles/web/cordis.patch.yml`；`peek_session_search` 需要配置了 `openAt: first-search` 或更早的 `session-query-sqlite`。
 
+<a id="model-experience"></a>
 ## Model Experience
 
 ### 请求上下文与条件
@@ -46,5 +67,12 @@ session-peek gives you read-only access to OTHER sessions recorded by this DSH i
 
 ## 已知限制与暂缓事项
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **只读是设计使然** —— 没有向其他会话发送消息或进行变更的机制；通知渠道暂缓。
 - **全文检索需要已打开的 SQLite 索引** —— 部署必须以 `openAt: first-search` 或 `startup` 挂载 `dsh-session-query-sqlite`。
+
+<a id="dev-note"></a>
+### 开发备注
+
+无。

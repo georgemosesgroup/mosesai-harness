@@ -1,11 +1,28 @@
+---
+description: "基于能力接缝的模型可见 iOS 模拟器工具（sim_list、sim_launch、sim_open_url、sim_screenshot、sim_describe、sim_input），每次成功调用记录一条 iosSim/action。"
+kind: "package-reference"
+---
+
 # dsh-tool-ios-sim
 
 [English](README.md) | 中文
+
+<a id="summary"></a>
+## 概述
 
 面向模型的 iOS 模拟器工具，架在[能力接缝](../ios-sim/README.zh.md)（`ctx.iosSimulator`）上。本包注册六个工具——`sim_list`、`sim_launch`、`sim_open_url`、`sim_screenshot`（phase 1）与 `sim_describe`、`sim_input`（phase 3，由[原生提供方](../ios-sim-native/README.zh.md)承载）——每次成功调用都会向调用 agent 的会话日志追加一条 **`iosSim/action`** 记录，回放时即可还原"哪台设备被做了什么"。Schema 自动汇入生成的 [tool catalog](../../../docs/tool-catalog.zh.md#deepseek-aidsh-tool-ios-sim)；本文件只写增量。
 
 `sim_describe` 读取最前台应用的可用性树并铸造稳定的元素引用；`sim_input` 执行一次手势——点按、滑动、按键、文本输入——目标要么是元素引用，要么是设备坐标中的点。两个动词都需要[原生提供方](../ios-sim-native/README.zh.md)：公开的 `simctl` substrate 既无触控注入也无可用性树读取，任何构建其上的提供方都不可能实现它们（[Agent Note](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。`input` 的审计记录点明其目标——元素引用或设备点——而永不携带文本输入设置的文本。
 
+## 目录
+
+- [渲染意图——先决定后实现](#render-intent-decided-up-front)
+- [iosSim/action 事件](#the-iossim-action-event)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [开发备注](#dev-note)
+
+<a id="render-intent-decided-up-front"></a>
 ## 渲染意图——先决定后实现
 
 `sim_screenshot` 的完成态卡片**既不是 `generic` 也不是 `terminal`，而是渲染意图联合中新设的专属臂**：`ImageResultView { card: 'image', origin?, attachmentId, mediaType, bytes, width, height }`，加入 [`dsh-tools/presentation`](../../core/tools/src/presentation.ts) 的封闭联合（与当年引入 web 卡片同一路径）。理由：
@@ -16,10 +33,12 @@
 
 挂起调用保持 `generic kind:'other'`——完成前不存在任何可展示之物。
 
+<a id="the-iossim-action-event"></a>
 ## iosSim/action 事件
 
 载荷（`IosSimActionEventData`）：动词判别 + 解析后的目标事实（+ list 数量 / bundle+pid / URL / 截图的引用字段）。Log-only：派生历史忽略它，回放读取它。绝不携带 base64。
 
+<a id="model-experience"></a>
 ## Model Experience
 
 ### 工具
@@ -38,6 +57,13 @@
 
 ## Known Limitations and Deferred Work
 
+<a id="known-limitations-and-deferred-work"></a>
+
 - **GUI 中截图卡片暂显示元数据而非栅格**——工具面板尚无会话授权的加载器；`card: 'image'` 的数据通路与回退行为已完成。
 - **没有 stream 工具**——`'stream'` 仍是保留的能力名（尚无方法）留给未来的视频表面（[note 的阶梯](../../../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.zh.md)）。
 - **无部署/构建助手**——应用部署不在 phase 1；接缝已带 `install` 供实现的 provider 使用。
+
+<a id="dev-note"></a>
+### 开发备注
+
+无。

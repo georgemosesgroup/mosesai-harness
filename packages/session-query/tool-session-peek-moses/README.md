@@ -1,9 +1,27 @@
+---
+description: "Personal read-only session-peek tools (peek_session_list, peek_session_read, peek_session_search) that let one model session inspect other sessions of the same DSH install."
+kind: "package-reference"
+---
+
 # @deepseek-ai/dsh-tool-session-peek-moses
 
 English | [中文](README.zh.md)
 
+<a id="summary"></a>
+## Summary
+
 Personal read-only session-peek tools (`peek_session_list`, `peek_session_read`, `peek_session_search`) over `ctx.sessionQuery`. Lets one model session inspect OTHER sessions of the same DSH install without mutating anything.
 
+## Table of Contents
+
+- [Tools](#tools)
+- [Config](#config)
+- [Enablement](#enablement)
+- [Model Experience](#model-experience)
+- [Known Limitations and Deferred Work](#known-limitations-and-deferred-work)
+- [Dev Note](#dev-note)
+
+<a id="tools"></a>
 ## Tools
 
 | Tool | Purpose |
@@ -14,10 +32,12 @@ Personal read-only session-peek tools (`peek_session_list`, `peek_session_read`,
 
 All three are strictly read-only: the only capability touched is `ctx.sessionQuery`. Unknown ids and disabled search throw ordinary errors (model sees `isError` results). Every renderer enforces a character budget.
 
+<a id="config"></a>
 ## Config
 
 `defaultLimit` (20), `maxLimit` (100), `eventTextMaxChars` (4000), `maxOutputChars` (24000), `searchTimeoutMs` (30000), `searchStabilizationRetries` (2).
 
+<a id="enablement"></a>
 ## Enablement
 
 Add the insert row to `$DSH_HOME/profiles/web/cordis.patch.yml`; requires `session-query-sqlite` with `openAt: first-search` or later for `peek_session_search`.
@@ -48,3 +68,8 @@ Append-only and prefix-stable within a session; reloading the plugin or changing
 
 - **Read-only by design** — no mechanism to send messages to or mutate other sessions; a notification channel is deferred.
 - **Full-text search requires an open SQLite index** — deployments must mount `dsh-session-query-sqlite` with `openAt: first-search` or `startup`.
+
+<a id="dev-note"></a>
+### Dev Note
+
+None.
