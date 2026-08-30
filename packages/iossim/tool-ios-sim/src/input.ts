@@ -16,6 +16,7 @@ import type { SimulatorInputValue } from './types.ts'
 interface SimInputArgs {
   action?: unknown
   device?: unknown
+  button?: unknown
   reference?: unknown
   x?: unknown
   y?: unknown
@@ -73,8 +74,16 @@ function buildAction(args: SimInputArgs): SimulatorInputAction {
         throw new Error('sim_input key needs an integer HID `usage` code between 0 and 65535')
       }
       return { kind: 'key', usage: args.usage }
+    case 'button': {
+      const known = ['home', 'lock', 'side_button', 'siri', 'apple_pay', 'play_pause'] as const
+      const button = known.find(name => name === args.button)
+      if (button === undefined) {
+        throw new Error(`sim_input button needs \`button\`: one of ${known.join(', ')}`)
+      }
+      return { kind: 'button', button }
+    }
     default:
-      throw new Error('sim_input needs `action`: one of tap, swipe, key, text')
+      throw new Error('sim_input needs `action`: one of tap, swipe, key, text, button')
   }
 }
 
@@ -96,13 +105,13 @@ export function registerSimInputTool(ctx: Context, simulators: IosSimulator): vo
     name: 'sim_input',
     description: 'Perform one input gesture on an iOS simulator: `tap` (by element `reference` from a preceding '
       + 'sim_describe, or by `x`/`y` in device points), `swipe` (start/end points), `key` (HID usage code), or '
-      + '`text` (set a value on the target element). Element references are only valid against the references '
+      + '`text` (set a value on the target element), or `button` (a hardware button by name). Element references are only valid against the references '
       + 'the last sim_describe issued; a re-describe repaginates a live UI. Omitting `device` auto-targets the '
       + 'single booted simulator when exactly one exists.',
     parameters: {
       action: {
         type: 'string',
-        enum: ['tap', 'swipe', 'key', 'text'],
+        enum: ['tap', 'swipe', 'key', 'text', 'button'],
         required: true,
         description: 'The gesture to perform.',
       },
@@ -116,6 +125,7 @@ export function registerSimInputTool(ctx: Context, simulators: IosSimulator): vo
       endY: { type: 'number', description: 'Swipe end y in device points.' },
       duration: { type: 'number', description: 'Swipe duration in milliseconds.' },
       usage: { type: 'number', description: 'HID usage code of the key to press (`key`).' },
+      button: { type: 'string', enum: ['home', 'lock', 'side_button', 'siri', 'apple_pay', 'play_pause'], description: 'Hardware button to press (`button`).' },
       text: { type: 'string', description: 'The value to set on the target element (`text`).' },
     },
     output: {
@@ -124,7 +134,7 @@ export function registerSimInputTool(ctx: Context, simulators: IosSimulator): vo
         additionalProperties: false,
         properties: {
           simulatorId: { type: 'string', required: true },
-          inputAction: { type: 'string', enum: ['tap', 'swipe', 'key', 'text'], required: true },
+          inputAction: { type: 'string', enum: ['tap', 'swipe', 'key', 'text', 'button'], required: true },
           actedAt: {
             type: 'object',
             additionalProperties: false,

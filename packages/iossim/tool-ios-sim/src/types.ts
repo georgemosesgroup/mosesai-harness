@@ -45,7 +45,7 @@ export interface IosSimActionEventData {
   /** Element count the availability tree read reported (`action: 'describe'`). */
   elements?: number
   /** The input gesture family (`action: 'input'`). */
-  inputAction?: 'tap' | 'swipe' | 'key' | 'text'
+  inputAction?: 'tap' | 'swipe' | 'key' | 'text' | 'button'
   /**
    * The target an `input` gesture acted on, as the audit record names it: an
    * element reference or a device point. The TEXT a text entry set never
@@ -107,6 +107,6 @@ export interface SimulatorDescribeValue {
 /** Canonical value of a `sim_input` call. */
 export interface SimulatorInputValue {
   simulatorId: string
-  inputAction: 'tap' | 'swipe' | 'key' | 'text'
+  inputAction: 'tap' | 'swipe' | 'key' | 'text' | 'button'
   actedAt?: { xPoints: number; yPoints: number }
 }
