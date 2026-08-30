@@ -37,8 +37,16 @@ interface RequestWaiter {
   reject: (error: SimulatorError) => void
 }
 
-/** Bounded live-chunk buffer: a slow consumer drops the OLDEST chunks rather than growing without bound. */
-const MAX_VIDEO_QUEUE = 128
+/**
+ * Bounded live-chunk buffer, measured in bytes. Dropping chunks is NOT an
+ * option for the fMP4 transports: the stream is one continuous byte sequence,
+ * and losing any chunk tears it — the browser demuxer then reads mid-frame
+ * bytes as a box header and kills the pipeline (observed as
+ * CHUNK_DEMUXER_ERROR_APPEND_FAILED at a stable offset, because the encoder's
+ * warm-up burst overflows a small queue deterministically). A lagging consumer
+ * therefore fails the stream loudly instead of silently corrupting it.
+ */
+const MAX_VIDEO_QUEUE_BYTES = 64 * 1024 * 1024
 
 /**
  * One live, handshake-proven helper child.
@@ -335,9 +343,10 @@ export async function startHelper(options: HelperStartOptions): Promise<LiveHelp
       if (dispatchBroken !== undefined) throw dispatchBroken
       // The sink is registered before the request: video chunks may begin
       // flowing the moment the substrate starts encoding. The queue is
-      // bounded and drops the OLDEST chunks when the consumer lags — live
-      // semantics, not an unbounded buffer.
+      // byte-bounded; overflow closes the stream instead of dropping chunks,
+      // because the fMP4 transports cannot survive a torn byte sequence.
       const chunks: Uint8Array[] = []
+      let queuedBytes = 0
       let closed = false
       let waiter: ((result: IteratorResult<Uint8Array>) => void) | undefined
       const closeSink = (): void => {
@@ -348,13 +357,18 @@ export async function startHelper(options: HelperStartOptions): Promise<LiveHelp
       }
       videoSink = (chunk) => {
         if (closed) return
-        if (chunks.length >= MAX_VIDEO_QUEUE) chunks.shift()
+        if (queuedBytes + chunk.byteLength > MAX_VIDEO_QUEUE_BYTES) {
+          closeSink()
+          return
+        }
+        queuedBytes += chunk.byteLength
         chunks.push(chunk)
         const w = waiter
         if (w !== undefined) {
           waiter = undefined
           const nextChunk = chunks.shift()
           if (nextChunk === undefined) throw new Error('the video queue emptied between guards')
+          queuedBytes -= nextChunk.byteLength
           w({ value: nextChunk, done: false })
         }
       }
@@ -363,7 +377,9 @@ export async function startHelper(options: HelperStartOptions): Promise<LiveHelp
       const iterate = async function* (): AsyncIterable<Uint8Array> {
         for (;;) {
           if (chunks.length > 0) {
-            yield chunks.shift() as Uint8Array
+            const head = chunks.shift() as Uint8Array
+            queuedBytes -= head.byteLength
+            yield head
             continue
           }
           if (videoClosed) return
