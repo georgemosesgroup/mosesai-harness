@@ -27,7 +27,7 @@
       "path": "../../host/dif-explorer"
     },
     {
-      "path": "../../api/remotes/tsconfig.client.json"
+      "path": "../../api/gateway/tsconfig.client.json"
     },
     {
       "path": "../../runtime-diagnostics/invariants"

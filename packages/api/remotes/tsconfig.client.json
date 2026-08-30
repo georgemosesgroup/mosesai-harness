@@ -31,9 +31,6 @@
       "path": "../../context/session-reference"
     },
     {
-      "path": "../../host/dif-explorer"
-    },
-    {
       "path": "../../extensions/cordis-host-runner"
     },
     {
