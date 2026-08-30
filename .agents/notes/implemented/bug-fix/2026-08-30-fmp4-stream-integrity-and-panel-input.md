@@ -20,13 +20,13 @@ On that repaired surface the panel drives the device over the same socket. Point
 
 **Keep drop-oldest live semantics in the provider queue.** Rejected: valid for whole-frame codecs (mjpeg), fatal for a byte-stream container. A consumer too slow for 64 MiB of backlog needs a restart, not a silently corrupted stream.
 
-**Wait for `describe` to attest geometry instead of the scale heuristic.** Rejected for now: `describe` crashes the helper (SIGBUS, unresolved), and the plausible-band heuristic cannot misclassify shipping hardware today. The heuristic is marked for replacement the day geometry is attested.
+**Wait for `describe` to attest geometry instead of the scale heuristic.** Initially rejected because `describe` crashed the helper — a stack overflow in the serializer's unbounded AX recursion, since fixed by bounding the walk at `FBAXReadLimits` (depth 50, 3000 nodes). With `describe` serving, the bridge now sends the attested screen size after each stream start and the panel prefers it; the band heuristic remains only as the fallback for a bridge whose `describe` could not serve.
 
 **A dedicated input WebSocket.** Rejected: the stream socket already carries typed JSON control messages both ways, and a second socket would duplicate the trust fence and the device binding for no isolation gain.
 
 ## Consequences
 
-The panel is a working simulator: live h264 at the live edge, taps, swipes, typing, and hardware buttons, verified by eye against the running device (chip selection switched by a panel click, map panned by a panel drag, Spotlight opened by a panel swipe and filled from the physical keyboard, Home returned to the springboard). Input from the panel produces no `iosSim/action` records, preserving the model-visible ⟺ logged boundary. The costs: the scale heuristic is a documented approximation until `describe` serves; per-sample `trun` layout stays single-sample; and the panel's viewport cap hard-codes the app chrome's 220 px, which tracks the shell layout by hand until the tab container bounds its children.
+The panel is a working simulator: live h264 at the live edge, taps, swipes, typing, and hardware buttons, verified by eye against the running device (chip selection switched by a panel click, map panned by a panel drag, Spotlight opened by a panel swipe and filled from the physical keyboard, Home returned to the springboard). Input from the panel produces no `iosSim/action` records, preserving the model-visible ⟺ logged boundary. The costs: per-sample `trun` layout stays single-sample; and the panel's viewport cap hard-codes the app chrome's 220 px, which tracks the shell layout by hand until the tab container bounds its children.
 
 ## Testing
 

@@ -180,6 +180,17 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
     streamDevice = request.simulator
     send(ws, { type: 'meta', codec: stream.codec })
     void pump(stream)
+    // Attested geometry, best-effort: the panel maps clicks to device POINTS,
+    // and describe's screen size replaces its render-scale heuristic. A
+    // failing describe costs nothing — the panel keeps the heuristic.
+    void simulator.describe({ ...(streamDevice === undefined ? {} : { simulator: streamDevice }) }).then(
+      (described) => {
+        if (described.screen !== undefined) {
+          send(ws, { type: 'screen', widthPoints: described.screen.widthPoints, heightPoints: described.screen.heightPoints })
+        }
+      },
+      () => undefined,
+    )
   }
 
   void Promise.resolve()

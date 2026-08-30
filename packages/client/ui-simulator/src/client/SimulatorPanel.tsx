@@ -19,6 +19,7 @@ interface DeviceRow {
 type ServerMessage =
   | { type: 'devices'; devices: DeviceRow[]; note?: string }
   | { type: 'meta'; codec: string }
+  | { type: 'screen'; widthPoints: number; heightPoints: number }
   | { type: 'inputResult'; ok: boolean }
   | { type: 'end' }
   | { type: 'error'; message: string }
@@ -98,6 +99,9 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
           setCodec(message.codec as StreamCodec)
           codecRef.current = message.codec as StreamCodec
           setStatus({ key: 'status.live', detail: `(${message.codec})` })
+          break
+        case 'screen':
+          screenRef.current = { widthPoints: message.widthPoints, heightPoints: message.heightPoints }
           break
         case 'inputResult':
           break
@@ -265,6 +269,8 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
   const SWIPE_MIN_CSS_PX = 8
 
   const gestureRef = useRef<{ clientX: number; clientY: number; startedAt: number; point: { x: number; y: number } } | undefined>(undefined)
+  /** Attested screen size in points, sent by the bridge when describe serves. */
+  const screenRef = useRef<{ widthPoints: number; heightPoints: number } | undefined>(undefined)
 
   /**
    * Map one pointer event onto the device's POINT grid. The stream carries
@@ -279,9 +285,15 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
     const pxWidth = surface instanceof HTMLVideoElement ? surface.videoWidth : surface.width
     const pxHeight = surface instanceof HTMLVideoElement ? surface.videoHeight : surface.height
     if (pxWidth === 0 || pxHeight === 0 || rect.width === 0 || rect.height === 0) return undefined
-    const renderScale = pxWidth / 3 >= 250 && pxWidth / 3 <= 520 ? 3 : pxWidth / 2 >= 500 && pxWidth / 2 <= 1100 ? 2 : 1
     const nx = Math.min(Math.max((event.clientX - rect.left) / rect.width, 0), 1)
     const ny = Math.min(Math.max((event.clientY - rect.top) / rect.height, 0), 1)
+    // Attested geometry wins; the band heuristic only covers a bridge whose
+    // describe could not serve.
+    const attested = screenRef.current
+    if (attested !== undefined) {
+      return { x: Math.round(nx * attested.widthPoints), y: Math.round(ny * attested.heightPoints) }
+    }
+    const renderScale = pxWidth / 3 >= 250 && pxWidth / 3 <= 520 ? 3 : pxWidth / 2 >= 500 && pxWidth / 2 <= 1100 ? 2 : 1
     return { x: Math.round(nx * (pxWidth / renderScale)), y: Math.round(ny * (pxHeight / renderScale)) }
   }
 
