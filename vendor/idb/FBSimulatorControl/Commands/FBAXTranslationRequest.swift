@@ -155,13 +155,15 @@ final class FBAXTranslationRequest {
 
     let keys = Self.serializerKeys(options)
 
+    let budget = FBAXNodeSerializer.WalkBudget()
     let walked = FBAXNodeSerializer.recursiveDescription(
       fromElement: element,
       token: token,
       nestedFormat: options.nestedFormat,
       keys: keys,
       collector: collector,
-      seenPids: seenPids
+      seenPids: seenPids,
+      budget: budget
     )
     let mainAppElements = options.filter.apply(to: walked)
 
@@ -185,7 +187,8 @@ final class FBAXTranslationRequest {
             nested: options.nestedFormat
           ) : nil,
         screen: Self.screenInfo(fromBounds: screenBounds),
-        reportProfile: options.enableProfiling
+        reportProfile: options.enableProfiling,
+        truncated: budget.truncated
       )
     }
 
@@ -377,7 +380,8 @@ final class FBAXTranslationRequest {
     walkStart: CFAbsoluteTime,
     coverage: FBAccessibilityCoverage?,
     screen: FBAccessibilityScreenInfo?,
-    reportProfile: Bool
+    reportProfile: Bool,
+    truncated: Bool = false
   ) -> FBAccessibilityElementsResponse {
     let walkDuration = CFAbsoluteTimeGetCurrent() - walkStart
     // Collected always (cheap); reported only when profiling was requested.
@@ -386,7 +390,7 @@ final class FBAXTranslationRequest {
       elements: elements,
       profilingData: profilingData.map { .translator($0) },
       coverage: coverage,
-      truncated: false,
+      truncated: truncated,
       screen: screen
     )
   }

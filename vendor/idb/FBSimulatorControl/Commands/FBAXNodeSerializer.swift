@@ -19,6 +19,44 @@ import Foundation
 /// read site.
 enum FBAXNodeSerializer {
 
+  /// The bounds one live-tree walk runs under, shared mutable state across the recursion. The live
+  /// `.accessibility` backend walks AXPTranslation elements directly, and that tree is not guaranteed
+  /// finite from the walker's point of view: a deep hierarchy — or a parent/child CYCLE, which AX
+  /// trees do produce — previously recursed until the thread stack was exhausted and the helper died
+  /// with SIGBUS inside `nestedRecursiveDescription`. The depth cap bounds the stack (a cycle just
+  /// truncates at the cap), the node budget bounds pathological width, and `truncated` records that
+  /// either bound fired so the response can say so instead of silently reporting a partial tree as
+  /// complete. Defaults mirror `FBAXReadLimits`, the same bounds every XCUI-grade read truncates at.
+  final class WalkBudget {
+    let maxDepth: Int
+    var nodesLeft: Int
+    private(set) var truncated = false
+
+    init(maxDepth: Int = FBAXReadLimits.maxReadDepth, maxNodes: Int = FBAXReadLimits.maxReadNodes) {
+      self.maxDepth = maxDepth
+      self.nodesLeft = maxNodes
+    }
+
+    /// Consumes one node. Returns false — and records the truncation — when the budget is spent.
+    func consumeNode() -> Bool {
+      if nodesLeft <= 0 {
+        truncated = true
+        return false
+      }
+      nodesLeft -= 1
+      return true
+    }
+
+    /// Whether the walk may descend past `depth`. Records the truncation when it may not.
+    func mayDescend(from depth: Int) -> Bool {
+      if depth + 1 >= maxDepth {
+        truncated = true
+        return false
+      }
+      return true
+    }
+  }
+
   // MARK: - Entry points
 
   static func recursiveDescription(
@@ -27,13 +65,14 @@ enum FBAXNodeSerializer {
     nestedFormat: Bool,
     keys: Set<FBAXKeys>,
     collector: FBAccessibilityProfilingCollector?,
-    seenPids: SeenPIDs?
+    seenPids: SeenPIDs?,
+    budget: WalkBudget = WalkBudget()
   ) -> [FBAccessibilityDocumentElement] {
     element.axSetBridgeDelegateToken(token)
     if nestedFormat {
-      return nestedRecursiveDescription(fromElement: element, token: token, keys: keys, collector: collector, seenPids: seenPids)
+      return nestedRecursiveDescription(fromElement: element, token: token, keys: keys, collector: collector, seenPids: seenPids, depth: 0, budget: budget)
     }
-    return flatRecursiveDescription(fromElement: element, token: token, keys: keys, collector: collector, seenPids: seenPids)
+    return flatRecursiveDescription(fromElement: element, token: token, keys: keys, collector: collector, seenPids: seenPids, depth: 0, budget: budget)
   }
 
   static func formattedDescription(
@@ -51,13 +90,14 @@ enum FBAXNodeSerializer {
     // The target's descendants are built as a subtree of their own, rather than by walking the target
     // itself, so the target is always reported and always carries a `children` array — a filtered walk
     // rooted at the target could drop or replace it. The caller filters these children afterwards.
+    let budget = WalkBudget()
     var children: [FBAccessibilityDocumentElement] = []
     for child in element.axChildren() {
       child.axSetBridgeDelegateToken(token)
       children.append(
         contentsOf: nestedRecursiveDescription(
           fromElement: child, token: token, keys: keys, collector: collector,
-          seenPids: nil
+          seenPids: nil, depth: 1, budget: budget
         )
       )
     }
@@ -262,14 +302,22 @@ enum FBAXNodeSerializer {
     token: String,
     keys: Set<FBAXKeys>,
     collector: FBAccessibilityProfilingCollector?,
-    seenPids: SeenPIDs?
+    seenPids: SeenPIDs?,
+    depth: Int,
+    budget: WalkBudget
   ) -> [FBAccessibilityDocumentElement] {
+    guard budget.consumeNode() else {
+      return []
+    }
     var values: [FBAccessibilityDocumentElement] = [
       decoratedElement(forElement: element, token: token, keys: keys, collector: collector, seenPids: seenPids, isRemote: false)
     ]
+    guard budget.mayDescend(from: depth) else {
+      return values
+    }
     for child in element.axChildren() {
       child.axSetBridgeDelegateToken(token)
-      values.append(contentsOf: flatRecursiveDescription(fromElement: child, token: token, keys: keys, collector: collector, seenPids: seenPids))
+      values.append(contentsOf: flatRecursiveDescription(fromElement: child, token: token, keys: keys, collector: collector, seenPids: seenPids, depth: depth + 1, budget: budget))
     }
     return values
   }
@@ -280,12 +328,19 @@ enum FBAXNodeSerializer {
     token: String,
     keys: Set<FBAXKeys>,
     collector: FBAccessibilityProfilingCollector?,
-    seenPids: SeenPIDs?
+    seenPids: SeenPIDs?,
+    depth: Int,
+    budget: WalkBudget
   ) -> [FBAccessibilityDocumentElement] {
+    guard budget.consumeNode() else {
+      return []
+    }
     var childrenValues: [FBAccessibilityDocumentElement] = []
-    for child in element.axChildren() {
-      child.axSetBridgeDelegateToken(token)
-      childrenValues.append(contentsOf: nestedRecursiveDescription(fromElement: child, token: token, keys: keys, collector: collector, seenPids: seenPids))
+    if budget.mayDescend(from: depth) {
+      for child in element.axChildren() {
+        child.axSetBridgeDelegateToken(token)
+        childrenValues.append(contentsOf: nestedRecursiveDescription(fromElement: child, token: token, keys: keys, collector: collector, seenPids: seenPids, depth: depth + 1, budget: budget))
+      }
     }
     var values = decoratedElement(forElement: element, token: token, keys: keys, collector: collector, seenPids: seenPids, isRemote: false)
     values.children = childrenValues
