@@ -5,8 +5,6 @@ Status: implemented
 
 English | [中文](2026-08-27-ios-simulator-seam.zh.md)
 
-English
-
 ## Problem
 
 iOS simulators are the first host surface the harness drives that is neither a filesystem nor a web endpoint: the substrate is `xcrun simctl`, whose public surface can list/boot/install/launch/screenshot/openurl but cannot tap or describe UI trees. A phase plan exists where later phases add idb-backed input and a video stream. If the contract were sketched only from what level-0 can do, two failure modes were locked in before they existed: the session-event and render-intent vocabularies would need redesign when richer providers arrived, and consumers would grow screenshot-coordinate habits exactly opposite to the planned element-reference interface.
