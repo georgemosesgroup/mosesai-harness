@@ -16,11 +16,16 @@ interface DeviceRow {
   state: 'booted' | 'shutdown'
 }
 
+interface DeviceTypeRow { identifier: string; name: string }
+interface RuntimeRow { identifier: string; name: string; available: boolean }
+
 type ServerMessage =
   | { type: 'devices'; devices: DeviceRow[]; note?: string }
   | { type: 'meta'; codec: string }
   | { type: 'screen'; widthPoints: number; heightPoints: number }
   | { type: 'inputResult'; ok: boolean }
+  | { type: 'deviceTypes'; deviceTypes: DeviceTypeRow[]; runtimes: RuntimeRow[] }
+  | { type: 'created'; id: string; name: string }
   | { type: 'end' }
   | { type: 'error'; message: string }
 
@@ -52,6 +57,12 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
   const [error, setError] = useState<{ key: Parameters<typeof t>[0]; detail?: string } | undefined>(undefined)
   const [autoTargetHint, setAutoTargetHint] = useState(false)
   const [codec, setCodec] = useState<StreamCodec | undefined>(undefined)
+  const [deviceTypes, setDeviceTypes] = useState<DeviceTypeRow[]>([])
+  const [runtimes, setRuntimes] = useState<RuntimeRow[]>([])
+  const [creating, setCreating] = useState(false)
+  const [newName, setNewName] = useState('')
+  const [newType, setNewType] = useState('')
+  const [newRuntime, setNewRuntime] = useState('')
   const socketRef = useRef<WebSocket | undefined>(undefined)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -104,6 +115,21 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
           screenRef.current = { widthPoints: message.widthPoints, heightPoints: message.heightPoints }
           break
         case 'inputResult':
+          break
+        case 'deviceTypes':
+          setDeviceTypes(message.deviceTypes)
+          setRuntimes(message.runtimes)
+          const firstType = message.deviceTypes[0]
+          if (firstType !== undefined) setNewType(prev => prev === '' ? firstType.identifier : prev)
+          {
+            const firstAvailable = message.runtimes.find(r => r.available)
+            if (firstAvailable !== undefined) setNewRuntime(prev => prev === '' ? firstAvailable.identifier : prev)
+          }
+          break
+        case 'created':
+          setCreating(false)
+          setNewName('')
+          setDevice(message.id)
           break
         case 'end':
           setStatus({ key: 'status.stopped' })
@@ -265,6 +291,29 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
     socketRef.current?.send(JSON.stringify({ action: 'stop' }))
   }
 
+  function bootDevice(id: string): void {
+    socketRef.current?.send(JSON.stringify({ action: 'boot', device: id }))
+  }
+
+  function shutdownDevice(id: string): void {
+    socketRef.current?.send(JSON.stringify({ action: 'shutdown', device: id }))
+  }
+
+  function openCreate(): void {
+    setCreating(true)
+    socketRef.current?.send(JSON.stringify({ action: 'deviceTypes' }))
+  }
+
+  function submitCreate(): void {
+    if (newName.trim() === '' || newType === '' || newRuntime === '') return
+    socketRef.current?.send(JSON.stringify({
+      action: 'create',
+      name: newName.trim(),
+      deviceTypeIdentifier: newType,
+      runtimeIdentifier: newRuntime,
+    }))
+  }
+
   /** CSS-пиксели порога: ближе — тап, дальше — свайп. */
   const SWIPE_MIN_CSS_PX = 8
 
@@ -400,8 +449,44 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
         </select>
         <button type="button" className={styles.button} onClick={start} disabled={streaming}>{t('action.start')}</button>
         <button type="button" className={styles.button} onClick={stop} disabled={!streaming}>{t('action.stop')}</button>
+        <button type="button" className={styles.button} onClick={openCreate} disabled={streaming}>{t('device.create')}</button>
         <span className={clsx(styles.status, streaming && styles.live)}>{t(status.key)}{status.detail === undefined ? '' : ` ${status.detail}`}</span>
       </div>
+      {!streaming && devices.length > 0 && (
+        <div className={styles.deviceList}>
+          {devices.map(d => (
+            <div key={d.id} className={clsx(styles.deviceRow, device === d.id && styles.deviceSelected)}>
+              <button type="button" className={styles.deviceName} onClick={() => { setDevice(d.id) }}>
+                {d.name}
+                <span className={clsx(styles.deviceState, d.state === 'booted' && styles.deviceBooted)}>{t(d.state === 'booted' ? 'device.booted' : 'device.shutdownState')}</span>
+              </button>
+              {d.state === 'booted'
+                ? <button type="button" className={styles.button} onClick={() => { shutdownDevice(d.id) }}>{t('device.shutdown')}</button>
+                : <button type="button" className={styles.button} onClick={() => { bootDevice(d.id) }}>{t('device.boot')}</button>}
+            </div>
+          ))}
+        </div>
+      )}
+      {creating && (
+        <div className={styles.createForm}>
+          <input
+            className={styles.createInput}
+            placeholder={t('create.name')}
+            value={newName}
+            onChange={(e) => { setNewName(e.target.value) }}
+          />
+          <select className={styles.picker} value={newType} onChange={(e) => { setNewType(e.target.value) }}>
+            {deviceTypes.length === 0 && <option value="">{t('create.loading')}</option>}
+            {deviceTypes.map(dt => <option key={dt.identifier} value={dt.identifier}>{dt.name}</option>)}
+          </select>
+          <select className={styles.picker} value={newRuntime} onChange={(e) => { setNewRuntime(e.target.value) }}>
+            {runtimes.length === 0 && <option value="">{t('create.loading')}</option>}
+            {runtimes.map(rt => <option key={rt.identifier} value={rt.identifier} disabled={!rt.available}>{rt.name}{rt.available ? '' : ` (${t('create.unavailable')})`}</option>)}
+          </select>
+          <button type="button" className={styles.button} onClick={submitCreate} disabled={newName.trim() === '' || newType === '' || newRuntime === ''}>{t('create.submit')}</button>
+          <button type="button" className={styles.button} onClick={() => { setCreating(false) }}>{t('create.cancel')}</button>
+        </div>
+      )}
       {streaming && (
         <div className={styles.hardwareRow}>
           <button type="button" className={styles.button} onClick={() => { pressHardwareButton('home') }}>{t('hw.home')}</button>

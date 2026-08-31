@@ -968,6 +968,8 @@ export interface Config {
   maxRestarts?: number
   /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
   graceMs?: number
+  /** Max captured bytes per simctl invocation (inherited simctl verbs). */
+  maxOutputBytes?: number
   /** Video codec of live streams (`stream`): `h264`, `hevc`, or `mjpeg`. Default: `h264`. */
   streamCodec?: string
   /** Encode at most this many frames per second (`stream`). Default: 30. */
@@ -977,7 +979,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/iossim/ios-sim-native/src/index.ts:73`](../packages/iossim/ios-sim-native/src/index.ts)
+来源：[`packages/iossim/ios-sim-native/src/index.ts:74`](../packages/iossim/ios-sim-native/src/index.ts)
 
 <a id="deepseek-aidsh-ios-sim-panel"></a>
 
@@ -1017,7 +1019,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/iossim/ios-sim-simctl/src/index.ts:90`](../packages/iossim/ios-sim-simctl/src/index.ts)
+来源：[`packages/iossim/ios-sim-simctl/src/index.ts:93`](../packages/iossim/ios-sim-simctl/src/index.ts)
 
 <a id="deepseek-aidsh-jobs-local"></a>
 

@@ -21,6 +21,9 @@
       "path": "../../iossim/ios-sim"
     },
     {
+      "path": "../../iossim/ios-sim-simctl"
+    },
+    {
       "path": "../../subprocess/subprocess"
     },
     {

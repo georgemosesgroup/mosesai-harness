@@ -43,6 +43,8 @@ import type {
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
   SimulatorListRequest,
+  SimulatorCreateRequest,
+  SimulatorDeviceCatalog,
   SimulatorOpenUrlRequest,
   SimulatorScreenshot,
   SimulatorTargetedRequest,
@@ -51,7 +53,7 @@ import type {
 } from '@deepseek-ai/dsh-ios-sim'
 import type { SubprocessHandle, SubprocessOutputReader, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS, clampTimeout, deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
-import { parseDeviceList, parseLaunchOutput, pngPixelSize } from './parse.ts'
+import { parseDeviceList, parseLaunchOutput, parseDeviceCatalog, parseCreatedDeviceId, pngPixelSize } from './parse.ts'
 
 /**
  * The complete set of simctl subcommands this provider may ever spawn.
@@ -62,6 +64,7 @@ export const SIMCTL_ALLOWLIST: ReadonlySet<string> = new Set([
   'list',
   'boot',
   'shutdown',
+  'create',
   'install',
   'launch',
   'terminate',
@@ -345,6 +348,46 @@ export class SimctlSimulatorProvider extends IosSimulator {
     return { simulatorId: id }
   }
 
+  /**
+   * Create a device via `simctl create`, then re-list to report the
+   * substrate's canonical name and resolved runtime rather than the request echo.
+   * @param request - the name plus device-type and runtime identifiers.
+   * @returns the new device as `list` observes it.
+   */
+  override async doCreate(request: SimulatorCreateRequest): Promise<SimulatorDevice> {
+    const spec = await this.resolve()
+    const { stdout } = await this.runSimctl(
+      spec, ['create'],
+      [request.name, request.deviceTypeIdentifier, request.runtimeIdentifier],
+    )
+    const id = parseCreatedDeviceId(stdout)
+    // Re-list rather than synthesize: the new device's canonical name and
+    // resolved runtime come from the substrate, not the request echo.
+    const { devices } = await this.listing(spec)
+    const created = devices.find(device => device.id === id)
+    if (created !== undefined) return created
+    return {
+      id,
+      name: request.name,
+      state: 'shutdown',
+      deviceTypeIdentifier: request.deviceTypeIdentifier,
+      runtimeIdentifier: request.runtimeIdentifier,
+    }
+  }
+
+  /**
+   * List the host's device types and runtimes via `simctl list devicetypes/runtimes -j`.
+   * @returns the device-type and runtime catalog `create` draws from.
+   */
+  override async doListDeviceTypes(): Promise<SimulatorDeviceCatalog> {
+    const spec = await this.resolve()
+    const [types, runtimes] = await Promise.all([
+      this.runSimctl(spec, ['list'], ['devicetypes', '--json']),
+      this.runSimctl(spec, ['list'], ['runtimes', '--json']),
+    ])
+    return parseDeviceCatalog(types.stdout, runtimes.stdout)
+  }
+
   override async install(request: SimulatorInstallRequest): Promise<SimulatorResolvedTarget> {
     if (!existsSync(request.appPath)) {
       throw new SimulatorError(
@@ -454,7 +497,7 @@ export class SimctlSimulatorProvider extends IosSimulator {
   }
 
   /** Execute one planned `xcrun simctl …` call and collect its facts. The argv chokepoint enforces the subcommand allowlist. */
-  private async runSimctl(spec: SimctlInvocationSpec, prefixTail: readonly string[], restArgs: readonly string[]): Promise<{
+  protected async runSimctl(spec: SimctlInvocationSpec, prefixTail: readonly string[], restArgs: readonly string[]): Promise<{
     exitCode: number | null
     signal: NodeJS.Signals | null
     stdout: string
@@ -509,6 +552,7 @@ export class SimctlSimulatorProvider extends IosSimulator {
 const PROVIDER_CAPABILITIES: ReadonlySet<SimulatorCapability> = new Set<SimulatorCapability>([
   'list',
   'boot',
+  'create',
   'install',
   'launch',
   'terminate',

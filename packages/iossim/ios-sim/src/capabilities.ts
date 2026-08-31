@@ -18,6 +18,7 @@
 export type SimulatorCapability =
   | 'list'
   | 'boot'
+  | 'create'
   | 'install'
   | 'launch'
   | 'terminate'
@@ -31,6 +32,7 @@ export type SimulatorCapability =
 export const SIMULATOR_CAPABILITIES: readonly SimulatorCapability[] = [
   'list',
   'boot',
+  'create',
   'install',
   'launch',
   'terminate',
@@ -46,6 +48,8 @@ export type SimulatorVerb =
   | 'list'
   | 'boot'
   | 'shutdown'
+  | 'create'
+  | 'listDeviceTypes'
   | 'install'
   | 'launch'
   | 'terminate'
@@ -63,6 +67,8 @@ export const VERB_CAPABILITY: Readonly<Record<SimulatorVerb, SimulatorCapability
   list: 'list',
   boot: 'boot',
   shutdown: 'boot',
+  create: 'create',
+  listDeviceTypes: 'create',
   install: 'install',
   launch: 'launch',
   terminate: 'terminate',
@@ -76,11 +82,13 @@ export const VERB_CAPABILITY: Readonly<Record<SimulatorVerb, SimulatorCapability
 /**
  * Impl-hook names each advertised capability must override, for the
  * advertisement↔override consistency helper (`do${Cap}${Extra}` conventions:
- * `'boot'` requires BOTH power directions).
+ * `'boot'` requires BOTH power directions; `'create'` requires device
+ * creation AND its device-type listing).
  */
 export const CAPABILITY_IMPL_HOOKS: Readonly<Record<SimulatorCapability, readonly string[]>> = {
   list: ['doList'],
   boot: ['doBoot', 'doShutdown'],
+  create: ['doCreate', 'doListDeviceTypes'],
   install: ['doInstall'],
   launch: ['doLaunch'],
   terminate: ['doTerminate'],

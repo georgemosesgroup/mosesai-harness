@@ -1051,6 +1051,18 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         returns: 'the target the provider actually resolved and powered on.',
       },
       {
+        signature: 'async create(request: SimulatorCreateRequest): Promise<SimulatorDevice>',
+        description: 'Create a new device from a device type paired with a runtime.',
+        parameters: [{ name: 'request', description: 'the display name plus the device-type and runtime identifiers.' }],
+        returns: 'the newly created device as `list` would observe it (shut down).',
+      },
+      {
+        signature: 'async listDeviceTypes(): Promise<SimulatorDeviceCatalog>',
+        description: 'List the device types and runtimes `create` can draw from on this host.',
+        parameters: [],
+        returns: 'the host\'s device-type and runtime catalog.',
+      },
+      {
         signature: 'async shutdown(request: SimulatorShutdownRequest): Promise<SimulatorResolvedTarget>',
         description: 'Power the target device off; already-shutdown targets succeed.',
         parameters: [{ name: 'request', description: 'the target reference (omitted = the provider\'s explicit resolution) with optional deadline knob.' }],
@@ -5464,6 +5476,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SimulatorBootRequest extends SimulatorTargetedRequest {\n}',
   },
   {
+    name: 'SimulatorCreateRequest',
+    declaration: 'export interface SimulatorCreateRequest {\n    name: string;\n    deviceTypeIdentifier: string;\n    runtimeIdentifier: string;\n}',
+  },
+  {
     name: 'SimulatorDescribeRequest',
     declaration: 'export interface SimulatorDescribeRequest extends SimulatorTargetedRequest {\n}',
   },
@@ -5474,6 +5490,14 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SimulatorDevice',
     declaration: 'export interface SimulatorDevice {\n    id: SimulatorId;\n    name: string;\n    state: SimulatorState;\n    deviceTypeIdentifier: string;\n    runtimeIdentifier: string;\n}',
+  },
+  {
+    name: 'SimulatorDeviceCatalog',
+    declaration: 'export interface SimulatorDeviceCatalog {\n    deviceTypes: readonly SimulatorDeviceType[];\n    runtimes: readonly SimulatorRuntime[];\n}',
+  },
+  {
+    name: 'SimulatorDeviceType',
+    declaration: 'export interface SimulatorDeviceType {\n    identifier: string;\n    name: string;\n}',
   },
   {
     name: 'SimulatorElementFrame',
@@ -5538,6 +5562,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SimulatorResolvedTarget',
     declaration: 'export interface SimulatorResolvedTarget {\n    simulatorId: SimulatorId;\n}',
+  },
+  {
+    name: 'SimulatorRuntime',
+    declaration: 'export interface SimulatorRuntime {\n    identifier: string;\n    name: string;\n    available: boolean;\n}',
   },
   {
     name: 'SimulatorScreenshot',

@@ -471,7 +471,7 @@ describe('the native provider over real stub helpers', () => {
     // helperPath resolves through the entry package; on this host the
     // platform package exists, on others the deterministic fallback. Either
     // way the plan carries an absolute path without existence promises.
-    expect(suite.provider.resolve().helperPath.startsWith('/')).toBe(true)
+    expect(suite.provider.resolveHelper().helperPath.startsWith('/')).toBe(true)
   })
 
   it('passes a named seam code through and classifies a foreign one as a request failure', async () => {

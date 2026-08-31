@@ -42,6 +42,9 @@ type SocketMessage = {
   frameRate?: unknown
   scale?: unknown
   gesture?: unknown
+  name?: unknown
+  deviceTypeIdentifier?: unknown
+  runtimeIdentifier?: unknown
 }
 
 /**
@@ -193,24 +196,30 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
     )
   }
 
-  void Promise.resolve()
-    .then(async () => {
-      try {
-        const devices = await simulator.list()
-        send(ws, {
-          type: 'devices',
-          devices: devices.map(d => ({
-            id: String(d.id),
-            name: d.name,
-            state: d.state,
-          })),
-        })
-      } catch (cause) {
-        // A provider without the list verb still streams: starting without a
-        // device lets the helper resolve the single booted one.
-        send(ws, { type: 'devices', devices: [], note: errorBody(cause).message })
-      }
-    })
+  const sendDevices = async (): Promise<void> => {
+    try {
+      const devices = await simulator.list()
+      send(ws, {
+        type: 'devices',
+        devices: devices.map(d => ({ id: String(d.id), name: d.name, state: d.state })),
+      })
+    } catch (cause) {
+      // A provider without the list verb still streams: starting without a
+      // device lets the helper resolve the single booted one.
+      send(ws, { type: 'devices', devices: [], note: errorBody(cause).message })
+    }
+  }
+
+  const sendDeviceTypes = async (): Promise<void> => {
+    try {
+      const catalog = await simulator.listDeviceTypes()
+      send(ws, { type: 'deviceTypes', deviceTypes: catalog.deviceTypes, runtimes: catalog.runtimes })
+    } catch (cause) {
+      send(ws, errorBody(cause))
+    }
+  }
+
+  void sendDevices()
 
   ws.on('message', (data: Buffer) => {
     let message: SocketMessage
@@ -239,6 +248,39 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
         (cause: unknown) => {
           send(ws, errorBody(cause))
         },
+      )
+      return
+    }
+    if (message.action === 'refresh') {
+      void sendDevices()
+      return
+    }
+    if (message.action === 'deviceTypes') {
+      void sendDeviceTypes()
+      return
+    }
+    if (message.action === 'boot' || message.action === 'shutdown') {
+      const id = typeof message.device === 'string' && message.device.length > 0 ? SimulatorId(message.device) : undefined
+      if (id === undefined) { send(ws, { type: 'error', message: 'boot/shutdown needs a device id' }); return }
+      const verb = message.action === 'boot' ? simulator.boot({ simulator: id }) : simulator.shutdown({ simulator: id })
+      verb.then(
+        () => { void sendDevices() },
+        (cause: unknown) => { send(ws, errorBody(cause)) },
+      )
+      return
+    }
+    if (message.action === 'create') {
+      if (typeof message.name !== 'string' || typeof message.deviceTypeIdentifier !== 'string' || typeof message.runtimeIdentifier !== 'string') {
+        send(ws, { type: 'error', message: 'create needs name, deviceTypeIdentifier, runtimeIdentifier' })
+        return
+      }
+      simulator.create({
+        name: message.name,
+        deviceTypeIdentifier: message.deviceTypeIdentifier,
+        runtimeIdentifier: message.runtimeIdentifier,
+      }).then(
+        (device) => { send(ws, { type: 'created', id: String(device.id), name: device.name }); void sendDevices() },
+        (cause: unknown) => { send(ws, errorBody(cause)) },
       )
       return
     }

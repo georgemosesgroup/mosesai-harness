@@ -38,6 +38,8 @@ import type {
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
   SimulatorListRequest,
+  SimulatorCreateRequest,
+  SimulatorDeviceCatalog,
   SimulatorOpenUrlRequest,
   SimulatorResolvedTarget,
   SimulatorScreenshot,
@@ -72,6 +74,10 @@ export type {
   SimulatorLaunchRequest,
   SimulatorLaunchResult,
   SimulatorListRequest,
+  SimulatorCreateRequest,
+  SimulatorDeviceCatalog,
+  SimulatorDeviceType,
+  SimulatorRuntime,
   SimulatorOpenUrlRequest,
   SimulatorPointsSize,
   SimulatorResolvedTarget,
@@ -152,6 +158,25 @@ export abstract class IosSimulator extends Service {
   async boot(request: SimulatorBootRequest): Promise<SimulatorResolvedTarget> {
     this.require('boot')
     return this.doBoot(request)
+  }
+
+  /**
+   * Create a new device from a device type paired with a runtime.
+   * @param request - the display name plus the device-type and runtime identifiers.
+   * @returns the newly created device as `list` would observe it (shut down).
+   */
+  async create(request: SimulatorCreateRequest): Promise<SimulatorDevice> {
+    this.require('create')
+    return this.doCreate(request)
+  }
+
+  /**
+   * List the device types and runtimes `create` can draw from on this host.
+   * @returns the host's device-type and runtime catalog.
+   */
+  async listDeviceTypes(): Promise<SimulatorDeviceCatalog> {
+    this.require('listDeviceTypes')
+    return this.doListDeviceTypes()
   }
 
   /**
@@ -257,6 +282,14 @@ export abstract class IosSimulator extends Service {
 
   protected doShutdown(_request: SimulatorShutdownRequest): Promise<SimulatorResolvedTarget> {
     return this.unimplemented('shutdown')
+  }
+
+  protected doCreate(_request: SimulatorCreateRequest): Promise<SimulatorDevice> {
+    return this.unimplemented('create')
+  }
+
+  protected doListDeviceTypes(): Promise<SimulatorDeviceCatalog> {
+    return this.unimplemented('listDeviceTypes')
   }
 
   protected doInstall(_request: SimulatorInstallRequest): Promise<SimulatorResolvedTarget> {

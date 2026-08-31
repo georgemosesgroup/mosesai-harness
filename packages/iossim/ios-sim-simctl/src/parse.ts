@@ -6,7 +6,7 @@
  */
 
 import { SimulatorId } from '@deepseek-ai/dsh-ios-sim'
-import type { SimulatorDevice, SimulatorState } from '@deepseek-ai/dsh-ios-sim'
+import type { SimulatorDevice, SimulatorState, SimulatorDeviceCatalog, SimulatorDeviceType, SimulatorRuntime } from '@deepseek-ai/dsh-ios-sim'
 
 /**
  * Parse `xcrun simctl list devices --json` stdout into seam devices.
@@ -98,4 +98,44 @@ export function pngPixelSize(png: Uint8Array): { widthPx: number; heightPx: numb
     throw new Error('screenshot PNG carries no leading IHDR chunk')
   }
   return { widthPx: view.getUint32(16), heightPx: view.getUint32(20) }
+}
+
+/**
+ * Parse `simctl list devicetypes -j` and `simctl list runtimes -j` into the
+ * seam's device-type and runtime catalog. Unavailable runtimes are reported
+ * with `available: false` rather than dropped, so the panel can grey them out.
+ * @param deviceTypesJson - stdout of `simctl list devicetypes -j`.
+ * @param runtimesJson - stdout of `simctl list runtimes -j`.
+ * @returns the catalog `create` draws from.
+ */
+export function parseDeviceCatalog(deviceTypesJson: string, runtimesJson: string): SimulatorDeviceCatalog {
+  const dt = JSON.parse(deviceTypesJson) as { devicetypes?: unknown }
+  const rt = JSON.parse(runtimesJson) as { runtimes?: unknown }
+  const deviceTypes: SimulatorDeviceType[] = []
+  for (const entry of Array.isArray(dt.devicetypes) ? dt.devicetypes : []) {
+    const record = entry as { identifier?: unknown; name?: unknown }
+    if (typeof record.identifier === 'string' && typeof record.name === 'string') {
+      deviceTypes.push({ identifier: record.identifier, name: record.name })
+    }
+  }
+  const runtimes: SimulatorRuntime[] = []
+  for (const entry of Array.isArray(rt.runtimes) ? rt.runtimes : []) {
+    const record = entry as { identifier?: unknown; name?: unknown; isAvailable?: unknown }
+    if (typeof record.identifier === 'string' && typeof record.name === 'string') {
+      runtimes.push({ identifier: record.identifier, name: record.name, available: record.isAvailable === true })
+    }
+  }
+  return { deviceTypes, runtimes }
+}
+
+/**
+ * Parse the UDID `simctl create` prints on success (the only line of stdout).
+ * @param stdout - stdout of `simctl create <name> <type> <runtime>`.
+ * @returns the new device's id.
+ * @throws {Error} when stdout carries no UUID-shaped token.
+ */
+export function parseCreatedDeviceId(stdout: string): SimulatorId {
+  const match = /[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}/.exec(stdout)
+  if (match === null) throw new Error(`simctl create printed no device UDID: ${JSON.stringify(stdout.slice(0, 120))}`)
+  return SimulatorId(match[0])
 }

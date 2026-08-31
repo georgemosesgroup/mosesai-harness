@@ -29,6 +29,16 @@ export const ru = {
   'hw.side': 'Боковая кнопка',
   'hw.siri': 'Siri',
   'hw.keyboardHint': 'Кликните по экрану — и печатайте с клавиатуры',
+  'device.create': '+ Создать',
+  'device.boot': 'Запустить',
+  'device.shutdown': 'Выключить',
+  'device.booted': 'запущен',
+  'device.shutdownState': 'выключен',
+  'create.name': 'Имя устройства',
+  'create.loading': 'Загрузка…',
+  'create.unavailable': 'недоступно',
+  'create.submit': 'Создать',
+  'create.cancel': 'Отмена',
 }
 
 /** Key set of the namespace. */
@@ -60,6 +70,16 @@ export const en: Record<SimulatorKey, string> = {
   'hw.side': 'Side button',
   'hw.siri': 'Siri',
   'hw.keyboardHint': 'Click the screen, then type on your keyboard',
+  'device.create': '+ Create',
+  'device.boot': 'Boot',
+  'device.shutdown': 'Shut down',
+  'device.booted': 'booted',
+  'device.shutdownState': 'off',
+  'create.name': 'Device name',
+  'create.loading': 'Loading…',
+  'create.unavailable': 'unavailable',
+  'create.submit': 'Create',
+  'create.cancel': 'Cancel',
 }
 
 /** Chinese dictionary. */
@@ -88,6 +108,16 @@ export const zh: Record<SimulatorKey, string> = {
   'hw.side': '侧边键',
   'hw.siri': 'Siri',
   'hw.keyboardHint': '点击画面后可直接用键盘输入',
+  'device.create': '+ 新建',
+  'device.boot': '启动',
+  'device.shutdown': '关闭',
+  'device.booted': '已启动',
+  'device.shutdownState': '已关闭',
+  'create.name': '设备名称',
+  'create.loading': '加载中…',
+  'create.unavailable': '不可用',
+  'create.submit': '创建',
+  'create.cancel': '取消',
 }
 
 /** Every registered dictionary for this namespace. */

@@ -49,6 +49,42 @@ export interface SimulatorDevice {
   runtimeIdentifier: string
 }
 
+/** One installable device type as `listDeviceTypes` observed it. */
+export interface SimulatorDeviceType {
+  /** Substrate-native identifier passed to `create` (e.g. `com.apple.CoreSimulator.SimDeviceType.iPhone-15-Pro`). */
+  identifier: string
+  /** Display name (e.g. `iPhone 15 Pro`). */
+  name: string
+}
+
+/** One OS runtime `create` can pair a device type with. */
+export interface SimulatorRuntime {
+  /** Substrate-native identifier passed to `create` (e.g. `com.apple.CoreSimulator.SimRuntime.iOS-17-5`). */
+  identifier: string
+  /** Display name (e.g. `iOS 17.5`). */
+  name: string
+  /** Whether the runtime is installed and usable; an unavailable runtime cannot back a new device. */
+  available: boolean
+}
+
+/** The catalog `create` draws from: which device types and runtimes exist on this host. */
+export interface SimulatorDeviceCatalog {
+  /** Every device type the host advertises, in substrate order. */
+  deviceTypes: readonly SimulatorDeviceType[]
+  /** Every OS runtime the host advertises, in substrate order. */
+  runtimes: readonly SimulatorRuntime[]
+}
+
+/** `create` request — a new device from a device type paired with a runtime. */
+export interface SimulatorCreateRequest {
+  /** Display name for the new device. */
+  name: string
+  /** Device-type identifier from {@link SimulatorDeviceType.identifier}. */
+  deviceTypeIdentifier: string
+  /** Runtime identifier from {@link SimulatorRuntime.identifier}. */
+  runtimeIdentifier: string
+}
+
 /** Base for every verb that targets one device. */
 export interface SimulatorTargetedRequest {
   /**

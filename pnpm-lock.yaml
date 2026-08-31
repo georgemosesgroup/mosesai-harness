@@ -6547,6 +6547,9 @@ importers:
       '@deepseek-ai/dsh-ios-sim':
         specifier: workspace:^
         version: link:../ios-sim
+      '@deepseek-ai/dsh-ios-sim-simctl':
+        specifier: workspace:^
+        version: link:../ios-sim-simctl
       '@deepseek-ai/dsh-subprocess':
         specifier: workspace:^
         version: link:../../subprocess/subprocess

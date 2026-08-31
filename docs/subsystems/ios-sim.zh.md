@@ -46,6 +46,19 @@ async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice
 async boot(request: SimulatorBootRequest): Promise<SimulatorResolvedTarget>
 
 /**
+ * Create a new device from a device type paired with a runtime.
+ * @param request - the display name plus the device-type and runtime identifiers.
+ * @returns the newly created device as `list` would observe it (shut down).
+ */
+async create(request: SimulatorCreateRequest): Promise<SimulatorDevice>
+
+/**
+ * List the device types and runtimes `create` can draw from on this host.
+ * @returns the host's device-type and runtime catalog.
+ */
+async listDeviceTypes(): Promise<SimulatorDeviceCatalog>
+
+/**
  * Power the target device off; already-shutdown targets succeed.
  * @param request - the target reference (omitted = the provider's explicit resolution) with optional deadline knob.
  * @returns the target the provider actually resolved and powered off.

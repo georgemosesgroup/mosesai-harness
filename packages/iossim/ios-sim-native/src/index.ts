@@ -25,7 +25,6 @@ import { tmpdir } from 'node:os'
 import { Context } from '@deepseek-ai/cordis'
 import z from '@deepseek-ai/schemastery'
 import {
-  IosSimulator,
   SimulatorError,
   SimulatorId,
 } from '@deepseek-ai/dsh-ios-sim'
@@ -43,6 +42,7 @@ import type {
 import type { SubprocessHandle, SubprocessSpawnSpec } from '@deepseek-ai/dsh-subprocess'
 import { MAX_TIMER_DELAY_MS, clampTimeout, deadline, timeoutOf } from '@deepseek-ai/dsh-timeout'
 import { helperPath } from '@deepseek-ai/iossim-helper'
+import { SimctlSimulatorProvider } from '@deepseek-ai/dsh-ios-sim-simctl'
 import { describeResultFromHelper, inputResultFromHelper, referenceIndexFor } from './describe.ts'
 import { startHelper, type LiveHelper } from './helper.ts'
 
@@ -50,6 +50,7 @@ const TIMEOUT_CODE = 'SIMULATOR_HELPER_TIMEOUT'
 
 /** Default wall-clock budget for one helper request. */
 const DEFAULT_TIMEOUT_MS = 60_000
+const DEFAULT_MAX_OUTPUT_BYTES = 64_000
 
 /** Upper bound of every request budget (config `maxTimeoutMs`). */
 const DEFAULT_MAX_TIMEOUT_MS = 600_000
@@ -86,6 +87,8 @@ export interface Config {
   maxRestarts?: number
   /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
   graceMs?: number
+  /** Max captured bytes per simctl invocation (inherited simctl verbs). */
+  maxOutputBytes?: number
   /** Video codec of live streams (`stream`): `h264`, `hevc`, or `mjpeg`. Default: `h264`. */
   streamCodec?: string
   /** Encode at most this many frames per second (`stream`). Default: 30. */
@@ -121,28 +124,33 @@ function assertPositiveFinite(name: string, value: number): void {
 }
 
 /** The native provider's declaration set: one capability, on purpose. */
-const PROVIDER_CAPABILITIES: ReadonlySet<SimulatorCapability> = new Set<SimulatorCapability>([
-  'describe',
-  'input',
-  'stream',
+/**
+ * Everything the simctl base serves, plus the helper-backed verbs this
+ * provider adds — the one mounted provider covers list/boot/create AND
+ * describe/input/stream, so no composition has to choose between them.
+ */
+const NATIVE_CAPABILITIES: ReadonlySet<SimulatorCapability> = new Set<SimulatorCapability>([
+  'list', 'boot', 'create', 'install', 'launch', 'terminate', 'screenshot', 'openUrl',
+  'describe', 'input', 'stream',
 ])
 
 /** The native provider over the helper: describe from phase 2, input from phase 3. */
-export class NativeSimulatorProvider extends IosSimulator {
-  static inject = ['subprocess']
+export class NativeSimulatorProvider extends SimctlSimulatorProvider {
+  static override inject = ['subprocess']
 
-  static Config: z<Config> = z.object({
+  static override Config: z<Config> = z.object({
     helperPath: z.string(),
     timeoutMs: z.number().default(DEFAULT_TIMEOUT_MS),
     maxTimeoutMs: z.number().default(DEFAULT_MAX_TIMEOUT_MS),
     maxRestarts: z.number().default(DEFAULT_MAX_RESTARTS),
     graceMs: z.number().default(DEFAULT_GRACE_MS),
+    maxOutputBytes: z.number().default(DEFAULT_MAX_OUTPUT_BYTES),
     streamCodec: z.string().default('h264'),
     streamFrameRate: z.number().default(DEFAULT_STREAM_FRAME_RATE),
     streamScale: z.number().default(DEFAULT_STREAM_SCALE),
   })
 
-  private readonly config: ResolvedConfig
+  private readonly nativeConfig: ResolvedConfig
   /** The one live helper; a promise so concurrent callers share one launch. */
   private live: Promise<LiveHelper> | undefined
   /** Serialization of helper requests — the helper serves one at a time. */
@@ -165,14 +173,10 @@ export class NativeSimulatorProvider extends IosSimulator {
    * @param config - schemastery-resolved composition values.
    */
   constructor(ctx: Context, config: Config) {
-    super(ctx)
-    if (process.platform !== 'darwin') {
-      throw new SimulatorError(
-        `the native simulator provider runs only on macOS (process.platform is "${process.platform}"); `
-          + 'do not mount dsh-ios-sim-native elsewhere',
-        'SIMULATOR_PLATFORM_UNSUPPORTED',
-      )
-    }
+    // The simctl base validates macOS, resolves xcrun and the developer dir,
+    // and owns list/boot/shutdown/launch/screenshot/create; this provider adds
+    // the helper-backed describe/input/stream on top.
+    super(ctx, config)
     const resolved = config as ResolvedConfig
     assertPositiveFinite('timeoutMs', resolved.timeoutMs)
     assertPositiveFinite('maxTimeoutMs', resolved.maxTimeoutMs)
@@ -194,14 +198,14 @@ export class NativeSimulatorProvider extends IosSimulator {
     if (!(Number.isFinite(resolved.streamScale) && resolved.streamScale > 0 && resolved.streamScale <= 1)) {
       throw new Error('ios-sim-native: streamScale must be a finite number in (0, 1]')
     }
-    this.config = resolved
+    this.nativeConfig = resolved
     // Helper teardown reaches quiescence on unload: terminate the child and
     // wait for its process tree before the composition tears down.
     ctx.effect(() => () => this.killLive(), 'iossim-helper teardown')
   }
 
   override get capabilities(): ReadonlySet<SimulatorCapability> {
-    return PROVIDER_CAPABILITIES
+    return NATIVE_CAPABILITIES
   }
 
   override get providerName(): string {
@@ -216,22 +220,22 @@ export class NativeSimulatorProvider extends IosSimulator {
    * @param request - the caller's verb request; optional knobs get resolved here.
    * @returns the fully-resolved plan for one helper request family.
    */
-  resolve(request: { timeoutMs?: number | undefined } = {}): NativeInvocationSpec {
+  resolveHelper(request: { timeoutMs?: number | undefined } = {}): NativeInvocationSpec {
     return {
-      helperPath: this.config.helperPath ?? helperPath(),
+      helperPath: this.nativeConfig.helperPath ?? helperPath(),
       timeoutMs: clampTimeout(
         request.timeoutMs,
-        this.config.timeoutMs,
-        Math.min(this.config.maxTimeoutMs, MAX_TIMER_DELAY_MS),
+        this.nativeConfig.timeoutMs,
+        Math.min(this.nativeConfig.maxTimeoutMs, MAX_TIMER_DELAY_MS),
         'request.timeoutMs',
       ),
-      maxRestarts: this.config.maxRestarts,
+      maxRestarts: this.nativeConfig.maxRestarts,
       cwd: tmpdir(),
     }
   }
 
   protected override async doDescribe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult> {
-    const spec = this.resolve(request)
+    const spec = this.resolveHelper(request)
     const result = await this.withHelper(
       helper => helper.request('describe', {
         simulatorId: request.simulator === undefined ? null : String(request.simulator),
@@ -244,7 +248,7 @@ export class NativeSimulatorProvider extends IosSimulator {
   }
 
   protected override async doInput(request: SimulatorInputRequest): Promise<SimulatorInputResult> {
-    const spec = this.resolve(request)
+    const spec = this.resolveHelper(request)
     const action = request.action
     // Element targets resolve against the references this provider minted in
     // its most recent describe; a point target lands where it says. Both
@@ -277,10 +281,10 @@ export class NativeSimulatorProvider extends IosSimulator {
   }
 
   protected override async doStreamStart(request: SimulatorStreamRequest): Promise<SimulatorStreamHandle> {
-    const spec = this.resolve(request)
-    const codec = request.codec ?? this.config.streamCodec
-    const frameRate = request.frameRate ?? this.config.streamFrameRate
-    const scale = request.scale ?? this.config.streamScale
+    const spec = this.resolveHelper(request)
+    const codec = request.codec ?? this.nativeConfig.streamCodec
+    const frameRate = request.frameRate ?? this.nativeConfig.streamFrameRate
+    const scale = request.scale ?? this.nativeConfig.streamScale
     const stream = await this.withHelper(
       helper => helper.startVideoStream({
         codec,
@@ -401,7 +405,7 @@ export class NativeSimulatorProvider extends IosSimulator {
         path: spec.helperPath,
         spawn: (spawnSpec: SubprocessSpawnSpec): SubprocessHandle => this.ctx.subprocess.spawn(spawnSpec),
         cwd: spec.cwd,
-        graceMs: this.config.graceMs,
+        graceMs: this.nativeConfig.graceMs,
       })
     }
     return this.live
