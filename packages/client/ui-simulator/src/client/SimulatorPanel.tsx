@@ -122,14 +122,19 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
           const firstType = message.deviceTypes[0]
           if (firstType !== undefined) setNewType(prev => prev === '' ? firstType.identifier : prev)
           {
-            const firstAvailable = message.runtimes.find(r => r.available)
-            if (firstAvailable !== undefined) setNewRuntime(prev => prev === '' ? firstAvailable.identifier : prev)
+            // Newest available runtime, not the first: simctl lists runtimes
+            // oldest-first, and the oldest is the one least likely to back a
+            // current device type (iPhone 17 Pro needs iOS 26+, not 17.5).
+            const available = message.runtimes.filter(r => r.available)
+            const newest = available[available.length - 1]
+            if (newest !== undefined) setNewRuntime(prev => prev === '' ? newest.identifier : prev)
           }
           break
         case 'created':
           setCreating(false)
           setNewName('')
           setDevice(message.id)
+          setError(undefined)
           break
         case 'end':
           setStatus({ key: 'status.stopped' })
@@ -306,6 +311,7 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
 
   function submitCreate(): void {
     if (newName.trim() === '' || newType === '' || newRuntime === '') return
+    setError(undefined)
     socketRef.current?.send(JSON.stringify({
       action: 'create',
       name: newName.trim(),
