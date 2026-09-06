@@ -25,6 +25,15 @@
     },
     {
       "path": "../../runtime-diagnostics/invariants"
+    },
+    {
+      "path": "../ui-tool"
+    },
+    {
+      "path": "../ui-primitives"
+    },
+    {
+      "path": "../../attachment/attachment"
     }
   ]
 }

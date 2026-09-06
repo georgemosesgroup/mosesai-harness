@@ -39,6 +39,15 @@ export const ru = {
   'create.unavailable': 'недоступно',
   'create.submit': 'Создать',
   'create.cancel': 'Отмена',
+  'shot.title': 'Скриншот',
+  'shot.running': 'Снимаю экран симулятора',
+  'shot.failed': 'Скриншот не удался',
+  'shot.stopped': 'Скриншот прерван',
+  'shot.output': 'Результат скриншота',
+  'shot.inspect': 'Открыть',
+  'shot.loading': 'Загрузка изображения…',
+  'shot.unavailable': 'Изображение недоступно',
+  'shot.alt': 'Экран симулятора, {width}×{height} px',
 }
 
 /** Key set of the namespace. */
@@ -80,6 +89,15 @@ export const en: Record<SimulatorKey, string> = {
   'create.unavailable': 'unavailable',
   'create.submit': 'Create',
   'create.cancel': 'Cancel',
+  'shot.title': 'Screenshot',
+  'shot.running': 'Capturing the simulator screen',
+  'shot.failed': 'Screenshot failed',
+  'shot.stopped': 'Screenshot stopped',
+  'shot.output': 'Screenshot result',
+  'shot.inspect': 'Inspect',
+  'shot.loading': 'Loading image…',
+  'shot.unavailable': 'Image unavailable',
+  'shot.alt': 'Simulator screen, {width}×{height} px',
 }
 
 /** Chinese dictionary. */
@@ -118,6 +136,15 @@ export const zh: Record<SimulatorKey, string> = {
   'create.unavailable': '不可用',
   'create.submit': '创建',
   'create.cancel': '取消',
+  'shot.title': '截图',
+  'shot.running': '正在截取模拟器画面',
+  'shot.failed': '截图失败',
+  'shot.stopped': '截图已中止',
+  'shot.output': '截图结果',
+  'shot.inspect': '查看',
+  'shot.loading': '正在加载图片…',
+  'shot.unavailable': '图片不可用',
+  'shot.alt': '模拟器画面，{width}×{height} px',
 }
 
 /** Every registered dictionary for this namespace. */
