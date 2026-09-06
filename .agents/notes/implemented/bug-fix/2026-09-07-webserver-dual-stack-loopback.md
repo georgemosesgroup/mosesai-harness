@@ -29,3 +29,7 @@ Misconfiguration fails at the earliest point: `dual` with `0.0.0.0` throws in th
 A trusted-host deployment under a `*.localhost` name gets working WebSocket upgrades by adding one key to the webserver row. The service owns two listeners under `dual`, which costs one extra socket and a second `close()` on teardown. The `ipv4` default leaves every existing composition unchanged.
 
 Package tests pin the default IPv4-only bind, the `dual` bind on both families for HTTP and upgrades, teardown of both listeners, the `0.0.0.0` rejection, and the `::1` `EADDRINUSE` activation failure. The webserver sources are outside the per-file coverage gate; the real-Loader composition tests are the evidence.
+
+## Deferred
+
+The client boot audit in `packages/client/web/src/boot.ts` still runs right after `loader.await()` and reports a service that a retrying transport has not yet provided as a permanent failure. Two facts observed while diagnosing this bug remain unestablished: the `dsh-client-file-upload` entry is active while `ctx.get('fileUpload')` is `undefined` at audit time, and the application mounts after `assertEntriesActive` threw although that path skips `mountApp`. Making the audit wait for the gateway stream, naming the failing WebSocket in the boot report, and pinning the mount path on failure are separate changes; the dual-stack listener removes the trigger, not the audit's timing assumption.

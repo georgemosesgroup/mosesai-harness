@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-09-07-webserver-dual-stack-loopback.md
-2026-09-07-webserver-dual-stack-loopback.md: 56b0f5803a680b88af63f34db4620708d355d7d3
-2026-09-07-webserver-dual-stack-loopback.zh.md: 172f0955992d4908948262d11b2c38f8aef6c97b
+2026-09-07-webserver-dual-stack-loopback.md: 2ac30cd331762855a264e3dcc5451adaedc77c2c
+2026-09-07-webserver-dual-stack-loopback.zh.md: eb3f8c181aba616e32e69b603499001e48cec53b

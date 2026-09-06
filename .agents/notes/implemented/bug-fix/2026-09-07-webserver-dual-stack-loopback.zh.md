@@ -29,3 +29,7 @@ Status: implemented
 `*.localhost` 名称下的受信主机部署只需在 webserver 行加一个键即可获得可用的 WebSocket upgrade。在 `dual` 下服务拥有两个监听器，代价是多一个 socket 以及拆卸时的第二次 `close()`。`ipv4` 默认值使每个现有组合保持不变。
 
 包测试固定了默认的仅 IPv4 绑定、`dual` 下两个地址族的 HTTP 与 upgrade 绑定、两个监听器的拆卸、`0.0.0.0` 的拒绝，以及 `::1` 的 `EADDRINUSE` 激活失败。webserver 源码不在逐文件覆盖率门禁之内；真实 Loader 组合测试即为证据。
+
+## Deferred
+
+`packages/client/web/src/boot.ts` 中的客户端启动审计仍然紧跟在 `loader.await()` 之后运行，并把仍在重试的传输层尚未提供的服务报告为永久失败。诊断此缺陷时观察到的两个事实尚未查明：审计时 `dsh-client-file-upload` 条目已激活而 `ctx.get('fileUpload')` 为 `undefined`；以及在 `assertEntriesActive` 抛出后应用仍被挂载，尽管该路径会跳过 `mountApp`。让审计等待网关流、在启动报告中指出失败的 WebSocket、以及固定失败时的挂载路径，都是独立的变更；双栈监听器消除的是触发条件，而不是审计的时序假设。
