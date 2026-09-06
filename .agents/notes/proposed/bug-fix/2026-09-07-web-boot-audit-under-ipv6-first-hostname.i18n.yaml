@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/proposed/bug-fix/2026-09-07-web-boot-audit-under-ipv6-first-hostname.md
-2026-09-07-web-boot-audit-under-ipv6-first-hostname.md: cd60666ca896615c6a156beacc83b3661d75780f
-2026-09-07-web-boot-audit-under-ipv6-first-hostname.zh.md: 07bb4955d508dc023a61e2366cd54ddc72231bb9
+2026-09-07-web-boot-audit-under-ipv6-first-hostname.md: 620b20d9f9428bf16370a001c1e1accdbf871bfb
+2026-09-07-web-boot-audit-under-ipv6-first-hostname.zh.md: 553b5d26da2b95f6c6124a1aaf93c1036a9fff25

@@ -14,7 +14,7 @@ Two facts remain unexplained and must be established before a fix is chosen: why
 
 ## Proposal
 
-1. **Bind loopback on both families.** When `dsh-host-webserver` is configured with the loopback host, listen on `::1` as well as `127.0.0.1` (dual-stack loopback), or document that `--host` must name the IPv6 loopback for `*.localhost` names. This removes the refused WebSocket regardless of the audit.
+1. **Bind loopback on both families.** When `dsh-host-webserver` is configured with the loopback host, listen on `::1` as well as `127.0.0.1` (dual-stack loopback), or document that `--host` must name the IPv6 loopback for `*.localhost` names. This removes the refused WebSocket regardless of the audit. No launch-time workaround exists today: the `Config.host` schema is the closed union `'127.0.0.1' | '0.0.0.0'`, so `--host ::1` fails config validation at load, and `0.0.0.0` is still an IPv4-only bind.
 2. **Make the audit wait for the transport.** `runPluginBoot` awaits the gateway stream reaching its first connected state (or a bounded retry budget) before `assertEntriesActive`, so the audit measures plugin health rather than network timing.
 3. **Report the transport as the cause.** When the stream is still disconnected at audit time, the boot report names the failing WebSocket URL and error instead of the derived list of pending consumers.
 4. **Pin the mount path on failure.** Either the failure path must not mount the app, or `BootPage.fail` must be removed once the app mounts; the current behavior shows both a console error and a working page.
