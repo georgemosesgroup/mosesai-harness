@@ -1,0 +1,6 @@
+# Bilingual-pair consistency record (docs/i18n/README.md): the git blob hash of each
+# side as of the last confirmed-consistent state. Both languages carry equal authority;
+# after editing either side, bring the other along and re-record with:
+#   pnpm run verify-translation-pairing --write .agents/notes/implemented/bug-fix/2026-08-30-fmp4-stream-integrity-and-panel-input.md
+2026-08-30-fmp4-stream-integrity-and-panel-input.md: bfa5739e67efefe0482a823c5d03210f3df85afd
+2026-08-30-fmp4-stream-integrity-and-panel-input.zh.md: a1c74913c0b8d86c2fdc3777b8287f964141a61a

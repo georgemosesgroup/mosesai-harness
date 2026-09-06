@@ -130,6 +130,33 @@ export interface ReadFileLine {
 }
 
 /**
+ * A completed retrieval whose payload IS one image (e.g. `sim_screenshot`).
+ * Set by tools whose result carries exactly one committed image beside a small
+ * envelope; a capable UI renders the raster itself through the session's
+ * durable attachment loader (keyed by {@link attachmentId}), not a re-render of
+ * result text. An incapable UI falls back to the raw `tool/result` content.
+ * Flat scalar facts mirror the serialized `ImageAttachmentRef` vocabulary on
+ * purpose (the WebSource precedent): core cannot depend on the attachment seam.
+ */
+export interface ImageResultView {
+  card: 'image'
+  /** Replacement title for the completed call. Omit to keep the pending-state title. */
+  title?: string
+  /** One-line origin naming what was captured (e.g. the targeted device). */
+  origin?: string
+  /** Durable content-addressed attachment id the UI loads through its session. */
+  attachmentId: string
+  /** Declared media type of the referenced bytes. */
+  mediaType: string
+  /** Encoded size in bytes. */
+  bytes: number
+  /** Pixel width of the referenced raster. */
+  width: number
+  /** Pixel height of the referenced raster. */
+  height: number
+}
+
+/**
  * How a tool wants the COMPLETED call shown — the *result* state, after `execute`
  * returns. A `card`-tagged union mirroring {@link ToolCallView}: a UI switches on
  * `card`. Lets the tool reformat its result for a UI distinctly from the
@@ -137,7 +164,14 @@ export interface ReadFileLine {
  * `ToolDefinition.presentResult`; omitting the method keeps the pending
  * title and renders the raw result content.
  */
-export type ToolResultView = GenericResultView | TerminalResultView | DiffResultView | SearchResultView | ReadResultView | WebResultView
+export type ToolResultView
+  = GenericResultView
+  | TerminalResultView
+  | DiffResultView
+  | SearchResultView
+  | ReadResultView
+  | WebResultView
+  | ImageResultView
 
 /**
  * The default completed card: an optional replacement title and reformatted

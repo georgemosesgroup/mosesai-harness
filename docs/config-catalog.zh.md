@@ -924,6 +924,83 @@ export interface Config {
 
 来源：[`packages/runtime-diagnostics/invariants/src/index.ts:15`](../packages/runtime-diagnostics/invariants/src/index.ts)
 
+<a id="deepseek-aidsh-ios-sim-native"></a>
+
+## `@deepseek-ai/dsh-ios-sim-native`
+
+需要：`subprocess`
+
+```ts config-catalog
+/** Plugin config (all optional — `static Config` supplies the defaults). */
+export interface Config {
+  /**
+   * Explicit helper-binary path overriding the entry package's resolution —
+   * the test-injection and custom-install escape hatch. Never read from the
+   * environment: which binary serves simulator operations is composition
+   * state, not ambient state.
+   */
+  helperPath?: string
+  /** Default helper-request deadline in milliseconds. */
+  timeoutMs?: number
+  /** Upper bound for every helper-request deadline. */
+  maxTimeoutMs?: number
+  /** Supervised restarts before `SIMULATOR_HELPER_SUPERVISION_EXHAUSTED`; cumulative for this provider's lifetime. */
+  maxRestarts?: number
+  /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
+  graceMs?: number
+  /** Max captured bytes per simctl invocation (inherited simctl verbs). */
+  maxOutputBytes?: number
+  /** Video codec of live streams (`stream`): `h264`, `hevc`, or `mjpeg`. Default: `h264`. */
+  streamCodec?: string
+  /** Encode at most this many frames per second (`stream`). Default: 30. */
+  streamFrameRate?: number
+  /** Resolution scale of the encoded output, `1` = native (`stream`). Default: 1. */
+  streamScale?: number
+}
+```
+
+来源：[`packages/iossim/ios-sim-native/src/index.ts:74`](../packages/iossim/ios-sim-native/src/index.ts)
+
+<a id="deepseek-aidsh-ios-sim-panel"></a>
+
+## `@deepseek-ai/dsh-ios-sim-panel`
+
+需要：`webServer` · `iosSimulator`
+
+```ts config-catalog
+/** Plugin config (all optional). */
+export interface Config {
+  /** Absolute pathname of the upgrade route. Default: /ios-simulator/stream. */
+  path?: string
+  /** Extra trusted Host authorities beyond loopback (DNS-rebinding fence). */
+  trustedHosts?: string[]
+}
+```
+
+来源：[`packages/iossim/ios-sim-panel/src/index.ts:31`](../packages/iossim/ios-sim-panel/src/index.ts)
+
+<a id="deepseek-aidsh-ios-sim-simctl"></a>
+
+## `@deepseek-ai/dsh-ios-sim-simctl`
+
+需要：`subprocess`
+
+```ts config-catalog
+/** Plugin config (all optional — `static Config` supplies the defaults). */
+export interface Config {
+  /** Default simctl-call deadline in milliseconds. */
+  timeoutMs?: number
+  /** Upper bound for every simctl-call deadline. */
+  maxTimeoutMs?: number
+  /** Per-stream stdout/stderr capture cap in bytes. */
+  maxOutputBytes?: number
+  /** Grace period for kill escalation; at most `MAX_TIMER_DELAY_MS`. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/iossim/ios-sim-simctl/src/index.ts:93`](../packages/iossim/ios-sim-simctl/src/index.ts)
+
 <a id="deepseek-aidsh-jobs-local"></a>
 
 ## `@deepseek-ai/dsh-jobs-local`
@@ -1793,6 +1870,81 @@ export interface JsonRpcConfig {
 依赖：`Readable`（`node:stream`）· `Writable`（`node:stream`）
 
 来源：[`packages/sdk/server/src/index.ts:25`](../packages/sdk/server/src/index.ts)
+
+<a id="deepseek-aidsh-security-scan-local-moses"></a>
+
+## `@deepseek-ai/dsh-security-scan-local-moses`
+
+需要：`securityScan` · `subprocess`
+
+```ts config-catalog
+/** Plugin config; every field is defaulted and validated at load. */
+export interface Config {
+  /** Explicit binary path per scanner; omit to resolve the name on PATH. */
+  binPaths?: Record<string, string>
+  /** Directories an ffuf `wordlist` option may be relative to. */
+  wordlistDirs?: string[]
+  /** Working directory for scan processes (default: process.cwd()). */
+  cwd?: string
+  /** Default scan deadline in milliseconds. */
+  timeoutMs?: number
+  /** Upper bound applied to {@link Config.timeoutMs}; scans are long, so this defaults high. */
+  maxTimeoutMs?: number
+  /** Per-stream in-memory output cap; overflow keeps the tail. */
+  maxOutputBytes?: number
+  /** Per-stream spill cap for the complete stream when truncated. */
+  maxSpillBytes?: number
+  /** SIGTERM→SIGKILL escalation grace; at most MAX_TIMER_DELAY_MS. */
+  graceMs?: number
+}
+```
+
+来源：[`packages/security/security-scan-local-moses/src/index.ts:104`](../packages/security/security-scan-local-moses/src/index.ts)
+
+<a id="deepseek-aidsh-security-scan-moses"></a>
+
+## `@deepseek-ai/dsh-security-scan-moses`
+
+```ts config-catalog
+/** Runtime config. The allowlist is REQUIRED — an empty list is a load failure. */
+export interface SecurityScanRuntimeConfig {
+  /** Authorized targets (hosts, `.domain`, IP literals, CIDR). See the README for semantics. */
+  allowlist: string[]
+  /** Upper bound on targets accepted by one scan call. Defaults to 8. */
+  maxTargetsPerScan?: number
+  /**
+   * Pin one provider id. Omitted = auto-select when exactly one registered
+   * provider is usable for the requested scanner.
+   */
+  provider?: string
+}
+```
+
+来源：[`packages/security/security-scan-moses/src/index.ts:43`](../packages/security/security-scan-moses/src/index.ts)
+
+<a id="deepseek-aidsh-session-coordination-moses"></a>
+
+## `@deepseek-ai/dsh-session-coordination-moses`
+
+需要：`tools` · `systemPrompt`
+
+```ts config-catalog
+/** Deployment-owned lease bounds, enforcement mode, and always-allowed paths. */
+export interface Config {
+  /** Lease lifetime used when a call omits `ttlMinutes`. Defaults to 15. */
+  defaultTtlMinutes?: number
+  /** Upper bound any lease may request. Defaults to 120. */
+  maxTtlMinutes?: number
+  /** Write-path enforcement: `off`, `deny`, or `ask`. Defaults to `deny`. */
+  enforcement?: 'off' | 'deny' | 'ask'
+  /** Tool names the enforcement inspects. Defaults to `['write', 'edit']`. */
+  enforcedTools?: string[]
+  /** Path patterns writes are always allowed into, claim or no claim. */
+  bypassPaths?: string[]
+}
+```
+
+来源：[`packages/session/session-coordination-moses/src/index.ts:45`](../packages/session/session-coordination-moses/src/index.ts)
 
 <a id="deepseek-aidsh-session-log-deepseek"></a>
 
@@ -2835,6 +2987,52 @@ export interface Config {
 
 来源：[`packages/workflow/tool-ralph/src/index.ts:21`](../packages/workflow/tool-ralph/src/index.ts)
 
+<a id="deepseek-aidsh-tool-security-scan-moses"></a>
+
+## `@deepseek-ai/dsh-tool-security-scan-moses`
+
+需要：`tools` · `securityScan` · `systemPrompt`
+
+```ts config-catalog
+/** Plugin config: scanner enablement, timeout budget, and the output cap. */
+export interface Config {
+  /** Enable/disable individual scanners in the tool's enum. All default to true. */
+  scanners?: Record<string, boolean>
+  /** Cooperative timeout budget (ms) attached to the tool definition. */
+  timeoutMs?: number
+  /** Cap on the complete rendered output text. */
+  maxOutputChars?: number
+}
+```
+
+来源：[`packages/security/tool-security-scan-moses/src/index.ts:55`](../packages/security/tool-security-scan-moses/src/index.ts)
+
+<a id="deepseek-aidsh-tool-session-peek-moses"></a>
+
+## `@deepseek-ai/dsh-tool-session-peek-moses`
+
+需要：`tools` · `sessionQuery` · `systemPrompt`
+
+```ts config-catalog
+/** Deployment-owned paging, truncation, and deadline bounds. */
+export interface Config {
+  /** Page size used when a call omits `limit`. Defaults to 20. */
+  defaultLimit?: number
+  /** Hard ceiling for any requested page size. Defaults to 100. */
+  maxLimit?: number
+  /** Per-event semantic-text cap inside `peek_session_read` output. Defaults to 4000. */
+  eventTextMaxChars?: number
+  /** Model-facing character budget enforced by every renderer. Defaults to 24000. */
+  maxOutputChars?: number
+  /** Cooperative deadline for full-text search calls, milliseconds. Defaults to 30000. */
+  searchTimeoutMs?: number
+  /** Retries for transient search-index stabilization on a busy install. Defaults to 2. */
+  searchStabilizationRetries?: number
+}
+```
+
+来源：[`packages/session-query/tool-session-peek-moses/src/index.ts:42`](../packages/session-query/tool-session-peek-moses/src/index.ts)
+
 <a id="deepseek-aidsh-tool-session-query"></a>
 
 ## `@deepseek-ai/dsh-tool-session-query`
@@ -3341,12 +3539,14 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-agent-preset`（[`packages/client/ui-agent-preset/src/index.ts`](../packages/client/ui-agent-preset/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-approval`（[`packages/client/ui-approval/src/index.ts`](../packages/client/ui-approval/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-attachment`（[`packages/client/ui-attachment/src/index.ts`](../packages/client/ui-attachment/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-brand-moses` — 需要 `webServer`（[`packages/client/ui-brand-moses/src/index.ts`](../packages/client/ui-brand-moses/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-brand-official`（[`packages/client/ui-brand-official/src/index.ts`](../packages/client/ui-brand-official/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-chat`（[`packages/client/ui-chat/src/index.ts`](../packages/client/ui-chat/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-commands`（[`packages/client/ui-commands/src/index.ts`](../packages/client/ui-commands/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-conversation`（[`packages/client/ui-conversation/src/index.ts`](../packages/client/ui-conversation/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-cordis`（[`packages/extensions/ui-cordis/src/index.ts`](../packages/extensions/ui-cordis/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-deliverables` — 需要 `systemPrompt`（[`packages/client/ui-deliverables/src/index.ts`](../packages/client/ui-deliverables/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-dif-explorer`（[`packages/client/ui-dif-explorer/src/index.ts`](../packages/client/ui-dif-explorer/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-directory-picker-browse`（[`packages/client/ui-directory-picker-browse/src/index.ts`](../packages/client/ui-directory-picker-browse/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-directory-picker-native`（[`packages/client/ui-directory-picker-native/src/index.ts`](../packages/client/ui-directory-picker-native/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-goal`（[`packages/client/ui-goal/src/index.ts`](../packages/client/ui-goal/src/index.ts)）
@@ -3367,6 +3567,7 @@ export interface Config {
 - `@deepseek-ai/dsh-client-ui-settings-plugin-inventory`（[`packages/client/ui-settings-plugin-inventory/src/index.ts`](../packages/client/ui-settings-plugin-inventory/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-settings-plugins`（[`packages/client/ui-settings-plugins/src/index.ts`](../packages/client/ui-settings-plugins/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-sidebar`（[`packages/client/ui-sidebar/src/index.ts`](../packages/client/ui-sidebar/src/index.ts)）
+- `@deepseek-ai/dsh-client-ui-simulator`（[`packages/client/ui-simulator/src/index.ts`](../packages/client/ui-simulator/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-skill`（[`packages/client/ui-skill/src/index.ts`](../packages/client/ui-skill/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-subagent`（[`packages/client/ui-subagent/src/index.ts`](../packages/client/ui-subagent/src/index.ts)）
 - `@deepseek-ai/dsh-client-ui-theme`（[`packages/client/ui-theme/src/index.ts`](../packages/client/ui-theme/src/index.ts)）
@@ -3381,6 +3582,7 @@ export interface Config {
 - `@deepseek-ai/dsh-commands`（[`packages/interaction/commands/src/index.ts`](../packages/interaction/commands/src/index.ts)）
 - `@deepseek-ai/dsh-cordis-client-runner`（[`packages/extensions/cordis-client-runner/src/index.ts`](../packages/extensions/cordis-client-runner/src/index.ts)）
 - `@deepseek-ai/dsh-deepseek-llm-api-extensions`（[`packages/llm/deepseek-llm-api-extensions/src/index.ts`](../packages/llm/deepseek-llm-api-extensions/src/index.ts)）
+- `@deepseek-ai/dsh-dif-explorer` — 需要 `workspaceRegistry` · `sessionPersistence`（[`packages/host/dif-explorer/src/index.ts`](../packages/host/dif-explorer/src/index.ts)）
 - `@deepseek-ai/dsh-experimental-client-ui-agent-team`（[`packages/experimental/client-ui-agent-team/src/index.ts`](../packages/experimental/client-ui-agent-team/src/index.ts)）
 - `@deepseek-ai/dsh-fs-e2b` — 需要 `e2b`（[`packages/e2b/fs-e2b/src/index.ts`](../packages/e2b/fs-e2b/src/index.ts)）
 - `@deepseek-ai/dsh-fs-observation-policy`（[`packages/fs/fs-observation-policy/src/index.ts`](../packages/fs/fs-observation-policy/src/index.ts)）
@@ -3404,6 +3606,7 @@ export interface Config {
 - `@deepseek-ai/dsh-tool-ask-user` — 需要 `tools` · `userInteraction`（[`packages/interaction/tool-ask-user/src/index.ts`](../packages/interaction/tool-ask-user/src/index.ts)）
 - `@deepseek-ai/dsh-tool-call-timeout-policy` — 需要 `tools`（[`packages/guard/timeout-policy/src/index.ts`](../packages/guard/timeout-policy/src/index.ts)）
 - `@deepseek-ai/dsh-tool-cordis` — 需要 `tools` · `systemPrompt` · `dynamicCordisRunner` · `cordisInspect`（[`packages/extensions/tool-cordis/src/index.ts`](../packages/extensions/tool-cordis/src/index.ts)）
+- `@deepseek-ai/dsh-tool-ios-sim` — 需要 `tools` · `iosSimulator`（[`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)）
 - `@deepseek-ai/dsh-tool-subagent-control` — 需要 `tools` · `subagents`（[`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)）
 - `@deepseek-ai/dsh-user-questions`（[`packages/interaction/user-questions/src/index.ts`](../packages/interaction/user-questions/src/index.ts)）
 - `@deepseek-ai/dsh-webhook` — 需要 `agents` · `agentDefaultModel` · `agentPresets` · `permissionPresets` · `sessionTitle` · `workspaceRegistry`（[`packages/webhook/webhook/src/index.ts`](../packages/webhook/webhook/src/index.ts)）
@@ -3420,6 +3623,7 @@ export interface Config {
 - `@deepseek-ai/dsh-file-reference` — 抽象 `FileReferenceService`（[`packages/context/file-reference/src/index.ts`](../packages/context/file-reference/src/index.ts)）
 - `@deepseek-ai/dsh-fs` — 抽象 `FileSystem`（[`packages/fs/fs/src/index.ts`](../packages/fs/fs/src/index.ts)）
 - `@deepseek-ai/dsh-host-directory-picker` — 抽象 `DirectoryPicker`（[`packages/host/directory-picker/src/index.ts`](../packages/host/directory-picker/src/index.ts)）
+- `@deepseek-ai/dsh-ios-sim` — 抽象 `IosSimulator`（[`packages/iossim/ios-sim/src/index.ts`](../packages/iossim/ios-sim/src/index.ts)）
 - `@deepseek-ai/dsh-jobs` — 抽象 `JobRegistry`（[`packages/jobs/jobs/src/index.ts`](../packages/jobs/jobs/src/index.ts)）
 - `@deepseek-ai/dsh-sandbox` — 抽象 `SandboxProvider`（[`packages/sandbox/sandbox/src/index.ts`](../packages/sandbox/sandbox/src/index.ts)）
 - `@deepseek-ai/dsh-session-persistence` — 抽象 `SessionPersistence`（[`packages/session/session-persistence/src/index.ts`](../packages/session/session-persistence/src/index.ts)）

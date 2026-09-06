@@ -25,6 +25,13 @@ The Cordis framework and its foundation libraries are source-vendored into this 
 | `@deepseek-ai/cordis-plugin-hmr` | `@cordisjs/plugin-hmr` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
 | `@deepseek-ai/cordis-plugin-logger-console` | `@cordisjs/plugin-logger-console` | [github.com/deepseek-harness/cordis](https://github.com/deepseek-harness/cordis) | MIT |
 
+The native helper frameworks are source-vendored the same way, as plain framework source trees pinned by commit rather than npm packages (see the `Native framework pins` section of [`vendor/README.md`](vendor/README.md)):
+
+| Directory | Framework | Upstream | License |
+| --- | --- | --- | --- |
+| `vendor/idb` | `FBSimulatorControl/` | [github.com/facebook/idb](https://github.com/facebook/idb) | MIT |
+| `vendor/idb` | `FBControlCore/` | [github.com/facebook/idb](https://github.com/facebook/idb) | MIT |
+
 ## Runtime npm dependencies
 
 External packages that a workspace package resolves at runtime. The tier covers every plugin a user can mount from `cordis.yml` — not only what the `dsh` CLI, Web UI, and Python SDK runtime load by default.

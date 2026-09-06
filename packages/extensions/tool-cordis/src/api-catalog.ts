@@ -1127,6 +1127,91 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'iosSimulator',
+    summary: 'Abstract iOS-simulator service.',
+    description: 'Abstract iOS-simulator service. Subclass, override the `do*` hooks for every capability you declare, and load the subclass as a plugin — it registers as `ctx.iosSimulator` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nEnforced semantics:\n\n- Every public verb first checks capabilities; an unadvertised verb rejects with `SIMULATOR_CAPABILITY_UNAVAILABLE` naming the missing capability and the mounted provider — never a silent no-op and never an empty-answer success.\n- The `do*` hooks stay defaulted (also rejecting with the same code), so a provider that advertises a capability without overriding its hooks fails equally loud instead of returning a fake result.\n- `boot` and `shutdown` are idempotent power-state flips; a provider treats an already-settled target as success.\n- `describe`, `input`, and `stream` are served only by providers that declare them — today the native provider over the FBSimulatorControl helper — and return typed results: the availability tree, the gesture\'s landing point, and a live encoded-video handle; unadvertised verbs reject through the capability gate like every other verb.',
+    methods: [
+      {
+        signature: 'async list(request: SimulatorListRequest = {}): Promise<readonly SimulatorDevice[]>',
+        description: 'List devices visible to this provider\'s substrate, in substrate order.',
+        parameters: [{ name: 'request', description: 'the caller\'s request; phase 1 carries no knobs.' }],
+        returns: 'every device currently listed by the provider\'s substrate.',
+      },
+      {
+        signature: 'async boot(request: SimulatorBootRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Bring the target device to a powered-on state; already-booted targets succeed.',
+        parameters: [{ name: 'request', description: 'the target reference (omitted = the provider\'s explicit resolution) with optional deadline knob.' }],
+        returns: 'the target the provider actually resolved and powered on.',
+      },
+      {
+        signature: 'async create(request: SimulatorCreateRequest): Promise<SimulatorDevice>',
+        description: 'Create a new device from a device type paired with a runtime.',
+        parameters: [{ name: 'request', description: 'the display name plus the device-type and runtime identifiers.' }],
+        returns: 'the newly created device as `list` would observe it (shut down).',
+      },
+      {
+        signature: 'async listDeviceTypes(): Promise<SimulatorDeviceCatalog>',
+        description: 'List the device types and runtimes `create` can draw from on this host.',
+        parameters: [],
+        returns: 'the host\'s device-type and runtime catalog.',
+      },
+      {
+        signature: 'async shutdown(request: SimulatorShutdownRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Power the target device off; already-shutdown targets succeed.',
+        parameters: [{ name: 'request', description: 'the target reference (omitted = the provider\'s explicit resolution) with optional deadline knob.' }],
+        returns: 'the target the provider actually resolved and powered off.',
+      },
+      {
+        signature: 'async install(request: SimulatorInstallRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Deploy one application bundle onto the target device.',
+        parameters: [{ name: 'request', description: 'the target reference plus the host path of the application bundle to deploy.' }],
+        returns: 'the target the provider actually deployed onto.',
+      },
+      {
+        signature: 'async launch(request: SimulatorLaunchRequest): Promise<SimulatorLaunchResult>',
+        description: 'Start one installed application and report what the substrate observed.',
+        parameters: [{ name: 'request', description: 'the target reference and the bundle identifier of an installed app.' }],
+        returns: 'substrate-observed launch facts: resolved target, bundle, pid when printed, geometry or its note.',
+      },
+      {
+        signature: 'async terminate(request: SimulatorTerminateRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Stop one running application.',
+        parameters: [{ name: 'request', description: 'the target reference and the bundle identifier to stop.' }],
+        returns: 'the target the provider actually resolved.',
+      },
+      {
+        signature: 'async screenshot(request: SimulatorScreenshotRequest): Promise<SimulatorScreenshot>',
+        description: 'Capture the target device\'s current screen as a complete PNG raster.',
+        parameters: [{ name: 'request', description: 'the target reference with optional deadline knob.' }],
+        returns: 'the resolved target plus the complete PNG raster and its pixel facts.',
+      },
+      {
+        signature: 'async openUrl(request: SimulatorOpenUrlRequest): Promise<SimulatorResolvedTarget>',
+        description: 'Open one URL through the target device\'s URL handler.',
+        parameters: [{ name: 'request', description: 'the target reference and the absolute URL to open.' }],
+        returns: 'the target the provider actually resolved.',
+      },
+      {
+        signature: 'async describe(request: SimulatorDescribeRequest): Promise<SimulatorDescribeResult>',
+        description: 'Availability-tree read — the device\'s accessibility tree with stable element references, served by providers that declare the `describe` capability (today the native provider over the FBSimulatorControl helper). A provider that does not declare it rejects through the capability gate, so callers can rely on a loud error without feature-testing.',
+        parameters: [{ name: 'request', description: 'the target reference; the explicit target-resolution step fills omissions.' }],
+        returns: 'the availability tree of the resolved device, with the facts the read observed.',
+      },
+      {
+        signature: 'async input(request: SimulatorInputRequest): Promise<SimulatorInputResult>',
+        description: 'Structured input — one gesture (tap, swipe, key, text entry) against one device, served by providers that declare the `input` capability (today the native provider over the FBSimulatorControl helper\'s HID and accessibility surfaces). The level-0 text forbade coordinate targets because level 0 could not attest the coordinate space; the helper attests geometry, so both target forms exist — an element reference from a preceding `describe`, or a point in device coordinates. A provider that does not declare the capability rejects through the gate like every other verb.',
+        parameters: [{ name: 'request', description: 'the gesture: its action discriminator, its target, and the action\'s payload.' }],
+        returns: 'the resolved target plus the point the gesture landed on, when one exists.',
+      },
+      {
+        signature: 'async startStream(request: SimulatorStreamRequest = {}): Promise<SimulatorStreamHandle>',
+        description: 'Live video stream — encoded frames straight from the substrate\'s framebuffer, served by providers that declare the `stream` capability (today the native provider over the helper\'s VideoToolbox path). Frame rate, scale, and codec come from the request and the provider\'s configuration, with the substrate clamping what it cannot honor exactly. A provider that does not declare the capability rejects through the gate.',
+        parameters: [{ name: 'request', description: 'the stream knobs (codec, frame rate, scale); omissions take the provider\'s configuration.' }],
+        returns: 'a handle whose `frames` iterable yields encoded chunks until `stop`.',
+      },
+    ],
+  },
+  {
     key: 'jobs',
     summary: 'Abstract background job registry.',
     description: 'Abstract background job registry. Subclass, implement the abstract methods, and load the subclass as a plugin — it registers as `ctx.jobs` (one implementation per context; loading a second throws, which is cordis\' standard duplicate-service behavior).\n\nImplementations must honor these semantics:\n\n- Registrations outlive producer and controller fibers. Owner and service disposal cancel live work and await compliant producers; a throwing teardown cancel force-fails only the record. Teardown cancellation also marks the record reported, because a record its owner is being destroyed for has no reader left.\n- Owned-job access is fenced by the owner\'s session id. Ids are predictable, so authorization — not secrecy — is the boundary.\n- Settlement is first-wins: one terminal record, released waiters, and one round of contained listener notification, even against a late producer outcome. Completion is announced last, after the record is committed and every other observer of the settlement has seen it, because a reporter may open a model turn synchronously.\n- start refuses work while no attached job controller serves the spec\'s owner, so a producer cannot start work that owner cannot collect or stop. One registry serves every composition in the process, so this question — and completion-listener delivery — is owner-relative rather than process-wide: registrations made from an unscoped context serve every owner, and registrations made under an agent composition\'s scope serve exactly the agents composed under it.',
@@ -1429,6 +1514,25 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
     ],
   },
   {
+    key: 'securityScan',
+    summary: 'The security-scanning service, registered as `ctx.securityScan`.',
+    description: 'The security-scanning service, registered as `ctx.securityScan`.',
+    methods: [
+      {
+        signature: 'registerProvider(provider: SecurityScanProvider): () => void',
+        description: 'Register one provider. Throws SecurityScanError `SECURITY_DUPLICATE_PROVIDER` when its id is already registered.',
+        parameters: [{ name: 'provider', description: 'the provider; its `id` is the registry key.' }],
+        returns: 'the disposer that unregisters the provider with the calling fiber.',
+      },
+      {
+        signature: 'async scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult>',
+        description: 'Run one scan against allowlisted targets through the selected provider.',
+        parameters: [{ name: 'request', description: 'scanner, targets, and whitelisted options.' }, { name: 'signal', description: 'optional cancellation forwarded to the provider.' }],
+        returns: 'the provider\'s settled scan result.',
+      },
+    ],
+  },
+  {
     key: 'sessionController',
     summary: 'Host service backing the generated `ctx.remote.session` namespace.',
     description: 'Host service backing the generated `ctx.remote.session` namespace.',
@@ -1541,6 +1645,38 @@ export const SERVICE_API: readonly ServiceApiEntry[] = [
         description: 'Stream a complete live-control baseline followed by replacement frames.',
         parameters: [{ name: 'signal', description: 'cancellation owned by the Remote stream carrier.' }],
         returns: 'one complete baseline followed by live replacement frames.',
+      },
+    ],
+  },
+  {
+    key: 'sessionCoordination',
+    summary: 'The published `ctx.sessionCoordination` service: one process-wide lease table shared by every session of this host.',
+    description: 'The published `ctx.sessionCoordination` service: one process-wide lease table shared by every session of this host. All methods are synchronous; expired leases are swept on access and by a periodic timer.',
+    methods: [
+      {
+        signature: 'acquire(sessionId: string, patterns: readonly string[], ttlMs: number, note?: string): WorkspaceClaim',
+        description: 'Take one lease for `sessionId`.',
+        parameters: [{ name: 'sessionId', description: 'owning caller session id (`exec.agent.session.id`).' }, { name: 'patterns', description: 'non-empty glob patterns the lease covers.' }, { name: 'ttlMs', description: 'requested lifetime in milliseconds, capped by `maxTtlMs`.' }, { name: 'note', description: 'optional free-text reason other sessions see in denials.' }],
+        returns: 'the stored claim, detached from the store.',
+        throws: ['`ClaimConflictError` when another session\'s live claim overlaps.'],
+      },
+      {
+        signature: 'release(sessionId: string): number',
+        description: 'Release every claim of one session.',
+        parameters: [{ name: 'sessionId', description: 'session whose claims are dropped.' }],
+        returns: 'how many live claims were removed.',
+      },
+      {
+        signature: 'list(): WorkspaceClaim[]',
+        description: 'All live claims, earliest-expiring first; sweeps expired leases first.',
+        parameters: [],
+        returns: 'detached copies of every live claim.',
+      },
+      {
+        signature: 'check(path: string): WorkspaceClaim | null',
+        description: 'The live claim covering one concrete path, or `null`.',
+        parameters: [{ name: 'path', description: 'concrete `/`-separated path to test against live claims.' }],
+        returns: 'detached copy of the oldest covering claim, or `null`.',
       },
     ],
   },
@@ -4258,6 +4394,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ImageRequestPolicy {\n    maxPixels: number;\n    maxBytes: number;\n}',
   },
   {
+    name: 'ImageResultView',
+    declaration: 'export interface ImageResultView {\n    card: \'image\';\n    title?: string;\n    origin?: string;\n    attachmentId: string;\n    mediaType: string;\n    bytes: number;\n    width: number;\n    height: number;\n}',
+  },
+  {
     name: 'ImageVariantId',
     declaration: 'export type ImageVariantId = Branded<\'ImageVariantId\'>;',
   },
@@ -4886,6 +5026,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface SaveTextSpill {\n    owner: SpillOwner;\n    source: SpillSource;\n    suggestedName: string;\n    content: string;\n}',
   },
   {
+    name: 'ScanOutput',
+    declaration: 'export interface ScanOutput {\n    readonly text: string;\n    readonly truncated: boolean;\n    readonly spillPath?: string;\n}',
+  },
+  {
     name: 'ScheduledToolDispatch',
     declaration: 'export type ScheduledToolDispatch = {\n    kind: \'post-result\';\n    result: ToolExecutionResult;\n} | {\n    kind: \'final-result\';\n    result: ToolExecutionResult;\n};',
   },
@@ -4920,6 +5064,26 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'SearchResultView',
     declaration: 'export type SearchResultView = SearchMatchesResultView | SearchPathsResultView;',
+  },
+  {
+    name: 'SecurityScannerId',
+    declaration: 'export type SecurityScannerId = \'nuclei\' | \'httpx\' | \'katana\' | \'ffuf\' | \'nmap\' | \'sqlmap\';',
+  },
+  {
+    name: 'SecurityScanOptionValue',
+    declaration: 'export type SecurityScanOptionValue = string | number | boolean | readonly string[];',
+  },
+  {
+    name: 'SecurityScanProvider',
+    declaration: 'export interface SecurityScanProvider {\n    readonly id: string;\n    available(scanner: SecurityScannerId): boolean;\n    scan(request: SecurityScanRequest, signal?: AbortSignal): Promise<SecurityScanResult>;\n}',
+  },
+  {
+    name: 'SecurityScanRequest',
+    declaration: 'export interface SecurityScanRequest {\n    readonly scanner: SecurityScannerId;\n    readonly targets: readonly string[];\n    readonly options?: Readonly<Record<string, SecurityScanOptionValue>>;\n    readonly cwd?: string;\n}',
+  },
+  {
+    name: 'SecurityScanResult',
+    declaration: 'export interface SecurityScanResult {\n    readonly scanner: SecurityScannerId;\n    readonly argv: readonly string[];\n    readonly exitCode: number | null;\n    readonly signal: NodeJS.Signals | null;\n    readonly timedOut: boolean;\n    readonly aborted: boolean;\n    readonly durationMs: number;\n    readonly stdout: ScanOutput;\n    readonly stderr: ScanOutput;\n}',
   },
   {
     name: 'SendTeamMessageRequest',
@@ -5478,6 +5642,142 @@ export const TYPE_API: readonly TypeApiEntry[] = [
     declaration: 'export interface ShellSandboxInfo {\n    mode: SandboxMode;\n    denied: boolean;\n    enforcement?: SandboxEnforcement;\n    runnerFailed?: boolean;\n}',
   },
   {
+    name: 'SimulatorAccessibilityElement',
+    declaration: 'export interface SimulatorAccessibilityElement {\n    reference: string;\n    identifier?: string | undefined;\n    role: string;\n    label?: string | undefined;\n    frame?: SimulatorElementFrame | undefined;\n    enabled: boolean;\n    children: readonly SimulatorAccessibilityElement[];\n}',
+  },
+  {
+    name: 'SimulatorBootRequest',
+    declaration: 'export interface SimulatorBootRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorCreateRequest',
+    declaration: 'export interface SimulatorCreateRequest {\n    name: string;\n    deviceTypeIdentifier: string;\n    runtimeIdentifier: string;\n}',
+  },
+  {
+    name: 'SimulatorDescribeRequest',
+    declaration: 'export interface SimulatorDescribeRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorDescribeResult',
+    declaration: 'export interface SimulatorDescribeResult {\n    simulatorId: SimulatorId;\n    root: SimulatorAccessibilityElement | null;\n    screen?: SimulatorPointsSize | undefined;\n    truncated: boolean;\n}',
+  },
+  {
+    name: 'SimulatorDevice',
+    declaration: 'export interface SimulatorDevice {\n    id: SimulatorId;\n    name: string;\n    state: SimulatorState;\n    deviceTypeIdentifier: string;\n    runtimeIdentifier: string;\n}',
+  },
+  {
+    name: 'SimulatorDeviceCatalog',
+    declaration: 'export interface SimulatorDeviceCatalog {\n    deviceTypes: readonly SimulatorDeviceType[];\n    runtimes: readonly SimulatorRuntime[];\n}',
+  },
+  {
+    name: 'SimulatorDeviceType',
+    declaration: 'export interface SimulatorDeviceType {\n    identifier: string;\n    name: string;\n}',
+  },
+  {
+    name: 'SimulatorElementFrame',
+    declaration: 'export interface SimulatorElementFrame {\n    xPoints: number;\n    yPoints: number;\n    widthPoints: number;\n    heightPoints: number;\n}',
+  },
+  {
+    name: 'SimulatorHardwareButton',
+    declaration: 'export type SimulatorHardwareButton = \'home\' | \'lock\' | \'side_button\' | \'siri\' | \'apple_pay\' | \'play_pause\';',
+  },
+  {
+    name: 'SimulatorId',
+    declaration: 'export type SimulatorId = Branded<\'SimulatorId\'>;',
+  },
+  {
+    name: 'SimulatorInputAction',
+    declaration: 'export type SimulatorInputAction = {\n    readonly kind: \'tap\';\n    target: SimulatorInputTarget;\n} | SimulatorInputSwipe | {\n    readonly kind: \'key\';\n    usage: number;\n    shift?: boolean | undefined;\n} | {\n    readonly kind: \'button\';\n    button: SimulatorHardwareButton;\n} | {\n    readonly kind: \'text\';\n    target: SimulatorInputTarget;\n    text: string;\n};',
+  },
+  {
+    name: 'SimulatorInputRequest',
+    declaration: 'export interface SimulatorInputRequest extends SimulatorTargetedRequest {\n    action: SimulatorInputAction;\n}',
+  },
+  {
+    name: 'SimulatorInputResult',
+    declaration: 'export interface SimulatorInputResult {\n    simulatorId: SimulatorId;\n    actedAt?: SimulatorPoint | undefined;\n}',
+  },
+  {
+    name: 'SimulatorInputSwipe',
+    declaration: 'export interface SimulatorInputSwipe {\n    readonly kind: \'swipe\';\n    start: SimulatorPoint;\n    end: SimulatorPoint;\n    durationMs?: number | undefined;\n}',
+  },
+  {
+    name: 'SimulatorInputTarget',
+    declaration: 'export type SimulatorInputTarget = {\n    readonly kind: \'element\';\n    reference: string;\n} | {\n    readonly kind: \'point\';\n    at: SimulatorPoint;\n};',
+  },
+  {
+    name: 'SimulatorInstallRequest',
+    declaration: 'export interface SimulatorInstallRequest extends SimulatorTargetedRequest {\n    appPath: string;\n}',
+  },
+  {
+    name: 'SimulatorLaunchRequest',
+    declaration: 'export interface SimulatorLaunchRequest extends SimulatorTargetedRequest {\n    bundleId: string;\n}',
+  },
+  {
+    name: 'SimulatorLaunchResult',
+    declaration: 'export interface SimulatorLaunchResult {\n    simulatorId: SimulatorId;\n    bundleId: string;\n    pid?: number | undefined;\n    geometry?: SimulatorPointsSize | undefined;\n    geometryNote?: string | undefined;\n}',
+  },
+  {
+    name: 'SimulatorListRequest',
+    declaration: 'export interface SimulatorListRequest {\n}',
+  },
+  {
+    name: 'SimulatorOpenUrlRequest',
+    declaration: 'export interface SimulatorOpenUrlRequest extends SimulatorTargetedRequest {\n    url: string;\n}',
+  },
+  {
+    name: 'SimulatorPoint',
+    declaration: 'export interface SimulatorPoint {\n    xPoints: number;\n    yPoints: number;\n}',
+  },
+  {
+    name: 'SimulatorPointsSize',
+    declaration: 'export interface SimulatorPointsSize {\n    widthPoints: number;\n    heightPoints: number;\n}',
+  },
+  {
+    name: 'SimulatorResolvedTarget',
+    declaration: 'export interface SimulatorResolvedTarget {\n    simulatorId: SimulatorId;\n}',
+  },
+  {
+    name: 'SimulatorRuntime',
+    declaration: 'export interface SimulatorRuntime {\n    identifier: string;\n    name: string;\n    available: boolean;\n}',
+  },
+  {
+    name: 'SimulatorScreenshot',
+    declaration: 'export interface SimulatorScreenshot {\n    simulatorId: SimulatorId;\n    data: Uint8Array;\n    mediaType: \'image/png\';\n    widthPx: number;\n    heightPx: number;\n}',
+  },
+  {
+    name: 'SimulatorScreenshotRequest',
+    declaration: 'export type SimulatorScreenshotRequest = SimulatorTargetedRequest;',
+  },
+  {
+    name: 'SimulatorShutdownRequest',
+    declaration: 'export interface SimulatorShutdownRequest extends SimulatorTargetedRequest {\n}',
+  },
+  {
+    name: 'SimulatorState',
+    declaration: 'export type SimulatorState = \'booted\' | \'shutdown\';',
+  },
+  {
+    name: 'SimulatorStreamCodec',
+    declaration: 'export type SimulatorStreamCodec = \'h264\' | \'hevc\' | \'mjpeg\';',
+  },
+  {
+    name: 'SimulatorStreamHandle',
+    declaration: 'export interface SimulatorStreamHandle {\n    codec: SimulatorStreamCodec;\n    frames: AsyncIterable<Uint8Array>;\n    stop(): Promise<void>;\n}',
+  },
+  {
+    name: 'SimulatorStreamRequest',
+    declaration: 'export interface SimulatorStreamRequest extends SimulatorTargetedRequest {\n    codec?: SimulatorStreamCodec | undefined;\n    frameRate?: number | undefined;\n    scale?: number | undefined;\n}',
+  },
+  {
+    name: 'SimulatorTargetedRequest',
+    declaration: 'export interface SimulatorTargetedRequest {\n    simulator?: SimulatorId | undefined;\n    timeoutMs?: number | undefined;\n}',
+  },
+  {
+    name: 'SimulatorTerminateRequest',
+    declaration: 'export interface SimulatorTerminateRequest extends SimulatorTargetedRequest {\n    bundleId: string;\n}',
+  },
+  {
     name: 'SkillCandidate',
     declaration: 'export interface SkillCandidate extends SkillSummary {\n    readonly rank: number;\n    readonly locator: unknown;\n    readonly path?: string;\n    readonly metadata?: Readonly<Record<string, unknown>>;\n}',
   },
@@ -5979,7 +6279,7 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   },
   {
     name: 'ToolResultView',
-    declaration: 'export type ToolResultView = GenericResultView | TerminalResultView | DiffResultView | SearchResultView | ReadResultView | WebResultView;',
+    declaration: 'export type ToolResultView = GenericResultView | TerminalResultView | DiffResultView | SearchResultView | ReadResultView | WebResultView | ImageResultView;',
   },
   {
     name: 'ToolRunContext',
@@ -6288,6 +6588,10 @@ export const TYPE_API: readonly TypeApiEntry[] = [
   {
     name: 'WorkspaceBaseline',
     declaration: 'export interface WorkspaceBaseline {\n    readonly items: readonly WorkspaceView[];\n    readonly archivedSessionIds: readonly SessionId[];\n}',
+  },
+  {
+    name: 'WorkspaceClaim',
+    declaration: 'export interface WorkspaceClaim {\n    sessionId: string;\n    patterns: string[];\n    expiresAt: number;\n    acquiredAt: number;\n    note?: string;\n}',
   },
   {
     name: 'WorkspaceCreateRequest',

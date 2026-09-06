@@ -433,18 +433,66 @@ export function parseVendoredRows(text: string): VendoredRow[] {
 }
 
 /**
+ * One vendored native-framework pin row parsed from the `Native framework
+ * pins` table in `vendor/README.md`: a framework source tree that is not an
+ * npm package, vendored at a pinned upstream commit.
+ */
+export interface NativeFrameworkPin {
+  /** The `vendor/` directory holding the tree (e.g. `idb/`). */
+  directory: string
+  /** The framework the row pins (e.g. `FBSimulatorControl/`). */
+  framework: string
+  upstream: string
+  license: string
+}
+
+/**
+ * Parse the native-framework pins table out of `vendor/README.md`.
+ * @param text - the complete `vendor/README.md` contents.
+ * @returns one row per pins-table entry, in table order.
+ */
+export function parseNativeFrameworkPins(text: string): NativeFrameworkPin[] {
+  const rows: NativeFrameworkPin[] = []
+  const section = text.split(/^## /m).find(part => part.startsWith('Native framework pins'))
+  if (section === undefined) return rows
+  for (const line of section.split('\n')) {
+    const match
+      = /^\| `([^`]+)` \| `([^`]+)` \| (https:\/\/\S+?)(?: \([^)]*\))? \| [^|]+ \| ([A-Za-z0-9. -]+) \| `[0-9a-f]+` \|$/
+        .exec(line)
+    if (match === null) continue
+    const [, directory, framework, upstream, license] = match
+    if (directory === undefined || framework === undefined || upstream === undefined || license === undefined) continue
+    rows.push({ directory: directory.replace(/\/$/, ''), framework, upstream, license: license.trim() })
+  }
+  return rows
+}
+
+/**
  * Parse the vendored manifest table and confirm it accounts for every vendored
  * directory. The `vendor/` tree — not the table — is the set that must be
  * disclosed, so a row that stops matching the table format is a hard error
- * rather than a package that quietly vanishes from the notices.
+ * rather than a package that quietly vanishes from the notices. A vendor
+ * directory without a `package.json` is a native framework source tree and is
+ * covered by the native-framework pins table instead.
+ * @returns the npm vendored rows for the notices table plus the validated
+ *   native-framework pins.
  */
-function collectVendored(): VendoredRow[] {
-  const rows = parseVendoredRows(readFileSync(resolve(root, 'vendor/README.md'), 'utf8'))
+function collectVendored(): { npmRows: VendoredRow[]; nativePins: NativeFrameworkPin[] } {
+  const readme = readFileSync(resolve(root, 'vendor/README.md'), 'utf8')
+  const rows = parseVendoredRows(readme)
+  const pins = parseNativeFrameworkPins(readme)
   const onDisk = new Map<string, string>()
+  const sourceDirs = new Set<string>()
   for (const entry of readdirSync(resolve(root, 'vendor'), { withFileTypes: true })) {
     if (!entry.isDirectory()) continue
-    const manifest = readManifest(`vendor/${entry.name}/package.json`)
-    if (manifest.name !== undefined) onDisk.set(manifest.name, entry.name)
+    try {
+      const manifest = readManifest(`vendor/${entry.name}/package.json`)
+      if (manifest.name !== undefined) onDisk.set(manifest.name, entry.name)
+    } catch (cause) {
+      if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause
+      // No manifest: a native framework source tree, not an npm package.
+      sourceDirs.add(entry.name)
+    }
   }
 
   const parsed = new Set(rows.map(row => row.npmName))
@@ -460,7 +508,22 @@ function collectVendored(): VendoredRow[] {
       throw new Error(`gen-third-party-notices: vendored ${row.npmName} declares license ${JSON.stringify(license)}; the vendored section assumes MIT throughout.`)
     }
   }
-  return rows
+
+  // Every non-package vendor tree must be pinned, and every pin must exist.
+  const pinDirs = new Set(pins.map(pin => pin.directory))
+  const unpinned = [...sourceDirs].filter(dir => !pinDirs.has(dir))
+  if (unpinned.length > 0) {
+    throw new Error(`gen-third-party-notices: vendor/${unpinned.join(', vendor/')} is a source tree without a package.json and has no Native framework pins row in vendor/README.md.`)
+  }
+  for (const pin of pins) {
+    if (!sourceDirs.has(pin.directory)) {
+      throw new Error(`gen-third-party-notices: the Native framework pins table pins vendor/${pin.directory}, but that directory is not a package-less source tree on disk.`)
+    }
+    if (pin.license !== 'MIT') {
+      throw new Error(`gen-third-party-notices: pinned framework ${pin.framework} in vendor/${pin.directory} declares license ${JSON.stringify(pin.license)}; the vendored section assumes MIT throughout.`)
+    }
+  }
+  return { npmRows: rows, nativePins: pins }
 }
 
 /** Whether a parsed TOML value is a table rather than an array or scalar. */
@@ -681,6 +744,8 @@ export function render(): string {
   const runtimeDeps = npm.filter(dep => dep.runtime)
   const devDeps = npm.filter(dep => !dep.runtime)
   const vendored = collectVendored()
+  const vendoredNpmRows = vendored.npmRows
+  const vendoredNativePins = vendored.nativePins
   const python = collectPython()
   const patched = collectPatched()
   const claudeDistribution = runtimeDeps.some(
@@ -717,7 +782,13 @@ The Cordis framework and its foundation libraries are source-vendored into this 
 
 | Package | Upstream name | Upstream | License |
 | --- | --- | --- | --- |
-${vendored.map(row => `| \`${row.npmName}\` | \`${row.upstreamName}\` | [${row.upstream.replace('https://', '')}](${row.upstream}) | MIT |`).join('\n')}
+${vendoredNpmRows.map(row => `| \`${row.npmName}\` | \`${row.upstreamName}\` | [${row.upstream.replace('https://', '')}](${row.upstream}) | MIT |`).join('\n')}
+
+The native helper frameworks are source-vendored the same way, as plain framework source trees pinned by commit rather than npm packages (see the \`Native framework pins\` section of [\`vendor/README.md\`](vendor/README.md)):
+
+| Directory | Framework | Upstream | License |
+| --- | --- | --- | --- |
+${vendoredNativePins.map(pin => `| \`vendor/${pin.directory}\` | \`${pin.framework}\` | [${pin.upstream.replace('https://', '')}](${pin.upstream}) | ${pin.license} |`).join('\n')}
 
 ## Runtime npm dependencies
 

@@ -1,0 +1,159 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dsw-space-2, 8px);
+  padding: var(--dsw-space-3, 12px);
+  height: 100%;
+  /* The tab's own container (viewArea) grows with content instead of
+     bounding it, so the panel caps itself: viewport minus the app header
+     and the floating composer. Screen and controls then always fit with
+     no page scroll; the stream shrinks, never the controls. */
+  max-height: calc(100dvh - 220px);
+  min-height: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-2, 8px);
+}
+
+.picker {
+  max-width: 280px;
+  padding: 4px 8px;
+}
+
+.button {
+  padding: 4px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.status {
+  color: var(--dsw-text-secondary, #666);
+  font-size: 12px;
+}
+
+.live {
+  color: var(--dsw-status-running, #0a7d33);
+  font-weight: 600;
+}
+
+.note {
+  color: var(--dsw-text-secondary, #666);
+  font-size: 12px;
+}
+
+.error {
+  color: var(--dsw-status-error, #b3261e);
+  font-size: 12px;
+  white-space: pre-wrap;
+}
+
+.surface {
+  position: relative;
+  flex: 1 1 0;
+  min-height: 0;
+  background: var(--dsw-bg-inset, #111);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.video,
+.canvas {
+  /* Держим пропорции телефона: высота задаёт размер, ширина следует за
+     соотношением сторон кадра; рамка и скругление читаются как устройство. */
+  height: 100%;
+  max-width: 100%;
+  object-fit: contain;
+  border-radius: 18px;
+  cursor: pointer;
+  touch-action: none;
+  user-select: none;
+}
+
+.hardwareRow {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-2, 8px);
+}
+
+.video:focus-visible,
+.canvas:focus-visible {
+  outline: 2px solid var(--dsw-accent, #4a6cf7);
+  outline-offset: 2px;
+}
+
+.hidden {
+  display: none;
+}
+
+.placeholder {
+  position: absolute;
+  color: var(--dsw-text-secondary, #888);
+  font-size: 13px;
+}
+
+.deviceList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+
+.deviceRow {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-2, 8px);
+}
+
+.deviceSelected {
+  background: var(--dsw-bg-inset, rgba(74, 108, 247, 0.08));
+  border-radius: 6px;
+}
+
+.deviceName {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-2, 8px);
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  font: inherit;
+}
+
+.deviceState {
+  color: var(--dsw-text-secondary, #888);
+  font-size: 11px;
+}
+
+.deviceBooted {
+  color: var(--dsw-status-running, #0a7d33);
+  font-weight: 600;
+}
+
+.createForm {
+  display: flex;
+  align-items: center;
+  gap: var(--dsw-space-2, 8px);
+  flex-wrap: wrap;
+}
+
+.createInput {
+  padding: 4px 8px;
+  min-width: 140px;
+}

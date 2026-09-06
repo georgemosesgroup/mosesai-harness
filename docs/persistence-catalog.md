@@ -482,6 +482,28 @@ Source: [`packages/hooks/hook-protocol/src/types.ts:19`](../packages/hooks/hook-
 
 Source: [`packages/hooks/hook-protocol/src/types.ts:31`](../packages/hooks/hook-protocol/src/types.ts)
 
+### `iosSim/*`
+
+<a id="iossimaction--log-only"></a>
+
+#### `iosSim/action` — log-only
+
+```ts persistence-catalog
+/**
+ * One simulator action this agent performed through the iosSimulator
+ * tools: which verb ran (`action`), against which resolved device
+ * (udid/name), plus the result facts each action family owns — list size,
+ * launched bundle/pid, opened URL, or the committed screenshot's durable
+ * attachment facts. Log-only UI/audit state: derived history ignores it;
+ * replay reads it to reconstruct what the model did to devices outside
+ * the workspace. Image bytes never ride here — only reference fields
+ * already committed through `ctx.attachments`.
+ */
+'iosSim/action': IosSimActionEventData
+```
+
+Source: [`packages/iossim/tool-ios-sim/src/event.ts:25`](../packages/iossim/tool-ios-sim/src/event.ts)
+
 ### `llm/*`
 
 <a id="llmretry--log-only"></a>

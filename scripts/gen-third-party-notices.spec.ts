@@ -10,6 +10,7 @@ import {
   isPermissive,
   type Manifest,
   manifestPatterns,
+  parseNativeFrameworkPins,
   parsePyprojectRequirements,
   parseVendoredRows,
   render,
@@ -166,12 +167,24 @@ describe('parseVendoredRows', () => {
   })
 
   it('covers every vendored directory, so no package can drop out of the notices', () => {
-    const parsed = new Set(parseVendoredRows(readFileSync(resolve(root, 'vendor/README.md'), 'utf8')).map(row => row.npmName))
+    const readme = readFileSync(resolve(root, 'vendor/README.md'), 'utf8')
+    const parsed = new Set(parseVendoredRows(readme).map(row => row.npmName))
+    const pinnedDirs = new Set(parseNativeFrameworkPins(readme).map(pin => pin.directory))
     const onDisk = readdirSync(resolve(root, 'vendor'), { withFileTypes: true })
       .filter(entry => entry.isDirectory())
-      .map(entry => (JSON.parse(readFileSync(resolve(root, 'vendor', entry.name, 'package.json'), 'utf8')) as Manifest).name)
+      .map((entry) => {
+        // A package-less vendor tree is a native framework source covered by
+        // the pins table, not the npm manifest table.
+        try {
+          return (JSON.parse(readFileSync(resolve(root, 'vendor', entry.name, 'package.json'), 'utf8')) as Manifest).name
+        } catch (cause) {
+          if ((cause as NodeJS.ErrnoException).code !== 'ENOENT') throw cause
+          expect(pinnedDirs.has(entry.name), `vendor/${entry.name} must carry a Native framework pins row`).toBe(true)
+          return undefined
+        }
+      })
 
-    expect([...onDisk].sort()).toEqual([...parsed].sort())
+    expect(onDisk.filter(name => name !== undefined).sort()).toEqual([...parsed].sort())
   })
 })
 

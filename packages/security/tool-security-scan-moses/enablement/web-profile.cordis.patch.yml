@@ -1,0 +1,23 @@
+# Enablement patch for the security-scan seam on a dsh web profile.
+#
+# Usage A (one-off):      dsh web --patch <this-file>
+# Usage B (persistent):   copy these rows into $DSH_HOME/profiles/web/cordis.patch.yml
+#
+# The allowlist IS the authorization boundary: list only hosts you own.
+# Binaries resolve on PATH (/opt/homebrew/bin works on this machine); pin
+# explicit paths via security-scan-local config.binPaths when needed.
+- insert:
+    - id: security-scan
+      name: '@deepseek-ai/dsh-security-scan'
+      config:
+        allowlist:
+          - 'localhost'
+          - '127.0.0.1'
+          - '::1'
+          # - '.staging.example.com'
+
+    - id: security-scan-local
+      name: '@deepseek-ai/dsh-security-scan-local'
+
+    - id: tool-security-scan
+      name: '@deepseek-ai/dsh-tool-security-scan'

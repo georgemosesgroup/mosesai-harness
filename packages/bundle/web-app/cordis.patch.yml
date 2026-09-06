@@ -310,6 +310,18 @@
     - id: ui-trajectory
       name: '@deepseek-ai/dsh-client-ui-trajectory'
 
+    # The iOS-simulator stack: the native provider (live framebuffer stream +
+    # availability tree + input over the vendored idb frameworks), the sim_*
+    # tools for the agent, and the panel tab over its WebSocket bridge.
+    - id: ios-sim-native
+      name: '@deepseek-ai/dsh-ios-sim-native'
+    - id: tool-ios-sim
+      name: '@deepseek-ai/dsh-tool-ios-sim'
+    - id: ios-sim-panel
+      name: '@deepseek-ai/dsh-ios-sim-panel'
+    - id: ui-simulator
+      name: '@deepseek-ai/dsh-client-ui-simulator'
+
 # ── the agent plane moves behind agent presets ─────────────────────────────
 #
 # Every row below composes what ONE agent contributes to the host registries:

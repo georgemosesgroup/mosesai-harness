@@ -1,0 +1,490 @@
+/**
+ * DIF Explorer styles. The surface inherits the session body's grid: 24px
+ * side padding everywhere the session header uses it, 13px UI rows, code
+ * font only where file text is read. Token aliases only (--dsw-alias-*,
+ * --dsw-font-*); geometry follows the code-block family (no soft wrap in
+ * diff bodies, horizontal scroll instead).
+ */
+
+.surface {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-sm-14);
+}
+
+/* ── Toolbar strip: mirrors the trajectory toolbar (32px, layer-1) ──────── */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+  height: 32px;
+  padding: 0 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.toolbarGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex: none;
+}
+
+.toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 20px;
+  padding: 0 7px;
+  gap: 4px;
+  border: 0;
+  border-radius: 3px;
+  color: var(--dsw-alias-label-tertiary);
+  background: transparent;
+  cursor: pointer;
+  font: var(--dsw-font-xxs-12);
+}
+
+.toggle:hover {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.toggle[aria-pressed='true'] {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-interactive-bg-hover);
+}
+
+.toggle:focus-visible {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: 1px;
+}
+
+.iconOnly {
+  padding: 0 5px;
+}
+
+.iconOnly[aria-pressed='true'] {
+  background: transparent;
+}
+
+.toggleIcon {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 1.25;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.search {
+  display: flex;
+  flex: 0 1 164px;
+  align-items: center;
+  min-width: 84px;
+  height: 22px;
+  margin-left: auto;
+  padding: 0 6px;
+  gap: 4px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  color: var(--dsw-alias-label-caption);
+  background: var(--dsw-alias-bg-layer-2);
+}
+
+.search:hover {
+  border-color: var(--dsw-alias-label-caption);
+}
+
+.search:focus-within {
+  border-color: var(--dsw-alias-state-business-primary);
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.searchInput {
+  min-width: 0;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  color: var(--dsw-alias-label-primary);
+  background: transparent;
+  font: var(--dsw-font-xxs-12);
+}
+
+.searchInput::placeholder {
+  color: var(--dsw-alias-label-caption);
+}
+
+.searchInput::-webkit-search-cancel-button {
+  width: 12px;
+  height: 12px;
+  cursor: pointer;
+}
+
+/* ── Status badge: soft pill, tone by letter ─────────────────────────────── */
+
+.statusBadge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 6px;
+  font: 600 11px/1 var(--dsw-font-sm-14);
+  font-variant-numeric: tabular-nums;
+}
+
+.stA {
+  color: var(--dsw-alias-state-success-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 14%, transparent);
+}
+
+.stM {
+  color: var(--dsw-alias-state-warn-label);
+  background: color-mix(in srgb, var(--dsw-alias-state-warn-label) 14%, transparent);
+}
+
+.stD {
+  color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 14%, transparent);
+}
+
+.stR {
+  color: var(--dsw-alias-state-business-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-business-primary) 14%, transparent);
+}
+
+/* ── Panes: 24px gutters, shared scroll contract ─────────────────────────── */
+
+.filesPane,
+.changesPane,
+.viewer {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+/* The panes scroll over an elevated surface (layer-2 active states and the
+ * viewer header above them); scrollbar.css binds the l1 thumb pair by
+ * default, so scrollers rebind to the l2 rung here or the thumb mismatches
+ * the surface in the dark palette. */
+.paneScroll {
+  --dsh-scrollbar-thumb: var(--dsw-alias-scrollbar-bg-l2);
+  --dsh-scrollbar-thumb-hover: var(--dsw-alias-scrollbar-hover-l2);
+
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  font-family: var(--dsw-font-markdown-code-block);
+  font-size: 13px;
+  line-height: 20px;
+}
+
+/* ── Files pane ──────────────────────────────────────────────────────────── */
+
+.searchInput {
+  margin: 12px 24px;
+  font: var(--dsw-font-sm-14);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-1);
+  border: 1px solid transparent;
+  border-radius: 10px;
+  padding: 7px 12px;
+  outline: none;
+}
+
+.searchInput::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.searchInput:focus {
+  border-color: var(--dsw-alias-border-l3);
+  background: var(--dsw-alias-bg-base);
+}
+
+.treeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  height: 30px;
+  text-align: left;
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: 13px/1 var(--dsw-font-markdown-code-block);
+  padding: 0 24px;
+  cursor: pointer;
+}
+
+.treeRow:hover,
+.fileRow:hover {
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.dirChevron {
+  width: 12px;
+  flex: none;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 10px;
+}
+
+.dirCount {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fileNameWithBadge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
+}
+
+.fileRow .fileName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Changes pane ────────────────────────────────────────────────────────── */
+
+.filterRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 6px 6px 24px;
+}
+
+.filterSelect,
+.pathInput {
+  height: 22px;
+  font: var(--dsw-font-xxs-12);
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-layer-2);
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 4px;
+  padding: 0 6px;
+  outline: none;
+}
+
+.pathInput {
+  margin-left: auto;
+  width: 200px;
+}
+
+.pathInput::placeholder {
+  color: var(--dsw-alias-label-secondary);
+}
+
+.pathInput:focus {
+  border-color: var(--dsw-alias-border-l3);
+}
+
+.changeRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  text-align: left;
+  border: none;
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+  background: transparent;
+  color: var(--dsw-alias-label-primary);
+  font: 13px/1 var(--dsw-font-markdown-code-block);
+  padding: 0 24px;
+  cursor: pointer;
+}
+
+.changeRow:hover {
+  background: var(--dsw-alias-bg-layer-1);
+}
+
+.changePath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.changeHunks {
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.changeMeta {
+  margin-left: auto;
+  color: var(--dsw-alias-label-secondary);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.emptyNote,
+.stateNote,
+.moreNote {
+  padding: 24px;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-sm-14);
+  white-space: pre-wrap;
+}
+
+/* ── Diff viewer ─────────────────────────────────────────────────────────── */
+
+.viewerHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 24px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--dsw-alias-bg-base);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.viewerPath {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--dsw-font-markdown-code-block);
+  font-size: 13px;
+}
+
+.modeSwitch {
+  margin-left: auto;
+  display: inline-flex;
+  gap: 2px;
+  background: var(--dsw-alias-bg-layer-1);
+  border-radius: 8px;
+  padding: 2px;
+}
+
+.modeSwitch button {
+  border: none;
+  background: transparent;
+  color: var(--dsw-alias-label-secondary);
+  cursor: pointer;
+  font: var(--dsw-font-xs-13);
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.modeActive {
+  color: var(--dsw-alias-label-primary);
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 1px 2px color-mix(in srgb, var(--dsw-alias-label-primary) 10%, transparent);
+}
+
+.metaLine {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 24px;
+  color: var(--dsw-alias-label-secondary);
+  font: var(--dsw-font-xs-13);
+  border-bottom: 1px solid var(--dsw-alias-border-l2);
+}
+
+.metaTime {
+  font-variant-numeric: tabular-nums;
+}
+
+.additions {
+  color: var(--dsw-alias-state-success-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.deletions {
+  color: var(--dsw-alias-state-error-primary);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Unified rows ────────────────────────────────────────────────────────── */
+
+.uRow {
+  display: grid;
+  grid-template-columns: 52px 52px minmax(0, 1fr);
+  min-width: max-content;
+  padding-right: 24px;
+}
+
+.lineNo {
+  text-align: right;
+  padding-right: 12px;
+  color: var(--dsw-alias-label-secondary);
+  opacity: 0.7;
+  user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.uText {
+  white-space: pre;
+  padding-right: 16px;
+}
+
+.u_del {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+}
+
+.u_add {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);
+}
+
+/* ── Split rows ──────────────────────────────────────────────────────────── */
+
+.splitRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.splitSide {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  border-right: 1px solid var(--dsw-alias-border-l2);
+  min-width: 0;
+}
+
+.splitSide:last-child {
+  border-right: none;
+}
+
+.sideDel {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 10%, transparent);
+}
+
+.sideAdd {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 12%, transparent);
+}
+
+.splitText {
+  white-space: pre;
+  overflow: hidden;
+  padding-right: 16px;
+}
+
+mark.intraDel {
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 40%, transparent);
+  color: inherit;
+  border-radius: 3px;
+}
+
+mark.intraAdd {
+  background: color-mix(in srgb, var(--dsw-alias-state-success-primary) 40%, transparent);
+  color: inherit;
+  border-radius: 3px;
+}

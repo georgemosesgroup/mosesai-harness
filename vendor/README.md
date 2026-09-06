@@ -26,6 +26,19 @@ Third-party dependencies of the vendored packages stay on npm: `@standard-schema
 
 Intentionally **not** vendored (verified unused by this set): `reggol`, `@cordisjs/utils`, `@cordisjs/element`, `@cordisjs/unyaml` (dev-time YAML import hook only).
 
+## Native framework pins
+
+The [`dsh-ios-sim-native` provider](../.agents/notes/implemented/architecture/2026-08-27-ios-simulator-native-provider.md) links two frameworks from [facebook/idb](https://github.com/facebook/idb) — the repository the upstream `FBSimulatorControl`/`FBControlCore` names redirect to; the former standalone repos no longer exist. Gate 0 licence verdict (recorded there before any native source lands): the idb repository is MIT-licensed ([LICENSE](https://github.com/facebook/idb/blob/main/LICENSE), Copyright (c) Meta Platforms, Inc. and affiliates), there are no framework-level licence files, and the current framework README carries no BSD text — the BSD-with-patent-grant wording in old forks belongs to the retired standalone repository. Redistribution and vendoring are permitted with the licence text retained. The frameworks ship no versioned artefacts, so the pin is by commit:
+
+| Directory | Framework | Upstream repo | Version | License | Commit |
+|---|---|---|---|---|---|
+| `idb/` | `FBSimulatorControl/` | https://github.com/facebook/idb (`FBSimulatorControl/`) | — (monorepo, no framework releases) | MIT | `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5` |
+| `idb/` | `FBControlCore/` | https://github.com/facebook/idb (`FBControlCore/`) | — (monorepo, no framework releases) | MIT | `8443cb759e31fb24c2a14aa970a3dc1907bcf1b5` |
+
+Both frameworks weakly link Apple's private `CoreSimulator`/`SimulatorKit` — a platform fact outside any licence, tracked in the note's risks.
+
+`vendor/idb/` holds the pristine upstream tree slice the [`iossim-helper`](../native/iossim-helper/README.md) build compiles against at the pinned commit — `FBControlCore/`, `FBSimulatorControl/`, plus their static-framework dependency closure (`XCTestBootstrap/`, `CompanionUtilities/`), the reverse-engineered `PrivateHeaders/` module maps, `Configuration/Shared.xcconfig`, the `REPL/IDB/IDBAPI.swiftinterface` and `Shims/Shimulator/Tools/FBXCTestConstants.h` files the framework targets reference, and the upstream `LICENSE`. Build glue lives in [`native/iossim-helper/`](../native/iossim-helper/README.md), not here; the vendored tree carries no local modifications. Syncing re-copies the slice from a new upstream commit and updates both commit cells above in the same change.
+
 ## Local modifications
 
 Keep this log exhaustive — every divergence from upstream must be listed.

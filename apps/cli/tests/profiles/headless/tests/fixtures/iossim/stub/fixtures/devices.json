@@ -1,0 +1,22 @@
+{
+  "devices": {
+    "com.apple.CoreSimulator.SimRuntime.iOS-17-5": [
+      {
+        "lastBootedAt": "2026-01-01T00:00:00Z",
+        "udid": "STUB-A",
+        "isAvailable": true,
+        "state": "Booted",
+        "name": "iPhone 15 Pro (Stub)",
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPhone-15-Pro"
+      },
+      {
+        "lastBootedAt": "2026-01-01T01:00:00Z",
+        "udid": "STUB-B",
+        "isAvailable": true,
+        "state": "Shutdown",
+        "name": "iPad mini (Stub)",
+        "deviceTypeIdentifier": "com.apple.CoreSimulator.SimDeviceType.iPad-mini"
+      }
+    ]
+  }
+}
