@@ -254,7 +254,7 @@ async function call(ctx: Context, name: string, args: unknown, agent?: Agent & {
 }
 
 function eventsOf(session: Session): readonly SessionEvent[] {
-  return session.events.filter(event => event.type === 'iosSim/action')
+  return session.snapshotEvents().filter(event => event.type === 'iosSim/action')
 }
 
 function oneEvent(session: Session, action: string): Record<string, unknown> {

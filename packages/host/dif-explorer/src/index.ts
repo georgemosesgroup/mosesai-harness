@@ -235,14 +235,14 @@ export class DifExplorerGateway extends TypertRemoteService {
     root: { readonly path: string },
     sessionIdFilter?: string,
   ): Promise<readonly ChangeEntryView[]> {
-    const headers = await this.persistence.list()
+    const snapshots = await this.persistence.list()
     const collected: ChangeEntryView[] = []
-    for (const header of headers) {
+    for (const { header } of snapshots) {
       if (typeof header.cwd !== 'string') continue
       if (await realpathNormalize(header.cwd) !== root.path) continue
       if (sessionIdFilter !== undefined && String(header.id) !== sessionIdFilter) continue
-      const inspection = await this.persistence.inspect(String(header.id) as SessionId)
-      collected.push(...foldSessionChanges({ id: String(header.id) }, root.path, inspection.events))
+      const events = await this.readSessionEvents(header.id)
+      collected.push(...foldSessionChanges({ id: String(header.id) }, root.path, events))
     }
     return collected.sort((left, right) => (right.at ?? '').localeCompare(left.at ?? ''))
   }
@@ -303,6 +303,23 @@ export class DifExplorerGateway extends TypertRemoteService {
     return entries
   }
 
+  /**
+   * Read one session's whole committed event log through a read handle,
+   * closing it before returning. The DIF Explorer never appends; a read
+   * handle is the read-only view the persistence seam now exposes in place
+   * of the removed `inspect`.
+   * @param id - the session to read.
+   * @returns the session's committed events from seq 0.
+   */
+  private async readSessionEvents(id: SessionId): Promise<readonly SessionEvent[]> {
+    const handle = await this.persistence.open(id, 'read')
+    try {
+      return await handle.read()
+    } finally {
+      await handle.close()
+    }
+  }
+
   /** Fragment diff of exactly one logged mutating tool call. */
   private async toolCallDiff(
     root: { readonly path: string },
@@ -310,8 +327,8 @@ export class DifExplorerGateway extends TypertRemoteService {
   ): Promise<DiffResponse> {
     const sessionId = requireDefined(request.sessionId, 'sessionId')
     const seq = requireDefined(request.seq, 'seq')
-    const inspection = await this.persistence.inspect(sessionId as SessionId)
-    const call = decodeMutatingCalls(inspection.events.map(asFoldable)).find(item => item.seq === seq)
+    const events = await this.readSessionEvents(sessionId as SessionId)
+    const call = decodeMutatingCalls(events.map(asFoldable)).find(item => item.seq === seq)
     if (call === undefined) {
       throw new Error(`session "${sessionId}" holds no mutating tool call at seq ${seq}`)
     }

@@ -30,7 +30,7 @@ function validateCommitted(event: SessionEvent, fail: InvariantFailure): void {
  */
 const install: InvariantInstaller = Object.assign((ctx: Context, fail: InvariantFailure) => {
   for (const session of ctx.sessions.list()) {
-    for (const event of session.events) validateCommitted(event, fail)
+    for (const event of session.snapshotEvents()) validateCommitted(event, fail)
   }
   ctx.on('internal/dispatch', (_mode, eventName, args) => {
     if (eventName !== 'session/event') return

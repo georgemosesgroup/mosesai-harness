@@ -121,7 +121,11 @@ export class RepositoryCleaner {
     const outputs = new Set<string>()
     const pending = [join(this.root, 'tsconfig.json')]
     const visited = new Set<string>()
-    const nativeEntryOutput = join(this.root, 'native/landlock-run/packages/entry/lib')
+    // Native helper entry packages emit straight into lib (no runtime bundle beside it).
+    const nativeEntryOutputs = new Set([
+      join(this.root, 'native/landlock-run/packages/entry/lib'),
+      join(this.root, 'native/iossim-helper/packages/entry/lib'),
+    ])
 
     while (pending.length > 0) {
       const nextConfigPath = pending.pop()
@@ -135,7 +139,7 @@ export class RepositoryCleaner {
         const typesDirectory = resolve(parsed.options.outDir)
         const outputDirectory = basename(typesDirectory) === 'types'
           ? dirname(typesDirectory)
-          : typesDirectory === nativeEntryOutput
+          : nativeEntryOutputs.has(typesDirectory)
             ? typesDirectory
             : undefined
         if (outputDirectory === undefined) {

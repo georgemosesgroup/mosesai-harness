@@ -44,21 +44,3 @@
   line-height: 20px;
   color: var(--dsw-alias-label-tertiary);
 }
-
-/* Same dedicated image card as the row body, at details scale. */
-.imageCard {
-  margin: 0;
-  padding: 8px 0;
-  border: none;
-}
-
-.imageCaption {
-  font-size: 12px;
-  color: var(--dsw-alias-label-tertiary);
-}
-
-.imageMeta {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 12px;
-  white-space: pre-wrap;
-}
