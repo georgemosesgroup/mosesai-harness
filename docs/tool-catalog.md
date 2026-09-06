@@ -33,16 +33,12 @@ This table connects model-visible tool names to the plugin package and service s
 | `@deepseek-ai/dsh-tool-ralph` | `ralph` | `ctx.tools`, `ctx.workflowEngine`, `ctx.subagents`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents every fresh round)` | `tool/call`, `tool/result`, `workflow and child session events during execution` | - | A fixed foreground workflow starts one fresh structured child per round; the model selects only the immutable objective and an optional round cap. |
 | `@deepseek-ai/dsh-tool-skill` | `skill` | `ctx.tools`, `ctx.agents`, `ctx.skills` | `tool/call`, `tool/result`, `user/message replacement catalogs via agent.inject()` | - | - |
 | `@deepseek-ai/dsh-tool-session-query` | `session_event_read`, `session_event_search`, `session_event_trace`, `session_search`, `session_trace` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery`, `a calling Agent for workspace authority` | `tool/call`, `tool/result` | - | The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies. |
-| `@deepseek-ai/dsh-tool-session-peek-moses` | `peek_session_list`, `peek_session_read`, `peek_session_search` | `ctx.tools`, `ctx.systemPrompt`, `ctx.sessionQuery` | `tool/call`, `tool/result` | - | Read-only cross-session visibility over ctx.sessionQuery (list/read/search other sessions of this install). Not loaded by any shipped bundle — enabled through a deployment profile patch. |
 | `@deepseek-ai/dsh-tool-subagent` | `list_subagent_models`, `subagent` | `ctx.tools`, `ctx.subagents`, `ctx.systemPrompt`, `ctx.llm for model discovery and selected-route validation` | `tool/call`, `tool/result`, `child session events through the chosen provider` | `subagent`, `subagent_fork` | The registered delegation name is the load-time `toolName` config (default `subagent`); the default schema above has model selection off, while the discovery schema is shown as the fixed companion available in an enabled Session. Web presets sample the Plugins preference for each new top-level Session and preserve that decision for its child Sessions; `subagent_fork` remains fixed-route. Each instance independently controls whether it reads model-selection settings and its background behavior through `modelSelectionSettings`, `backgroundMode`, and `enableRunInBackground`. |
 | `@deepseek-ai/dsh-tool-subagent-control` | `interrupt_agent`, `list_agents`, `send_message` | `ctx.tools`, `ctx.subagents`, `ctx.agents and ctx.sessionProjections (list_agents only)` | `tool/call`, `tool/result`, `child session events through ctx.subagents` | - | The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries). |
-| `@deepseek-ai/dsh-tool-subagent-report` | `report` | `ctx.subagents`, `ctx.systemPrompt`, `a live continuable in-process child Agent` | `tool/call`, `tool/result`, `a user-role message in the direct parent session` | - | Registered per continuable in-process child rather than globally, so this schema is visible only inside such a child and survives its global `toolFilter`. The same contribution installs the child-scoped `tool:report` prompt section, which this catalog does not render. The parent-facing `send_message` tool is installed independently. |
 | `@deepseek-ai/dsh-tool-jobs` | `job_kill`, `job_list`, `job_output` | `ctx.tools`, `ctx.jobs`, `ctx.systemPrompt` | `tool/call`, `tool/result`, `user/message via agent.inject() for background completion notices` | - | The kind-agnostic background-job controller: background bash commands, PTY sends, and subagents are read, listed, and killed through the same three tools. Loading the plugin attaches the controller that arms producers' `ctx.jobs.start()`. |
-| `@deepseek-ai/dsh-experimental-tool-agent-team` | `followup_task`, `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
-| `@deepseek-ai/dsh-tool-ios-sim` | `sim_describe`, `sim_input`, `sim_launch`, `sim_list`, `sim_open_url`, `sim_screenshot` | `ctx.tools`, `ctx.iosSimulator` | `tool/call`, `tool/result`, `iosSim/action` | - | `sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `stream` stays a reserved capability name — calling an unadvertised verb rejects with SIMULATOR_CAPABILITY_UNAVAILABLE. |
+| `@deepseek-ai/dsh-experimental-tool-agent-team` | `interrupt_agent`, `list_agents`, `send_message`, `spawn_teammate`, `team_task_create`, `team_task_get`, `team_task_list`, `team_task_update`, `wait_agent` | `ctx.tools`, `ctx.systemPrompt`, `ctx.agentTeams`, `an exact live Team member Agent` | `tool/call`, `team/member`, `team/message/queued`, `team/message/delivered`, `team/task`, `tool/result` | - | All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names. |
 | `@deepseek-ai/dsh-tool-todo` | `todo_write` | `ctx.tools`, `owning Agent session` | `tool/call`, `todo/write`, `tool/result` | - | todo_write is session-owned state; UIs render the latest todo/write event as a checklist. `allowParallelInProgress` is required with no default, so the catalog states its choice: `true`, whose description invites several `in_progress` items. A deployment choosing `false` receives the same tool with a description asking for exactly one active task. |
 | `@deepseek-ai/dsh-tool-workflow` | `workflow` | `ctx.tools`, `ctx.workflowEngine`, `ctx.systemPrompt`, `a calling Agent (exec.agent parents the script children)` | `tool/call`, `tool/result` | - | - |
-| `@deepseek-ai/dsh-tool-security-scan-moses` | `security_scan` | `ctx.tools`, `ctx.securityScan`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments. |
 | `@deepseek-ai/dsh-tool-web` | `web_fetch`, `web_search` | `ctx.tools`, `ctx.web`, `ctx.systemPrompt` | `tool/call`, `tool/result` | - | web_search and web_fetch keep provider selection behind ctx.web so model-visible schemas stay stable across backend swaps. |
 
 <a id="deepseek-aidsh-tool-ask-user"></a>
@@ -734,7 +730,7 @@ Source: [`packages/fs/tool-fs/src/index.ts`](../packages/fs/tool-fs/src/index.ts
 
 ### `read_image`
 
-Read a PNG/JPEG/WebP/GIF file and return the image itself. Harness validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input.
+Read a PNG/JPEG/WebP/GIF file and return the image itself. A path without a file extension is accepted; the format is detected from the file content, so normalized attachment paths can be passed directly without copying or renaming. Harness validates and downscales large supported images before the next model request, so use this tool directly instead of installing image libraries or creating thumbnails merely to inspect an image. Independent files may be read concurrently in small batches. Requires the current model to accept image input.
 
 ```json
 {
@@ -1536,92 +1532,6 @@ Source: [`packages/session-query/tool-session-query/src/index.ts`](../packages/s
 
 The five read-only tools hide provider cursors and authorize every result from the immutable calling agent session. The package is opt-in; compositions that need enforced deadlines or bounded inline output also mount the generic timeout or spill policies.
 
-<a id="deepseek-aidsh-tool-session-peek-moses"></a>
-
-## `@deepseek-ai/dsh-tool-session-peek-moses`
-
-### `peek_session_list`
-
-List other sessions recorded by this DSH install, newest first, with their titles and live/persisted availability. Read-only overview; follow up with peek_session_read or peek_session_search.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "limit": {
-      "type": "integer",
-      "description": "Maximum sessions to return, newest first. Defaults to 20."
-    }
-  }
-}
-```
-
-Source: [`packages/session-query/tool-session-peek-moses/src/index.ts`](../packages/session-query/tool-session-peek-moses/src/index.ts)
-
-### `peek_session_read`
-
-Read a bounded window of another session's event log in this DSH install. Returns the newest events first by default; use offset to page further back. Long text is truncated.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "sessionId": {
-      "type": "string",
-      "description": "Target session id from peek_session_list or peek_session_search."
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum events returned counting back from the end. Defaults to 20."
-    },
-    "offset": {
-      "type": "integer",
-      "description": "How many NEWEST events to skip first (page backwards)."
-    }
-  },
-  "required": [
-    "sessionId"
-  ]
-}
-```
-
-Source: [`packages/session-query/tool-session-peek-moses/src/index.ts`](../packages/session-query/tool-session-peek-moses/src/index.ts)
-
-### `peek_session_search`
-
-Full-text search over other sessions of this DSH install. Without sessionId, returns the strongest matching session per hit across the whole install; with sessionId, searches inside that one session and returns matching events. Read-only; paginate via nextCursor.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "query": {
-      "type": "string",
-      "description": "Literal case-insensitive full-text query."
-    },
-    "sessionId": {
-      "type": "string",
-      "description": "Search inside this one session instead of across the install."
-    },
-    "limit": {
-      "type": "integer",
-      "description": "Maximum hits on this page. Defaults to 20."
-    },
-    "cursor": {
-      "type": "string",
-      "description": "Opaque nextCursor echoed by a previous page."
-    }
-  },
-  "required": [
-    "query"
-  ]
-}
-```
-
-Source: [`packages/session-query/tool-session-peek-moses/src/index.ts`](../packages/session-query/tool-session-peek-moses/src/index.ts)
-
-Read-only cross-session visibility over ctx.sessionQuery (list/read/search other sessions of this install). Not loaded by any shipped bundle — enabled through a deployment profile patch.
-
 <a id="deepseek-aidsh-tool-subagent"></a>
 
 ## `@deepseek-ai/dsh-tool-subagent`
@@ -1707,7 +1617,7 @@ Source: [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/sub
 
 ### `list_agents`
 
-List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` starts a new turn on the same conversation, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only.
+List your continuable background subagents by durable id and label. Use it to recall which ones you started, not to poll for completion — you are told when one finishes. Status comes from the live registry: running means the agent is working right now, idle means it is loaded but between turns (it may be waiting on agents it started), and ready means it exists only in storage — resumable, not terminal, and not a result waiting to be collected; a `send_message` steers a running child at its nearest step boundary or starts a turn for an idle or ready child, and a direct child remains a `send_message` candidate in every status. The snapshot is not a delivery promise — `send_message` performs the authoritative check and may still fail. Children that could not be read are reported as diagnostics instead of being silently dropped. Scope `descendants` walks the whole tree below you in stable pre-order, annotating each entry with its durable direct-parent session id and depth. You may use `send_message` only for depth-1 entries; deeper entries are candidates for `interrupt_agent` only.
 
 ```json
 {
@@ -1729,23 +1639,23 @@ Source: [`packages/subagent/tool-subagent-control/src/list-agents.ts`](../packag
 
 ### `send_message`
 
-Send a message to a background subagent by its subagent id, continuing the same conversation. It becomes the subagent's next turn: if it is still working, the message waits until its current turn finishes, so it cannot redirect work already underway. This call returns no answer from the subagent — only confirmation that the message was delivered — so use it to give it more work. A failure means the message was NOT delivered.
+Send a message to a direct continuable child by its agent id. If you are a resident continuable child, you may also target your direct parent. If the target is still working, the message steers its nearest step; if it is idle, the message starts a turn. This call returns no answer from the agent — only confirmation that the message was delivered. A failure means the message was NOT delivered.
 
 ```json
 {
   "type": "object",
   "properties": {
-    "subagent_id": {
+    "agent_id": {
       "type": "string",
-      "description": "The subagent id returned when the background subagent was started."
+      "description": "The agent id of your direct continuable child, or your direct parent when you are a resident continuable child."
     },
     "message": {
       "type": "string",
-      "description": "The message to deliver to the subagent."
+      "description": "The message to deliver to the agent."
     }
   },
   "required": [
-    "subagent_id",
+    "agent_id",
     "message"
   ]
 }
@@ -1754,33 +1664,6 @@ Send a message to a background subagent by its subagent id, continuing the same 
 Source: [`packages/subagent/tool-subagent-control/src/index.ts`](../packages/subagent/tool-subagent-control/src/index.ts)
 
 The globally named control tools over continuable background subagents: provider-bound `tool-subagent` instances register distinct delegation tools, while this package registers `send_message` and `interrupt_agent` once, plus `list_agents` from its separately loaded `/list-agents` plugin (whose catalog rows use the sessionProjections and live Agent registries).
-
-<a id="deepseek-aidsh-tool-subagent-report"></a>
-
-## `@deepseek-ai/dsh-tool-subagent-report`
-
-### `report`
-
-Report selected content to the agent that started you. Call this once before you finish, with a self-contained final result, and earlier for progress or findings that change what that agent does next. That agent shares your workspace but does not automatically receive your transcript, tool output, or reasoning, so finishing your work is not itself a result. Reporting does not end your turn or finish your work, and only your direct parent receives it. A failed call may still have arrived, so do not blindly repeat it.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "output": {
-      "type": "string",
-      "description": "Actionable content for your parent; summarize conclusions and reference relevant shared paths."
-    }
-  },
-  "required": [
-    "output"
-  ]
-}
-```
-
-Source: [`packages/subagent/tool-subagent-report/src/index.ts`](../packages/subagent/tool-subagent-report/src/index.ts)
-
-Registered per continuable in-process child rather than globally, so this schema is visible only inside such a child and survives its global `toolFilter`. The same contribution installs the child-scoped `tool:report` prompt section, which this catalog does not render. The parent-facing `send_message` tool is installed independently.
 
 <a id="deepseek-aidsh-tool-jobs"></a>
 
@@ -1859,32 +1742,6 @@ The kind-agnostic background-job controller: background bash commands, PTY sends
 
 ## `@deepseek-ai/dsh-experimental-tool-agent-team`
 
-### `followup_task`
-
-Send a durable follow-up task to another Team member and start a turn when needed.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "target": {
-      "type": "string",
-      "description": "Team member name, or lead."
-    },
-    "message": {
-      "type": "string",
-      "description": "Self-contained message for the target."
-    }
-  },
-  "required": [
-    "target",
-    "message"
-  ]
-}
-```
-
-Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
-
 ### `interrupt_agent`
 
 Interrupt one teammate's current turn while preserving its pending inbox. Team Lead only.
@@ -1921,7 +1778,7 @@ Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/exper
 
 ### `send_message`
 
-Send durable information to another Team member without starting an idle member.
+Send one durable message to another Team member. A running target receives it at the nearest step boundary; an idle target starts a turn; an inactive teammate cold-resumes.
 
 ```json
 {
@@ -2169,196 +2026,7 @@ Wait for the next teammate status, mailbox, or shared-task change after this cal
 
 Source: [`packages/experimental/tool-agent-team/src/index.ts`](../packages/experimental/tool-agent-team/src/index.ts)
 
-All ten tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
-
-<a id="deepseek-aidsh-tool-ios-sim"></a>
-
-## `@deepseek-ai/dsh-tool-ios-sim`
-
-### `sim_describe`
-
-Read the frontmost application’s availability tree on an iOS simulator: element roles, labels, frames in points, and stable `reference` ids. Call this before `sim_input` — an input by element reference is only valid against the references this read issued, and a re-describe repaginates a live UI. Omitting `device` auto-targets the single booted simulator when exactly one exists.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "device": {
-      "type": "string",
-      "description": "Simulator id from sim_list; omitted means the single booted simulator."
-    }
-  }
-}
-```
-
-Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
-
-### `sim_input`
-
-Perform one input gesture on an iOS simulator: `tap` (by element `reference` from a preceding sim_describe, or by `x`/`y` in device points), `swipe` (start/end points), `key` (HID usage code), or `text` (set a value on the target element), or `button` (a hardware button by name). Element references are only valid against the references the last sim_describe issued; a re-describe repaginates a live UI. Omitting `device` auto-targets the single booted simulator when exactly one exists.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "action": {
-      "type": "string",
-      "description": "The gesture to perform.",
-      "enum": [
-        "tap",
-        "swipe",
-        "key",
-        "text",
-        "button"
-      ]
-    },
-    "device": {
-      "type": "string",
-      "description": "Simulator id from sim_list; omitted means the single booted simulator."
-    },
-    "reference": {
-      "type": "string",
-      "description": "Element reference from sim_describe (`tap`/`text` targets)."
-    },
-    "x": {
-      "type": "number",
-      "description": "Target x in device points (`tap`/`text` by point)."
-    },
-    "y": {
-      "type": "number",
-      "description": "Target y in device points (`tap`/`text` by point)."
-    },
-    "startX": {
-      "type": "number",
-      "description": "Swipe start x in device points."
-    },
-    "startY": {
-      "type": "number",
-      "description": "Swipe start y in device points."
-    },
-    "endX": {
-      "type": "number",
-      "description": "Swipe end x in device points."
-    },
-    "endY": {
-      "type": "number",
-      "description": "Swipe end y in device points."
-    },
-    "duration": {
-      "type": "number",
-      "description": "Swipe duration in milliseconds."
-    },
-    "usage": {
-      "type": "number",
-      "description": "HID usage code of the key to press (`key`)."
-    },
-    "button": {
-      "type": "string",
-      "description": "Hardware button to press (`button`).",
-      "enum": [
-        "home",
-        "lock",
-        "side_button",
-        "siri",
-        "apple_pay",
-        "play_pause"
-      ]
-    },
-    "text": {
-      "type": "string",
-      "description": "The value to set on the target element (`text`)."
-    }
-  },
-  "required": [
-    "action"
-  ]
-}
-```
-
-Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
-
-### `sim_launch`
-
-Launch one INSTALLED application on an iOS simulator by bundle identifier (for example com.apple.Preferences for Settings). Auto-targets the single booted simulator unless `device` names one. Installs nothing: deploy apps through other means first. The result echoes the resolved device and reports geometry in points when the provider can attest it.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "bundle_id": {
-      "type": "string",
-      "description": "Bundle identifier of an app already installed on the target simulator."
-    },
-    "device": {
-      "type": "string",
-      "description": "Simulator id from sim_list; omitted means the single booted simulator."
-    }
-  },
-  "required": [
-    "bundle_id"
-  ]
-}
-```
-
-Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
-
-### `sim_list`
-
-List the iOS simulators this host can control (id, display name, boot state, runtime). Use an id verbatim as the optional `device` argument of the other sim_* tools; omitting `device` auto-targets the single booted simulator when exactly one exists.
-
-```json
-{
-  "type": "object",
-  "properties": {}
-}
-```
-
-Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
-
-### `sim_open_url`
-
-Open one URL on an iOS simulator — https pages in Safari or any custom scheme the installed apps registered. Auto-targets the single booted simulator unless `device` names one.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "url": {
-      "type": "string",
-      "description": "Absolute URL for the device's URL handler."
-    },
-    "device": {
-      "type": "string",
-      "description": "Simulator id from sim_list; omitted means the single booted simulator."
-    }
-  },
-  "required": [
-    "url"
-  ]
-}
-```
-
-Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
-
-### `sim_screenshot`
-
-Take a PNG screenshot of an iOS simulator screen and return the image itself. Auto-targets the single booted simulator unless `device` names one. Requires the current model to accept image input. Coordinate taps are unavailable by design until element references arrive; use screenshots to inspect state, not to aim inputs.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "device": {
-      "type": "string",
-      "description": "Simulator id from sim_list; omitted means the single booted simulator."
-    }
-  }
-}
-```
-
-Source: [`packages/iossim/tool-ios-sim/src/index.ts`](../packages/iossim/tool-ios-sim/src/index.ts)
-
-`sim_screenshot` commits through ctx.attachments and renders the dedicated image result card; geometry in points rides launch results only when the mounted provider can attest it (the level-0 simctl provider documents its absence instead). `stream` stays a reserved capability name — calling an unadvertised verb rejects with SIMULATOR_CAPABILITY_UNAVAILABLE.
+All nine tools are scoped to implicit Team Leads and durable teammates. The shipped dsh-base bundle keeps the package disabled; the documented Agent Teams profile patch enables it while disabling the legacy continuable-child control names.
 
 <a id="deepseek-aidsh-tool-todo"></a>
 
@@ -2504,54 +2172,6 @@ Constraints: concurrency and total-agent caps apply; no filesystem, network, tim
 ```
 
 Source: [`packages/workflow/tool-workflow/src/index.ts`](../packages/workflow/tool-workflow/src/index.ts)
-
-<a id="deepseek-aidsh-tool-security-scan-moses"></a>
-
-## `@deepseek-ai/dsh-tool-security-scan-moses`
-
-### `security_scan`
-
-Run an authorized security scanner against allowlisted targets you own. Enabled scanners: nuclei, httpx, katana, ffuf, nmap, sqlmap. Options come from each scanner's whitelist; raw flags are never accepted.
-
-```json
-{
-  "type": "object",
-  "properties": {
-    "scanner": {
-      "type": "string",
-      "description": "Which scanner to run.",
-      "enum": [
-        "nuclei",
-        "httpx",
-        "katana",
-        "ffuf",
-        "nmap",
-        "sqlmap"
-      ]
-    },
-    "targets": {
-      "type": "array",
-      "description": "URLs or host[:port] strings; every host must be on this deployment allowlist.",
-      "items": {
-        "type": "string"
-      }
-    },
-    "options": {
-      "type": "object",
-      "description": "Scanner-specific whitelisted options (e.g. nuclei severity/tags; nmap ports). Values are validated; raw argv is impossible.",
-      "additionalProperties": true
-    }
-  },
-  "required": [
-    "scanner",
-    "targets"
-  ]
-}
-```
-
-Source: [`packages/security/tool-security-scan-moses/src/index.ts`](../packages/security/tool-security-scan-moses/src/index.ts)
-
-security_scan keeps target authorization and option whitelists behind ctx.securityScan so model-visible schemas stay stable across deployments.
 
 <a id="deepseek-aidsh-tool-web"></a>
 
