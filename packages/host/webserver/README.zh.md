@@ -38,6 +38,8 @@ kind: "package-reference"
 
 `host` 只接受两个值：`127.0.0.1`（默认姿态，仅回环）与 `0.0.0.0`（有意向网络开放——服务器自身不携带 TLS、认证或来源策略）。`port` 为 0 时请求 OS 分配端口；之后用 `ctx.webServer.port` 读取正在监听的端口。
 
+`loopbackFamilies` 选择回环姿态监听的地址族：`ipv4`（默认）只绑定 `127.0.0.1`，`dual` 则在同一端口上同时绑定 `::1`。Chrome 会把每个 `*.localhost` 名称优先解析为 `::1`；HTTP 请求会回退到 IPv4，但 WebSocket upgrade 不会，因此通过受信主机列表命名此类 authority 的部署需要 `dual`。在 `dual` 下，缺少 IPv6 回环的主机会导致激活失败；`dual` 与 `0.0.0.0` 组合会在加载时被拒绝，因为全接口绑定是另一种姿态。
+
 设置 `compression: 'gzip'` 可以包装符合条件的 socket-backed 响应，而不改变 route API。客户端必须接受 gzip，且媒体类型必须可压缩；已知长度小于 `compressionThresholdBytes` 的响应保持未压缩，未知长度 stream 则立即符合条件。已有编码、`Cache-Control: no-transform`、range 响应、SSE、ZIP 与已打包的 `.gz` Worker image 均保持不变。随附 Web bundle 使用 level 1 与 1024 字节阈值；其他组合默认不压缩。
 
 ### 注册路由

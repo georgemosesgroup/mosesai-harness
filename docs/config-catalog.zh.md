@@ -887,6 +887,14 @@ export interface Config {
   host: '127.0.0.1' | '0.0.0.0'
   /** Listen port; zero requests an OS-assigned port. */
   port: number
+  /**
+   * Address families the loopback posture listens on. `dual` binds `::1` on
+   * the same port as `127.0.0.1`, so a name that resolves to IPv6 first (every
+   * `*.localhost` name in Chrome) reaches WebSocket upgrades, which do not
+   * fall back to IPv4 the way HTTP requests do. A missing IPv6 loopback fails
+   * activation. Only valid with host `127.0.0.1`. @default 'ipv4'
+   */
+  loopbackFamilies?: 'ipv4' | 'dual'
   /** Response compression for socket-backed HTTP requests. @default 'none' */
   compression?: 'none' | 'gzip'
   /** Gzip DEFLATE level from 0 through 9. @default 1 */

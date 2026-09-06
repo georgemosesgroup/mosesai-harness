@@ -61,6 +61,14 @@ export interface Config {
   host: '127.0.0.1' | '0.0.0.0'
   /** Listen port; zero requests an OS-assigned port. */
   port: number
+  /**
+   * Address families the loopback posture listens on. `dual` binds `::1` on
+   * the same port as `127.0.0.1`, so a name that resolves to IPv6 first (every
+   * `*.localhost` name in Chrome) reaches WebSocket upgrades, which do not
+   * fall back to IPv4 the way HTTP requests do. A missing IPv6 loopback fails
+   * activation. Only valid with host `127.0.0.1`. @default 'ipv4'
+   */
+  loopbackFamilies?: 'ipv4' | 'dual'
   /** Response compression for socket-backed HTTP requests. @default 'none' */
   compression?: 'none' | 'gzip'
   /** Gzip DEFLATE level from 0 through 9. @default 1 */
@@ -70,10 +78,14 @@ export interface Config {
 }
 
 const DEFAULT_COMPRESSION = 'none' as const
+const DEFAULT_LOOPBACK_FAMILIES = 'ipv4' as const
+const LOOPBACK_HOST = '127.0.0.1'
+const IPV6_LOOPBACK_HOST = '::1'
 const DEFAULT_COMPRESSION_LEVEL = 1
 const DEFAULT_COMPRESSION_THRESHOLD_BYTES = 1024
 
 interface ResolvedConfig extends Config {
+  loopbackFamilies: 'ipv4' | 'dual'
   compression: 'none' | 'gzip'
   compressionLevel: number
   compressionThresholdBytes: number
@@ -125,6 +137,7 @@ export class WebServer extends Service {
   static Config: z<Config> = z.object({
     host: z.union([z.const('127.0.0.1'), z.const('0.0.0.0')]).required(),
     port: z.natural().max(65535).required(),
+    loopbackFamilies: z.union([z.const('ipv4'), z.const('dual')]).default(DEFAULT_LOOPBACK_FAMILIES),
     compression: z.union([z.const('none'), z.const('gzip')]).default(DEFAULT_COMPRESSION),
     compressionLevel: z.number().step(1).min(0).max(9).default(DEFAULT_COMPRESSION_LEVEL),
     compressionThresholdBytes: z.natural().default(DEFAULT_COMPRESSION_THRESHOLD_BYTES),
@@ -136,14 +149,20 @@ export class WebServer extends Service {
   private readonly upgradedSockets = new Set<Duplex>()
   private readonly indexTaps: ((html: string) => string)[] = []
   private fallback: WebRoute['handler'] | undefined
-  private server!: Server
+  /** The `config.host` listener first, then the `::1` listener under `dual`. */
+  private readonly servers: Server[] = []
   private listenedPort!: number
   private readonly gzip: NodeMiddleware | undefined
+  private readonly loopbackFamilies: 'ipv4' | 'dual'
 
   constructor(ctx: Context, private config: Config) {
     super(ctx, 'webServer')
     const resolved = config as ResolvedConfig
     this.gzip = resolved.compression === 'gzip' ? createGzipMiddleware(resolved) : undefined
+    this.loopbackFamilies = resolved.loopbackFamilies
+    if (this.loopbackFamilies === 'dual' && config.host !== LOOPBACK_HOST) {
+      throw new Error(`webserver: loopbackFamilies "dual" requires host ${LOOPBACK_HOST}, got ${config.host}`)
+    }
   }
 
   /** The listening port (the OS-assigned value when config.port is 0). */
@@ -216,7 +235,11 @@ export class WebServer extends Service {
     }
   }
 
-  /** Listen; resolves once the socket is bound (rejection = FAILED fiber). */
+  /**
+   * Listen; resolves once every socket is bound (rejection = FAILED fiber).
+   * Under `loopbackFamilies: dual` the `::1` listener binds after the
+   * `127.0.0.1` one on the port it received, so an OS-assigned port is shared.
+   */
   async [Service.init](): Promise<void> {
     const handle = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
       /* v8 ignore next -- `?? '/'` arm: node:http always sets url on server
@@ -239,7 +262,7 @@ export class WebServer extends Service {
     // rejection killing the process on one malformed request (bad %-escape,
     // client dropping mid-body). Per-request failures log and answer 400 —
     // never a process exit.
-    this.server = createServer((req, res) => {
+    const server = createServer((req, res) => {
       const next = (): void => {
         void handle(req, res).catch((err: unknown) => {
           this.ctx.logger.warn(err instanceof Error ? err : new Error(String(err)))
@@ -254,7 +277,7 @@ export class WebServer extends Service {
       if (this.gzip === undefined) next()
       else this.gzip(req, res, next)
     })
-    this.server.on('upgrade', (req, socket, head) => {
+    server.on('upgrade', (req, socket, head) => {
       const onError = (error: Error): void => {
         this.ctx.logger.warn(error)
         socket.destroy()
@@ -289,29 +312,49 @@ export class WebServer extends Service {
       }
     })
 
-    await new Promise<void>((resolve, reject) => {
-      this.server.once('error', reject)
-      this.server.listen(this.config.port, this.config.host, () => {
-        this.server.off('error', reject)
-        this.server.on('error', (err) => { this.ctx.logger.error(err) })
-        this.listenedPort = (this.server.address() as AddressInfo).port
-        resolve()
-      })
-    })
+    this.servers.push(server)
+    this.listenedPort = await this.listen(server, this.config.host, this.config.port)
+    if (this.loopbackFamilies === 'dual') {
+      // The same request and upgrade handlers serve both families; only the
+      // socket differs. Node 24 accepts one listener per family and shares no
+      // handle between them, so the second listener is a second server.
+      const ipv6 = createServer(server.listeners('request')[0] as Parameters<typeof createServer>[0])
+      for (const listener of server.listeners('upgrade')) {
+        ipv6.on('upgrade', listener as (...args: unknown[]) => void)
+      }
+      this.servers.push(ipv6)
+      await this.listen(ipv6, IPV6_LOOPBACK_HOST, this.listenedPort)
+    }
 
     // Node does not include upgraded sockets in closeAllConnections(). The service
     // owns them with the other connections, so it tracks and destroys them explicitly.
     this.ctx.effect(() => async () => {
-      const serverClosed = new Promise<void>((resolve) => {
-        this.server.close(() => { resolve() })
-      })
-      this.server.closeAllConnections()
+      const serversClosed = this.servers.map(server => new Promise<void>((resolve) => {
+        server.close(() => { resolve() })
+        server.closeAllConnections()
+      }))
       const upgradedClosed = [...this.upgradedSockets].map(socket => new Promise<void>((resolve) => {
         socket.once('close', () => { resolve() })
         socket.destroy()
       }))
-      await Promise.all([serverClosed, ...upgradedClosed])
+      await Promise.all([...serversClosed, ...upgradedClosed])
     }, 'webServer.listen')
+  }
+
+  /**
+   * Bind one server; a listen error before the bind completes rejects, so an
+   * unbound second family fails activation rather than serving one family.
+   * @returns the bound port.
+   */
+  private listen(server: Server, host: string, port: number): Promise<number> {
+    return new Promise<number>((resolve, reject) => {
+      server.once('error', reject)
+      server.listen(port, host, () => {
+        server.off('error', reject)
+        server.on('error', (err) => { this.ctx.logger.error(err) })
+        resolve((server.address() as AddressInfo).port)
+      })
+    })
   }
 
   /** Longest-prefix-wins over the prefix table after an exact-table miss. */

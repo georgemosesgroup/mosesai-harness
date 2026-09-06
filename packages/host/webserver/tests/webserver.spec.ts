@@ -7,7 +7,8 @@
 
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { once } from 'node:events'
-import { connect } from 'node:net'
+import { connect, createServer as createNetServer } from 'node:net'
+import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
@@ -28,14 +29,15 @@ afterEach(async () => {
 })
 
 /** Write a cordis.yml with one webserver row, then boot it through the real Loader. */
-async function loadComposition(port = 0, gzip = false): Promise<Context> {
+async function loadComposition(port = 0, gzip = false, extra: readonly string[] = []): Promise<Context> {
   root = await mkdtemp(join(tmpdir(), 'dsh-webserver-loader-'))
   const configPath = join(root, 'cordis.yml')
   await writeFile(configPath, [
     "- name: '@deepseek-ai/dsh-host-webserver'",
     '  config:',
-    "    host: '127.0.0.1'",
+    ...(extra.some(line => line.startsWith('    host:')) ? [] : ["    host: '127.0.0.1'"]),
     `    port: ${String(port)}`,
+    ...extra,
     ...(gzip
       ? [
         '    compression: gzip',
@@ -73,14 +75,15 @@ async function request(
   port: number,
   path: string,
   init?: RequestInit,
+  host = '127.0.0.1',
 ): Promise<{ status: number; body: string; headers: Headers }> {
-  const response = await fetch(`http://127.0.0.1:${String(port)}${path}`, init)
+  const response = await fetch(`http://${host}:${String(port)}${path}`, init)
   return { status: response.status, body: (await response.text()).slice(0, 80), headers: response.headers }
 }
 
 /** Open one raw upgrade request and return after the handler writes its response. */
-async function upgrade(port: number, path: string): Promise<ReturnType<typeof connect>> {
-  const socket = connect(port, '127.0.0.1')
+async function upgrade(port: number, path: string, host = '127.0.0.1'): Promise<ReturnType<typeof connect>> {
+  const socket = connect(port, host)
   await once(socket, 'connect')
   const response = once(socket, 'data')
   socket.write([
@@ -101,6 +104,7 @@ describe('real Loader composition', () => {
     expect(HttpServer.Config({ host: '127.0.0.1', port: 0 })).toEqual({
       host: '127.0.0.1',
       port: 0,
+      loopbackFamilies: 'ipv4',
       compression: 'none',
       compressionLevel: 1,
       compressionThresholdBytes: 1024,
@@ -353,6 +357,60 @@ describe('real Loader composition', () => {
       { kind: 'script', placement: 'body', text: 'B' },
     ])).toBe('<script>H</script><main>x</main><script>B</script>'
       + '<script>(globalThis.__DSH_BOOT_READY__ ??= Promise.withResolvers()).resolve()</script>')
+  })
+
+  it('binds ::1 beside 127.0.0.1 only under loopbackFamilies dual', { timeout: 60_000 }, async () => {
+    expect(HttpServer.Config({ host: '127.0.0.1', port: 0 }).loopbackFamilies).toBe('ipv4')
+    expect(() => HttpServer.Config({ host: '127.0.0.1', port: 0, loopbackFamilies: 'both' as never })).toThrow()
+
+    // The default posture stays IPv4-only: the IPv6 loopback refuses.
+    const ipv4Only = await loadComposition()
+    ipv4Only.webServer.register({ kind: 'exact', path: '/probe', handler: (_req, res) => { res.writeHead(200); res.end('V4') } })
+    expect(await request(ipv4Only.webServer.port, '/probe')).toMatchObject({ status: 200, body: 'V4' })
+    await expect(request(ipv4Only.webServer.port, '/probe', undefined, '[::1]')).rejects.toThrow()
+    await ipv4Only.fiber.dispose()
+    if (root !== undefined) await rm(root, { recursive: true, force: true })
+
+    // Dual: one OS-assigned port answers HTTP and upgrades on both families,
+    // and teardown closes both listeners.
+    const dual = await loadComposition(0, false, ['    loopbackFamilies: dual'])
+    const server = dual.webServer
+    server.register({ kind: 'exact', path: '/probe', handler: (_req, res) => { res.writeHead(200); res.end('DUAL') } })
+    server.registerUpgrade({
+      path: '/events',
+      handler: (_req, socket) => {
+        socket.write('HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: dsh-test\r\n\r\n')
+      },
+    })
+    expect(await request(server.port, '/probe')).toMatchObject({ status: 200, body: 'DUAL' })
+    expect(await request(server.port, '/probe', undefined, '[::1]')).toMatchObject({ status: 200, body: 'DUAL' })
+    const upgraded = await upgrade(server.port, '/events', '::1')
+    const port = server.port
+    await dual.fiber.dispose()
+    upgraded.destroy()
+    await expect(request(port, '/probe')).rejects.toThrow()
+    await expect(request(port, '/probe', undefined, '[::1]')).rejects.toThrow()
+  })
+
+  it('fails activation when dual is combined with all-interfaces or ::1 is taken', { timeout: 60_000 }, async () => {
+    await expect(loadComposition(0, false, ["    host: '0.0.0.0'", '    loopbackFamilies: dual']))
+      .rejects.toThrow(/loopbackFamilies "dual" requires host 127\.0\.0\.1/)
+    await context?.fiber.dispose()
+    context = undefined
+    if (root !== undefined) await rm(root, { recursive: true, force: true })
+
+    // Occupy a port on ::1 only, so the IPv4 bind succeeds and the second
+    // family's bind is the one that fails.
+    const occupant = createNetServer()
+    occupant.listen(0, '::1')
+    await once(occupant, 'listening')
+    const takenPort = (occupant.address() as AddressInfo).port
+    try {
+      await expect(loadComposition(takenPort, false, ['    loopbackFamilies: dual']))
+        .rejects.toThrow(/failed to apply loader entry.*EADDRINUSE/)
+    } finally {
+      await new Promise<void>((resolve) => { occupant.close(() => { resolve() }) })
+    }
   })
 
   it('fails the fiber when the port is already taken (fail-loud at activation)', { timeout: 60_000 }, async () => {
