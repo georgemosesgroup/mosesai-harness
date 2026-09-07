@@ -7,6 +7,11 @@
 
 import { useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
+import {
+  Button, IconChevronDownOutline14, IconLoadingOutline16, IconPlayOutline16, IconPlusOutline16,
+  IconStopFill16, IconWarningOutline16, Input, Menu, StateDot,
+} from '@deepseek-ai/dsh-client-ui-primitives'
+import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
 import styles from './SimulatorPanel.module.css'
 
@@ -60,6 +65,7 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
   const [deviceTypes, setDeviceTypes] = useState<DeviceTypeRow[]>([])
   const [runtimes, setRuntimes] = useState<RuntimeRow[]>([])
   const [creating, setCreating] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [newName, setNewName] = useState('')
   const [newType, setNewType] = useState('')
   const [newRuntime, setNewRuntime] = useState('')
@@ -437,101 +443,193 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
   }
 
   const streaming = codec !== undefined
+  const connecting = status.key === 'status.connecting'
+  const selected = devices.find(d => d.id === device)
+  const booted = devices.filter(d => d.state === 'booted')
+  const shutdown = devices.filter(d => d.state !== 'booted')
+
+  /** One device row of the picker: name plus its power state as a caption. */
+  const deviceEntry = (d: DeviceRow): MenuEntry => ({
+    id: d.id,
+    label: (
+      <span className={styles.menuName}>
+        <span className={styles.menuNameText}>{d.name}</span>
+        <span className={clsx(styles.menuState, d.state === 'booted' && styles.menuStateBooted)}>
+          {t(d.state === 'booted' ? 'device.booted' : 'device.shutdownState')}
+        </span>
+      </span>
+    ),
+  })
+  const pickerItems: MenuEntry[] = [
+    { id: 'auto', label: t('picker.auto') },
+    ...(booted.length > 0 ? [{ type: 'label' as const, id: 'group-booted', text: t('group.booted') }, ...booted.map(deviceEntry)] : []),
+    ...(shutdown.length > 0 ? [{ type: 'label' as const, id: 'group-shutdown', text: t('group.shutdown') }, ...shutdown.map(deviceEntry)] : []),
+  ]
+  const pickerFooter: MenuEntry[] = [
+    ...(selected === undefined
+      ? []
+      : [{ id: selected.state === 'booted' ? 'power-shutdown' : 'power-boot', label: selected.state === 'booted' ? t('device.shutdown') : t('device.boot') }]),
+    { id: 'create', label: t('device.create'), icon: <IconPlusOutline16 /> },
+  ]
+  const onPick = (id: string): void => {
+    setPickerOpen(false)
+    if (id === 'auto') { setDevice(undefined); return }
+    if (id === 'create') { openCreate(); return }
+    if (id === 'power-boot' && selected !== undefined) { bootDevice(selected.id); return }
+    if (id === 'power-shutdown' && selected !== undefined) { shutdownDevice(selected.id); return }
+    setDevice(id)
+  }
+  const chipState = streaming ? 'done' : selected?.state === 'booted' ? 'done' : undefined
+  const readoutState = streaming ? 'done' : connecting ? 'ongoing' : error !== undefined ? 'error' : undefined
+
+  const keycaps: { name: string; key: Parameters<typeof t>[0] }[] = [
+    { name: 'lock', key: 'hw.lock' },
+    { name: 'side_button', key: 'hw.side' },
+    { name: 'siri', key: 'hw.siri' },
+    { name: 'home', key: 'hw.home' },
+  ]
 
   return (
     <div className={styles.panel}>
-      <div className={styles.controls}>
-        <select
-          className={styles.picker}
-          value={device ?? ''}
-          onChange={(event) => {
-            setDevice(event.target.value === '' ? undefined : event.target.value)
-          }}
-        >
-          <option value="">{t('picker.auto')}</option>
-          {devices.map(d => (
-            <option key={d.id} value={d.id}>{d.name} [{d.state}]</option>
-          ))}
-        </select>
-        <button type="button" className={styles.button} onClick={start} disabled={streaming}>{t('action.start')}</button>
-        <button type="button" className={styles.button} onClick={stop} disabled={!streaming}>{t('action.stop')}</button>
-        <button type="button" className={styles.button} onClick={openCreate} disabled={streaming}>{t('device.create')}</button>
-        <span className={clsx(styles.status, streaming && styles.live)}>{t(status.key)}{status.detail === undefined ? '' : ` ${status.detail}`}</span>
+      <div className={styles.strip}>
+        <Menu
+          open={pickerOpen}
+          portal
+          dense
+          items={pickerItems}
+          footer={pickerFooter}
+          selectedId={device ?? 'auto'}
+          onSelect={onPick}
+          onClose={() => { setPickerOpen(false) }}
+          anchor={(
+            <Button
+              variant="outline"
+              size="sm"
+              className={styles.deviceChip}
+              aria-label={t('picker.label')}
+              aria-haspopup="menu"
+              aria-expanded={pickerOpen}
+              disabled={streaming}
+              onClick={() => { setPickerOpen(open => !open) }}
+            >
+              {chipState !== undefined ? <StateDot state={chipState} size={8} /> : null}
+              <span className={styles.deviceChipName}>{selected?.name ?? t('picker.auto')}</span>
+              <IconChevronDownOutline14 className={styles.deviceChipChevron} />
+            </Button>
+          )}
+        />
+        {streaming
+          ? (
+            <Button variant="outline" size="sm" className={styles.powerAction} icon={<IconStopFill16 />} onClick={stop}>
+              {t('action.stop')}
+            </Button>
+          )
+          : (
+            <Button variant="primary" size="sm" className={styles.powerAction} icon={<IconPlayOutline16 />} onClick={start} disabled={connecting}>
+              {t('action.start')}
+            </Button>
+          )}
+        <span className={clsx(styles.readout, streaming && styles.readoutLive)} role="status" aria-live="polite">
+          {readoutState !== undefined ? <StateDot state={readoutState} size={8} /> : null}
+          <span>{t(status.key)}</span>
+          {codec !== undefined ? <span className={styles.readoutCodec}>{codec}</span> : null}
+        </span>
+        <span className={styles.spacer} />
       </div>
-      {!streaming && devices.length > 0 && (
-        <div className={styles.deviceList}>
-          {devices.map(d => (
-            <div key={d.id} className={clsx(styles.deviceRow, device === d.id && styles.deviceSelected)}>
-              <button type="button" className={styles.deviceName} onClick={() => { setDevice(d.id) }}>
-                {d.name}
-                <span className={clsx(styles.deviceState, d.state === 'booted' && styles.deviceBooted)}>{t(d.state === 'booted' ? 'device.booted' : 'device.shutdownState')}</span>
-              </button>
-              {d.state === 'booted'
-                ? <button type="button" className={styles.button} onClick={() => { shutdownDevice(d.id) }}>{t('device.shutdown')}</button>
-                : <button type="button" className={styles.button} onClick={() => { bootDevice(d.id) }}>{t('device.boot')}</button>}
-            </div>
-          ))}
-        </div>
-      )}
       {creating && (
-        <div className={styles.createForm}>
-          <input
-            className={styles.createInput}
-            placeholder={t('create.name')}
-            value={newName}
-            onChange={(e) => { setNewName(e.target.value) }}
-          />
-          <select className={styles.picker} value={newType} onChange={(e) => { setNewType(e.target.value) }}>
-            {deviceTypes.length === 0 && <option value="">{t('create.loading')}</option>}
-            {deviceTypes.map(dt => <option key={dt.identifier} value={dt.identifier}>{dt.name}</option>)}
-          </select>
-          <select className={styles.picker} value={newRuntime} onChange={(e) => { setNewRuntime(e.target.value) }}>
-            {runtimes.length === 0 && <option value="">{t('create.loading')}</option>}
-            {runtimes.map(rt => <option key={rt.identifier} value={rt.identifier} disabled={!rt.available}>{rt.name}{rt.available ? '' : ` (${t('create.unavailable')})`}</option>)}
-          </select>
-          <button type="button" className={styles.button} onClick={submitCreate} disabled={newName.trim() === '' || newType === '' || newRuntime === ''}>{t('create.submit')}</button>
-          <button type="button" className={styles.button} onClick={() => { setCreating(false) }}>{t('create.cancel')}</button>
-        </div>
-      )}
-      {streaming && (
-        <div className={styles.hardwareRow}>
-          <button type="button" className={styles.button} onClick={() => { pressHardwareButton('home') }}>{t('hw.home')}</button>
-          <button type="button" className={styles.button} onClick={() => { pressHardwareButton('lock') }}>{t('hw.lock')}</button>
-          <button type="button" className={styles.button} onClick={() => { pressHardwareButton('side_button') }}>{t('hw.side')}</button>
-          <button type="button" className={styles.button} onClick={() => { pressHardwareButton('siri') }}>{t('hw.siri')}</button>
-          <span className={styles.note}>{t('hw.keyboardHint')}</span>
+        <div className={styles.createCard} role="dialog" aria-label={t('create.title')}>
+          <div className={styles.createTitle}>{t('create.title')}</div>
+          <label className={styles.createField}>
+            <span className={styles.createLabel}>{t('create.name')}</span>
+            <Input
+              className={styles.createInput ?? ''}
+              autoFocus
+              value={newName}
+              onChange={(e) => { setNewName(e.target.value) }}
+            />
+          </label>
+          <label className={styles.createField}>
+            <span className={styles.createLabel}>{t('create.type')}</span>
+            <select className={styles.select} value={newType} onChange={(e) => { setNewType(e.target.value) }}>
+              {deviceTypes.length === 0 && <option value="">{t('create.loading')}</option>}
+              {deviceTypes.map(dt => <option key={dt.identifier} value={dt.identifier}>{dt.name}</option>)}
+            </select>
+          </label>
+          <label className={styles.createField}>
+            <span className={styles.createLabel}>{t('create.runtime')}</span>
+            <select className={styles.select} value={newRuntime} onChange={(e) => { setNewRuntime(e.target.value) }}>
+              {runtimes.length === 0 && <option value="">{t('create.loading')}</option>}
+              {runtimes.map(rt => <option key={rt.identifier} value={rt.identifier} disabled={!rt.available}>{rt.name}{rt.available ? '' : ` (${t('create.unavailable')})`}</option>)}
+            </select>
+          </label>
+          <div className={styles.createActions}>
+            <Button variant="ghost" size="sm" onClick={() => { setCreating(false) }}>{t('create.cancel')}</Button>
+            <Button variant="primary" size="sm" onClick={submitCreate} disabled={newName.trim() === '' || newType === '' || newRuntime === ''}>{t('create.submit')}</Button>
+          </div>
         </div>
       )}
       {autoTargetHint && !streaming && (
-        <div className={styles.note}>{t('note.noInventory')}</div>
+        <div className={styles.notice}>{t('note.noInventory')}</div>
       )}
-      {error !== undefined && <div className={styles.error}>{t(error.key)}{error.detail === undefined ? '' : `: ${error.detail}`}</div>}
-      <div className={styles.surface}>
-        {codec !== undefined && codec !== 'mjpeg'
-          ? (
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              tabIndex={0}
-              className={styles.video}
-              onPointerDown={onSurfacePointerDown}
-              onPointerUp={onSurfacePointerUp}
-              onKeyDown={onSurfaceKeyDown}
-            />
-          )
-          : (
-            <canvas
-              ref={canvasRef}
-              tabIndex={0}
-              className={clsx(styles.canvas, !streaming && styles.hidden)}
-              onPointerDown={onSurfacePointerDown}
-              onPointerUp={onSurfacePointerUp}
-              onKeyDown={onSurfaceKeyDown}
-            />
+      {error !== undefined && (
+        <div className={clsx(styles.notice, styles.noticeError)} role="alert">
+          <span className={styles.noticeIcon}><IconWarningOutline16 /></span>
+          <span>{t(error.key)}{error.detail === undefined ? '' : `: ${error.detail}`}</span>
+        </div>
+      )}
+      <div className={styles.stage}>
+        <div className={styles.bench}>
+          {codec !== undefined && codec !== 'mjpeg'
+            ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                playsInline
+                tabIndex={0}
+                className={styles.screen}
+                onPointerDown={onSurfacePointerDown}
+                onPointerUp={onSurfacePointerUp}
+                onKeyDown={onSurfaceKeyDown}
+              />
+            )
+            : (
+              <canvas
+                ref={canvasRef}
+                tabIndex={0}
+                className={clsx(styles.screen, !streaming && styles.hidden)}
+                onPointerDown={onSurfacePointerDown}
+                onPointerUp={onSurfacePointerUp}
+                onKeyDown={onSurfaceKeyDown}
+              />
+            )}
+          {!streaming && (
+            <div className={styles.silhouette}>
+              <div className={styles.silhouetteFrame}>
+                {connecting ? <IconLoadingOutline16 className={styles.spin} /> : null}
+              </div>
+              <div className={styles.silhouetteText}>
+                {connecting ? t('status.connecting') : status.key === 'status.stopped' ? t('status.stopped') : t('placeholder.start')}
+              </div>
+            </div>
           )}
-        {!streaming && <div className={styles.placeholder}>{t('placeholder.start')}</div>}
+        </div>
+        <div className={styles.rail}>
+          <div className={styles.keycaps} role="group" aria-label={t('hw.rail')}>
+            {keycaps.map(cap => (
+              <button
+                key={cap.name}
+                type="button"
+                className={styles.keycap}
+                disabled={!streaming}
+                onClick={() => { pressHardwareButton(cap.name) }}
+              >
+                {t(cap.key)}
+              </button>
+            ))}
+          </div>
+          {streaming && <div className={styles.keyboardHint}>{t('hw.keyboardHint')}</div>}
+        </div>
       </div>
     </div>
   )

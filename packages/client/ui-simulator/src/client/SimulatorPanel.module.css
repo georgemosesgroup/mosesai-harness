@@ -1,159 +1,388 @@
+/* Simulator panel: an instrument strip over a bench-dark stage. The device is
+   the object; the chrome is the bench. Tokens come from the Moses AI theme;
+   the stage is deliberately dark in both themes so the raster keeps contrast. */
+
 .panel {
+  --sim-space-xs: 4px;
+  --sim-space-sm: 8px;
+  --sim-space-md: 12px;
+  --sim-space-lg: 16px;
+  --sim-stage-bg: var(--dsw-static-neutral-bluish-900);
+  --sim-stage-ink: var(--dsw-static-neutral-bluish-100);
+  --sim-stage-ink-dim: rgba(235, 238, 242, 0.55);
+  --sim-stage-line: rgba(235, 238, 242, 0.16);
+
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: var(--dsw-space-2, 8px);
-  padding: var(--dsw-space-3, 12px);
+  gap: var(--sim-space-sm);
   height: 100%;
-  /* The tab's own container (viewArea) grows with content instead of
-     bounding it, so the panel caps itself: viewport minus the app header
-     and the floating composer. Screen and controls then always fit with
-     no page scroll; the stream shrinks, never the controls. */
+  /* The tab's own container grows with content instead of bounding it, so
+     the panel caps itself: viewport minus the app header and the floating
+     composer. The stage shrinks, never the strip. */
   max-height: calc(100dvh - 220px);
   min-height: 0;
+  padding: var(--sim-space-md) var(--sim-space-md) 0;
   overflow: hidden;
   box-sizing: border-box;
+  font-family: var(--dsw-font-family);
+  color: var(--dsw-alias-label-primary);
 }
 
-.controls {
+/* ── instrument strip ──────────────────────────────────────────────────── */
+
+.strip {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: var(--dsw-space-2, 8px);
+  gap: var(--sim-space-sm);
+  min-height: 32px;
 }
 
-.picker {
-  max-width: 280px;
-  padding: 4px 8px;
+.deviceChip {
+  max-width: 260px;
+  gap: 6px;
 }
 
-.button {
-  padding: 4px 14px;
-  cursor: pointer;
+/* While live the chip is a readout, not a control: keep it legible. */
+.deviceChip:disabled {
+  opacity: 1;
+  color: var(--dsw-alias-label-secondary);
+  cursor: default;
+}
+
+.deviceChipName {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.button:disabled {
-  cursor: default;
-  opacity: 0.5;
+.deviceChipChevron {
+  flex: none;
+  color: var(--dsw-alias-label-tertiary);
 }
 
-.status {
-  color: var(--dsw-text-secondary, #666);
+.menuName {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--sim-space-md);
+  min-width: 0;
+}
+
+.menuNameText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.menuState {
+  flex: none;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-caption);
+}
+
+.menuStateBooted {
+  color: var(--dsw-alias-state-success-primary);
+}
+
+/* Readout: the one line that says what the apparatus is doing. */
+.readout {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding-left: var(--sim-space-xs);
   font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.live {
-  color: var(--dsw-status-running, #0a7d33);
-  font-weight: 600;
+.readoutLive {
+  color: var(--dsw-alias-label-primary);
 }
 
-.note {
-  color: var(--dsw-text-secondary, #666);
+.readoutCodec {
+  padding: 0 6px;
+  border: 0.5px solid var(--dsw-alias-border-l3);
+  border-radius: 999px;
+  font-size: 10px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.powerAction {
+  flex: none;
+}
+
+/* ── notices ───────────────────────────────────────────────────────────── */
+
+.notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sim-space-sm);
+  padding: 6px 10px;
+  border-radius: 8px;
   font-size: 12px;
+  line-height: 18px;
+  color: var(--dsw-alias-label-secondary);
+  background: var(--dsw-alias-interactive-bg-hover);
 }
 
-.error {
-  color: var(--dsw-status-error, #b3261e);
-  font-size: 12px;
+.noticeError {
+  color: var(--dsw-alias-state-error-primary);
+  background: color-mix(in srgb, var(--dsw-alias-state-error-primary) 8%, transparent);
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
-.surface {
+.noticeIcon {
+  flex: none;
+  display: inline-flex;
+  margin-top: 1px;
+}
+
+/* ── create popover ────────────────────────────────────────────────────── */
+
+.createCard {
+  position: absolute;
+  z-index: 20;
+  top: 48px;
+  left: var(--sim-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sim-space-md);
+  width: min(340px, calc(100% - 2 * var(--sim-space-md)));
+  padding: var(--sim-space-lg);
+  border: 0.5px solid var(--dsw-alias-border-l2);
+  border-radius: 14px;
+  background: var(--dsw-alias-bg-base);
+  box-shadow: 0 12px 32px -12px rgba(0, 0, 0, 0.35);
+}
+
+.createTitle {
+  font-size: 12px;
+  line-height: 16px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dsw-alias-label-caption);
+}
+
+.createField {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sim-space-xs);
+}
+
+.createLabel {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--dsw-alias-label-secondary);
+}
+
+.createInput {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.select {
+  width: 100%;
+  height: 32px;
+  padding: 0 28px 0 8px;
+  border: 0.5px solid var(--dsw-alias-border-l4);
+  border-radius: 8px;
+  background: var(--dsw-alias-bg-base);
+  color: var(--dsw-alias-label-primary);
+  font: inherit;
+  font-size: 14px;
+  line-height: 22px;
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--dsw-alias-label-tertiary) 50%),
+    linear-gradient(135deg, var(--dsw-alias-label-tertiary) 50%, transparent 50%);
+  background-position: calc(100% - 15px) 55%, calc(100% - 10px) 55%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+}
+
+.select:focus-visible {
+  outline: none;
+  border-color: var(--dsw-alias-brand-primary);
+}
+
+.createActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sim-space-sm);
+}
+
+/* ── stage ─────────────────────────────────────────────────────────────── */
+
+.stage {
   position: relative;
   flex: 1 1 0;
   min-height: 0;
-  background: var(--dsw-bg-inset, #111);
+  display: flex;
+  align-items: stretch;
+  border-radius: 16px 16px 0 0;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(235, 238, 242, 0.06), transparent 60%),
+    var(--sim-stage-bg);
+  overflow: hidden;
+  /* The bench sits above the composer; the panel's bottom padding is the bench edge. */
+  box-shadow: inset 0 0.5px 0 var(--sim-stage-line);
+}
+
+/* The bench top: the device centred in whatever the rail leaves. */
+.bench {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  padding: var(--sim-space-lg) 0;
 }
 
-.video,
-.canvas {
-  /* Держим пропорции телефона: высота задаёт размер, ширина следует за
-     соотношением сторон кадра; рамка и скругление читаются как устройство. */
+.screen {
   height: 100%;
-  max-width: 100%;
+  max-width: calc(100% - 2 * var(--sim-space-lg));
   object-fit: contain;
-  border-radius: 18px;
-  cursor: pointer;
+  border-radius: 22px;
+  /* Bezel: a hairline of stage ink plus a grounded shadow, no picture frame. */
+  box-shadow:
+    0 0 0 0.5px var(--sim-stage-line),
+    0 32px 48px -28px rgba(0, 0, 0, 0.9);
+  background: var(--dsw-static-neutral-bluish-950);
+  cursor: crosshair;
   touch-action: none;
   user-select: none;
 }
 
-.hardwareRow {
-  display: flex;
-  align-items: center;
-  gap: var(--dsw-space-2, 8px);
-}
-
-.video:focus-visible,
-.canvas:focus-visible {
-  outline: 2px solid var(--dsw-accent, #4a6cf7);
-  outline-offset: 2px;
+.screen:focus-visible {
+  outline: 2px solid var(--dsw-static-neutral-bluish-100);
+  outline-offset: 4px;
 }
 
 .hidden {
   display: none;
 }
 
-.placeholder {
-  position: absolute;
-  color: var(--dsw-text-secondary, #888);
-  font-size: 13px;
-}
-
-.deviceList {
+/* Empty / connecting / stopped: a dashed device silhouette with one line. */
+.silhouette {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  max-height: 180px;
-  overflow-y: auto;
-}
-
-.deviceRow {
-  display: flex;
   align-items: center;
-  gap: var(--dsw-space-2, 8px);
+  gap: var(--sim-space-lg);
+  color: var(--sim-stage-ink-dim);
+  text-align: center;
 }
 
-.deviceSelected {
-  background: var(--dsw-bg-inset, rgba(74, 108, 247, 0.08));
-  border-radius: 6px;
+.silhouetteFrame {
+  width: 132px;
+  height: 268px;
+  border: 1px dashed var(--sim-stage-line);
+  border-radius: 24px;
+  display: grid;
+  place-items: center;
+  color: var(--sim-stage-ink-dim);
 }
 
-.deviceName {
-  flex: 1;
-  display: flex;
+.silhouetteText {
+  max-width: 34ch;
+  font-size: 13px;
+  line-height: 20px;
+}
+
+.spin {
+  animation: sim-spin 1.2s linear infinite;
+}
+
+@keyframes sim-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Hardware rail: the buttons sit beside the device, as keycaps; the keyboard
+   hint sits under them so nothing ever covers the screen. */
+.rail {
+  flex: none;
+  display: grid;
+  grid-template-rows: 1fr auto 1fr;
   align-items: center;
-  gap: var(--dsw-space-2, 8px);
-  padding: 4px 8px;
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  color: inherit;
+  width: 112px;
+  padding: var(--sim-space-lg) var(--sim-space-lg) var(--sim-space-md) var(--sim-space-sm);
+  box-sizing: border-box;
+}
+
+.keycaps {
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.keycap {
+  height: 28px;
+  min-width: 72px;
+  padding: 0 10px;
+  white-space: nowrap;
+  border: 0.5px solid var(--sim-stage-line);
+  border-radius: 8px;
+  background: rgba(235, 238, 242, 0.06);
+  color: var(--sim-stage-ink);
   font: inherit;
-}
-
-.deviceState {
-  color: var(--dsw-text-secondary, #888);
   font-size: 11px;
+  line-height: 16px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 100ms ease, transform 80ms ease;
 }
 
-.deviceBooted {
-  color: var(--dsw-status-running, #0a7d33);
-  font-weight: 600;
+.keycap:hover:not(:disabled) {
+  background: rgba(235, 238, 242, 0.14);
 }
 
-.createForm {
-  display: flex;
-  align-items: center;
-  gap: var(--dsw-space-2, 8px);
-  flex-wrap: wrap;
+.keycap:active:not(:disabled) {
+  transform: translateY(1px);
+  background: rgba(235, 238, 242, 0.2);
 }
 
-.createInput {
-  padding: 4px 8px;
-  min-width: 140px;
+.keycap:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.keycap:focus-visible {
+  outline: 2px solid var(--dsw-static-neutral-bluish-100);
+  outline-offset: 2px;
+}
+
+.keyboardHint {
+  grid-row: 3;
+  align-self: end;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--sim-stage-ink-dim);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spin {
+    animation: none;
+  }
+
+  .keycap {
+    transition: none;
+  }
 }
