@@ -104,7 +104,7 @@ async function mounted(providerClass: typeof FakeStreamProvider | typeof BarePro
 interface Frame {
   type: string
   payload?: Uint8Array
-  devices?: Array<{ id: string; name: string; state: string }>
+  devices?: Array<{ id: string; name: string; state: string; deviceTypeIdentifier?: string; runtimeIdentifier?: string }>
   codec?: string
   message?: string
 }
@@ -142,7 +142,7 @@ describe('the panel bridge', () => {
     const seen = await collect(socket, frame => frame.type === 'devices')
     expect(seen[0]).toEqual({
       type: 'devices',
-      devices: [{ id: 'UDID-A', name: 'iPhone 15 Pro', state: 'booted' }],
+      devices: [{ id: 'UDID-A', name: 'iPhone 15 Pro', state: 'booted', deviceTypeIdentifier: 'type-a', runtimeIdentifier: 'rt-17' }],
     })
   })
 

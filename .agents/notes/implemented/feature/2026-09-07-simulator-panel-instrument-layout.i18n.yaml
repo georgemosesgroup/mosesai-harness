@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write .agents/notes/implemented/feature/2026-09-07-simulator-panel-instrument-layout.md
-2026-09-07-simulator-panel-instrument-layout.md: 6edf0f1abfecda72a166685f577736ecc5d6bdcb
-2026-09-07-simulator-panel-instrument-layout.zh.md: 44f58472a64a0e5e87d0b8d6a9ab5e9684bd62cc
+2026-09-07-simulator-panel-instrument-layout.md: 219390437534212585d7ba19a2b9185c73d0bf20
+2026-09-07-simulator-panel-instrument-layout.zh.md: 36b8282a31dd67d9721670e97a91cfcb14cc5cdd

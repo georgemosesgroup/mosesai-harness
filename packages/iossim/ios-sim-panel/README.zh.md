@@ -10,7 +10,7 @@ kind: "package-reference"
 <a id="summary"></a>
 ## 概述
 
-[模拟器面板](../../client/ui-simulator/README.zh.md)的 WebSocket 桥：一条 upgrade 路由（`/ios-simulator/stream`），把挂载的 [dsh-ios-sim-native](../ios-sim-native/README.zh.md) 提供方的实时流与设备清单泵给 Web GUI。JSON 控制自浏览器流向宿主（`start`/`stop`，携带编码器、帧率、缩放与设备旋钮）；二进制视频块自宿主逐字流向浏览器（提供方 `startStream` 句柄的输出）。路由挂在 webserver 的 upgrade 注册表上，带浏览器信任栅栏（loopback Host + cross-site/Origin 检查，`trustedHosts` 配置供局域网 GUI）；每个套接字一条流，关闭即停，被栅栏拒绝的升级得不到套接字。该表面仅限 GUI：帧与手势绝不进入会话日志。
+[模拟器面板](../../client/ui-simulator/README.zh.md)的 WebSocket 桥：一条 upgrade 路由（`/ios-simulator/stream`），把挂载的 [dsh-ios-sim-native](../ios-sim-native/README.zh.md) 提供方的实时流与设备清单泵给 Web GUI。JSON 控制自浏览器流向宿主（`start`/`stop`，携带编码器、帧率、缩放与设备旋钮）；二进制视频块自宿主逐字流向浏览器（提供方 `startStream` 句柄的输出）。`devices` 清单在名称与状态之外还携带每台设备的底层 `deviceTypeIdentifier` 与 `runtimeIdentifier`，因此面板无需再次往返即可按机型分组并区分运行时。路由挂在 webserver 的 upgrade 注册表上，带浏览器信任栅栏（loopback Host + cross-site/Origin 检查，`trustedHosts` 配置供局域网 GUI）；每个套接字一条流，关闭即停，被栅栏拒绝的升级得不到套接字。该表面仅限 GUI：帧与手势绝不进入会话日志。
 
 在同时存在支持流能力的提供方与 webServer 的组合中挂载它（发行的 `dsh --profile web` 组合已挂载；不宣告能力的提供方会让每次 start 响亮地退化为错误帧）。
 

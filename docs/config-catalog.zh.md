@@ -977,7 +977,7 @@ export interface Config {
 }
 ```
 
-来源：[`packages/iossim/ios-sim-panel/src/index.ts:31`](../packages/iossim/ios-sim-panel/src/index.ts)
+来源：[`packages/iossim/ios-sim-panel/src/index.ts:32`](../packages/iossim/ios-sim-panel/src/index.ts)
 
 <a id="deepseek-aidsh-ios-sim-simctl"></a>
 

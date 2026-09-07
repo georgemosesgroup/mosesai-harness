@@ -2,5 +2,5 @@
 # side as of the last confirmed-consistent state. Both languages carry equal authority;
 # after editing either side, bring the other along and re-record with:
 #   pnpm run verify-translation-pairing --write packages/iossim/ios-sim-panel/README.md
-README.md: 0ffe84c42ef17954d482f34a2d3a4c3f55b4e699
-README.zh.md: 168b29f0d4f4da83fa1a1e7f78489be4023bb0c2
+README.md: 6ea681a44b6c8ee54b2e82790f250775e2b731a7
+README.zh.md: 38532e35ac78f5d439a609cd3721412ebc0d6fbe

@@ -3,7 +3,8 @@
  * the mounted provider's live stream and device inventory to the Web GUI.
  *
  * Protocol (JSON control over the socket, binary video toward the browser):
- * server -> client: {type: 'devices', devices} on connect, {type: 'meta',
+ * server -> client: {type: 'devices', devices: [{id, name, state,
+ * deviceTypeIdentifier, runtimeIdentifier}]} on connect, {type: 'meta',
  * codec} when a stream starts, binary chunks after it, {type: 'end'} when
  * it stops, {type: 'error', message, code?} on failure. client -> server:
  * {action: 'start', device?, codec?, frameRate?, scale?} and
@@ -201,7 +202,15 @@ export function bridge(simulator: IosSimulator, ws: WebSocket): void {
       const devices = await simulator.list()
       send(ws, {
         type: 'devices',
-        devices: devices.map(d => ({ id: String(d.id), name: d.name, state: d.state })),
+        // The substrate identifiers ride along so the panel can group by model
+        // and tell two runtimes of one model apart; labels are the panel's.
+        devices: devices.map(d => ({
+          id: String(d.id),
+          name: d.name,
+          state: d.state,
+          deviceTypeIdentifier: d.deviceTypeIdentifier,
+          runtimeIdentifier: d.runtimeIdentifier,
+        })),
       })
     } catch (cause) {
       // A provider without the list verb still streams: starting without a

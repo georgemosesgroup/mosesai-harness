@@ -13,13 +13,10 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { MenuEntry } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { PropsLocale } from '@deepseek-ai/dsh-client-ui-slots'
+import {
+  deviceChipLabel, deviceRowLabel, groupDevices, type DeviceRow,
+} from './device-inventory.ts'
 import styles from './SimulatorPanel.module.css'
-
-interface DeviceRow {
-  id: string
-  name: string
-  state: 'booted' | 'shutdown'
-}
 
 interface DeviceTypeRow { identifier: string; name: string }
 interface RuntimeRow { identifier: string; name: string; available: boolean }
@@ -445,15 +442,13 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
   const streaming = codec !== undefined
   const connecting = status.key === 'status.connecting'
   const selected = devices.find(d => d.id === device)
-  const booted = devices.filter(d => d.state === 'booted')
-  const shutdown = devices.filter(d => d.state !== 'booted')
 
-  /** One device row of the picker: name plus its power state as a caption. */
-  const deviceEntry = (d: DeviceRow): MenuEntry => ({
+  /** One device row of the picker: its runtime (and own name when renamed) plus the power state. */
+  const deviceEntry = (d: DeviceRow, model: string): MenuEntry => ({
     id: d.id,
     label: (
       <span className={styles.menuName}>
-        <span className={styles.menuNameText}>{d.name}</span>
+        <span className={styles.menuNameText}>{deviceRowLabel(d, model)}</span>
         <span className={clsx(styles.menuState, d.state === 'booted' && styles.menuStateBooted)}>
           {t(d.state === 'booted' ? 'device.booted' : 'device.shutdownState')}
         </span>
@@ -462,8 +457,10 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
   })
   const pickerItems: MenuEntry[] = [
     { id: 'auto', label: t('picker.auto') },
-    ...(booted.length > 0 ? [{ type: 'label' as const, id: 'group-booted', text: t('group.booted') }, ...booted.map(deviceEntry)] : []),
-    ...(shutdown.length > 0 ? [{ type: 'label' as const, id: 'group-shutdown', text: t('group.shutdown') }, ...shutdown.map(deviceEntry)] : []),
+    ...groupDevices(devices).flatMap(group => [
+      { type: 'label' as const, id: `model-${group.key}`, text: group.model },
+      ...group.devices.map(d => deviceEntry(d, group.model)),
+    ]),
   ]
   const pickerFooter: MenuEntry[] = [
     ...(selected === undefined
@@ -513,7 +510,7 @@ export function SimulatorPanel(props: SimulatorPanelProps): React.JSX.Element {
               onClick={() => { setPickerOpen(open => !open) }}
             >
               {chipState !== undefined ? <StateDot state={chipState} size={8} /> : null}
-              <span className={styles.deviceChipName}>{selected?.name ?? t('picker.auto')}</span>
+              <span className={styles.deviceChipName}>{selected === undefined ? t('picker.auto') : deviceChipLabel(selected)}</span>
               <IconChevronDownOutline14 className={styles.deviceChipChevron} />
             </Button>
           )}

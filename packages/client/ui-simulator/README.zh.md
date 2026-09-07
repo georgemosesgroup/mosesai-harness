@@ -10,7 +10,7 @@ kind: "package-reference"
 <a id="summary"></a>
 ## 概述
 
-Web GUI 中的模拟器面板页签：经 [ios-sim-panel WebSocket 桥](../../iossim/ios-sim-panel/README.zh.md)对一台 iOS 模拟器 framebuffer 的实时视图，外加转发给 seam 的 `input` 动词的指针、键盘与硬件按键输入。h264／hevc 块经 MediaSource Extensions 在 `<video>` 元素上于直播边缘解码；mjpeg 渲染到 `<canvas>` 上。该页签按仪器布局：一条仪表条（以 `Menu` 呈现的设备选择器，含已启动与已关闭分组及新建设备页脚；启动/停止操作；带编解码器的状态读数）位于深色工作台之上，framebuffer 以细线边框置于台面，硬件按钮以键帽形式立于其旁。新建设备以选择器下方的弹出面板打开。控件与状态文案经 locale 服务本地化（ru／en／zh）。面板是仅限 GUI 的表面——它不产生会话事件、不读取 agent 状态。
+Web GUI 中的模拟器面板页签：经 [ios-sim-panel WebSocket 桥](../../iossim/ios-sim-panel/README.zh.md)对一台 iOS 模拟器 framebuffer 的实时视图，外加转发给 seam 的 `input` 动词的指针、键盘与硬件按键输入。h264／hevc 块经 MediaSource Extensions 在 `<video>` 元素上于直播边缘解码；mjpeg 渲染到 `<canvas>` 上。该页签按仪器布局：一条仪表条（以 `Menu` 呈现的设备选择器，按机型分组、每个运行时一行、已启动的机型靠前，并带新建设备页脚；启动/停止操作；带编解码器的状态读数）位于深色工作台之上，framebuffer 以细线边框置于台面，硬件按钮以键帽形式立于其旁。新建设备以选择器下方的弹出面板打开。控件与状态文案经 locale 服务本地化（ru／en／zh）。面板是仅限 GUI 的表面——它不产生会话事件、不读取 agent 状态。
 
 本包还拥有 `tool.call.toolview` 槽位的 `sim_screenshot` 键：一行紧凑的摘要行标出目标设备，其默认折叠的展开区通过聊天节点提供的会话授权加载器绘制已提交的 PNG，并把信封文本放在旁边。该行的一切都派生自冻结的调用块（先取 `presentationMeta.device`，再取 `device` 参数，否则为 `auto`；图片引用来自结果自身的图片块），因此实时调用与回放日志渲染完全一致。它不声明 `tool.call.images` 子槽位——该子槽位只允许一个声明者，即上游的 `read_image` 行——而是直接调用加载器，所以不组合附件呈现插件对这里没有任何影响。
 
